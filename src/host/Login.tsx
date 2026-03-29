@@ -137,6 +137,15 @@ function Login() {
             {message}
           </p>
         ) : null}
+
+        <button
+          className="login-link"
+          type="button"
+          onClick={() => navigate("/register")}
+          disabled={loading}
+        >
+          No tienes cuenta? Registrate
+        </button>
       </section>
     </main>
   );

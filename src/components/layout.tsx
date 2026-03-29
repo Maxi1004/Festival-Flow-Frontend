@@ -1,6 +1,9 @@
 import type { ReactNode } from "react";
-import { useNavigate } from "react-router-dom";
 import "../styles/layout.css";
+import { useNavigate } from "react-router-dom";
+import { logoutUser, observeAuthState } from "../service/auth";
+import { useEffect, useState } from "react";
+import type { User } from "firebase/auth";
 
 type LayoutProps = {
   children: ReactNode;
@@ -16,6 +19,29 @@ const navigationItems = [
 
 function Layout({ children }: LayoutProps) {
   const navigate = useNavigate();
+
+  const [user, setUser] = useState<User | null>(null);
+
+  useEffect(() => {
+    const unsubscribe = observeAuthState((currentUser) => {
+      setUser(currentUser);
+    });
+
+    return () => unsubscribe();
+  }, []);
+
+  const handleLogout = async () => {
+    try {
+      await logoutUser();
+      navigate("/");
+    } catch (error) {
+      console.error("Error cerrando sesión:", error);
+    }
+  };
+
+  const handleLogin = () => {
+    navigate("/login");
+  };
 
   return (
     <div className="layout">
@@ -37,7 +63,9 @@ function Layout({ children }: LayoutProps) {
             {navigationItems.map((item, index) => (
               <button
                 key={item}
-                className={`sidebar__link ${index === 0 ? "sidebar__link--active" : ""}`}
+                className={`sidebar__link ${
+                  index === 0 ? "sidebar__link--active" : ""
+                }`}
                 type="button"
               >
                 {item}
@@ -72,9 +100,15 @@ function Layout({ children }: LayoutProps) {
               🔔
             </button>
 
-            <button type="button" onClick={() => navigate("/login")}>
-              Iniciar sesión
-            </button>
+            {user ? (
+              <button type="button" onClick={handleLogout}>
+                Cerrar sesión
+              </button>
+            ) : (
+              <button type="button" onClick={handleLogin}>
+                Iniciar sesión
+              </button>
+            )}
           </div>
         </header>
 
