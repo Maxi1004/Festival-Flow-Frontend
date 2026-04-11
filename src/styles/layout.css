@@ -54,6 +54,13 @@
   font-weight: 700;
 }
 
+.topbar__meta {
+  margin: 8px 0 0;
+  color: #64748b;
+  font-size: 0.92rem;
+  line-height: 1.5;
+}
+
 .sidebar__action,
 .topbar__language,
 .topbar__icon,
@@ -79,6 +86,12 @@
 
 .sidebar__action:hover {
   background: #1e293b;
+}
+
+.sidebar__action:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+  box-shadow: none;
 }
 
 .sidebar__nav {
@@ -196,6 +209,22 @@
   transition: 0.2s;
 }
 
+.topbar__session {
+  padding: 10px 16px;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+  background: #ffffff;
+  color: #0f172a;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.topbar__session:hover {
+  background: #eff6ff;
+  border-color: #bfdbfe;
+}
+
 @media (max-width: 960px) {
   .layout {
     flex-direction: column;
@@ -225,7 +254,8 @@
   }
 
   .topbar__language,
-  .login-button {
+  .login-button,
+  .topbar__session {
     flex: 1;
   }
 }

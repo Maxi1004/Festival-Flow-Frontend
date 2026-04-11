@@ -1,56 +1,12 @@
 import { useEffect, useRef, useState } from "react";
 import type { FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
-import { GoogleAuthProvider, signInWithPopup } from "firebase/auth";
-import { auth } from "../firebase/config";
-import { loginWithEmail } from "../service/auth";
+import { loginWithEmail, loginWithGoogle } from "../service/auth";
+import { registerUser, syncGoogleUser } from "../service/authApi";
+import { USER_ROLE_OPTIONS, type UserRole } from "../types/auth";
 import "../styles/register.css";
 
-
-
 type StatusType = "idle" | "success" | "error";
-
-type RegisterPayload = {
-  name: string;
-  email: string;
-  password: string;
-};
-
-type ApiErrorDetailObject = {
-  message?: string;
-};
-
-type ApiErrorDetailArrayItem = {
-  msg?: string;
-};
-
-type ApiErrorResponse = {
-  detail?: string | ApiErrorDetailObject | ApiErrorDetailArrayItem[];
-  message?: string;
-};
-
-const API_URL = import.meta.env.VITE_API_URL;
-const REGISTER_ENDPOINT = `${API_URL}/auth/register`;
-
-async function syncGoogleUser(data: {
-  uid: string;
-  name: string;
-  email: string;
-}) {
-  const response = await fetch(`${API_URL}/auth/google`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(data),
-  });
-
-  if (!response.ok) {
-    throw new Error("No se pudo sincronizar el usuario con el backend");
-  }
-
-  return await response.json();
-}
 
 function Register() {
   const navigate = useNavigate();
@@ -59,6 +15,7 @@ function Register() {
   const [name, setName] = useState<string>("");
   const [email, setEmail] = useState<string>("");
   const [password, setPassword] = useState<string>("");
+  const [role, setRole] = useState<UserRole | "">("");
   const [message, setMessage] = useState<string>("");
   const [status, setStatus] = useState<StatusType>("idle");
   const [loading, setLoading] = useState<boolean>(false);
@@ -71,60 +28,17 @@ function Register() {
     };
   }, []);
 
-  const getErrorMessage = async (response: Response): Promise<string> => {
-    try {
-      const errorData = (await response.json()) as ApiErrorResponse;
-
-      if (typeof errorData.detail === "string" && errorData.detail.trim()) {
-        return errorData.detail;
-      }
-
-      if (Array.isArray(errorData.detail)) {
-        const firstError = errorData.detail[0];
-        if (firstError?.msg && typeof firstError.msg === "string") {
-          return firstError.msg;
-        }
-      }
-
-      if (
-        typeof errorData.detail === "object" &&
-        errorData.detail !== null &&
-        !Array.isArray(errorData.detail) &&
-        "message" in errorData.detail &&
-        typeof errorData.detail.message === "string" &&
-        errorData.detail.message.trim()
-      ) {
-        return errorData.detail.message;
-      }
-
-      if (typeof errorData.message === "string" && errorData.message.trim()) {
-        return errorData.message;
-      }
-    } catch {
-      return "No pudimos crear la cuenta en este momento. Intenta nuevamente.";
-    }
-
-    return "No pudimos crear la cuenta en este momento. Intenta nuevamente.";
-  };
-
-  const registerUser = async (payload: RegisterPayload): Promise<void> => {
-    const response = await fetch(REGISTER_ENDPOINT, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(payload),
-    });
-
-    if (!response.ok) {
-      throw new Error(await getErrorMessage(response));
-    }
-  };
-
   const handleRegister = async (
     event: FormEvent<HTMLFormElement>
   ): Promise<void> => {
     event.preventDefault();
+
+    if (!role) {
+      setStatus("error");
+      setMessage("Debes seleccionar un rol para crear tu cuenta.");
+      return;
+    }
+
     setLoading(true);
     setMessage("");
     setStatus("idle");
@@ -134,6 +48,7 @@ function Register() {
         name: name.trim(),
         email: email.trim(),
         password,
+        role,
       });
 
       await loginWithEmail(email.trim(), password);
@@ -158,13 +73,18 @@ function Register() {
   };
 
   const handleGoogleRegister = async (): Promise<void> => {
+    if (!role) {
+      setStatus("error");
+      setMessage("Debes seleccionar un rol antes de continuar con Google.");
+      return;
+    }
+
     setLoading(true);
     setMessage("");
     setStatus("idle");
 
     try {
-      const provider = new GoogleAuthProvider();
-      const credential = await signInWithPopup(auth, provider);
+      const credential = await loginWithGoogle();
       const googleName = credential.user.displayName?.trim() || "Usuario";
       const googleEmail = credential.user.email?.trim();
 
@@ -178,7 +98,12 @@ function Register() {
         uid: credential.user.uid,
         name: googleName,
         email: googleEmail,
+        picture: credential.user.photoURL?.trim() || "",
+        provider: "google",
+        role,
       });
+
+      await credential.user.getIdToken();
 
       setStatus("success");
       setMessage("Cuenta creada correctamente. Redirigiendo al inicio...");
@@ -252,6 +177,29 @@ function Register() {
               disabled={loading}
             />
           </label>
+
+          <div className="register-role-group">
+            <span className="register-label">Selecciona tu rol</span>
+            <div
+              className="register-role-options"
+              role="radiogroup"
+              aria-label="Seleccion de rol"
+            >
+              {USER_ROLE_OPTIONS.map((roleOption) => (
+                <label key={roleOption.value} className="register-role-option">
+                  <input
+                    type="radio"
+                    name="role"
+                    value={roleOption.value}
+                    checked={role === roleOption.value}
+                    onChange={() => setRole(roleOption.value)}
+                    disabled={loading}
+                  />
+                  <span>{roleOption.label}</span>
+                </label>
+              ))}
+            </div>
+          </div>
 
           <button className="register-button" type="submit" disabled={loading}>
             {loading ? "Procesando..." : "Registrarse"}

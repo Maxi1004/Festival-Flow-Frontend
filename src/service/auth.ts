@@ -11,6 +11,7 @@ export async function loginWithEmail(email: string, password: string) {
   return await signInWithEmailAndPassword(auth, email, password);
 }
 
+// Firebase popup authentication only. Backend sync happens separately in authApi.ts.
 export async function loginWithGoogle() {
   return await signInWithPopup(auth, googleProvider);
 }

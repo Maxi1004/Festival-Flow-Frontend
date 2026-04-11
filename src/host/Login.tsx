@@ -1,6 +1,9 @@
 import { useState } from "react";
+import type { FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
 import { loginWithEmail, loginWithGoogle } from "../service/auth";
+import { syncGoogleUser } from "../service/authApi";
+import { USER_ROLE_OPTIONS, type UserRole } from "../types/auth";
 import "../styles/login.css";
 
 type StatusType = "idle" | "success" | "error";
@@ -10,12 +13,13 @@ function Login() {
 
   const [email, setEmail] = useState<string>("");
   const [password, setPassword] = useState<string>("");
+  const [googleRole, setGoogleRole] = useState<UserRole | "">("");
   const [message, setMessage] = useState<string>("");
   const [status, setStatus] = useState<StatusType>("idle");
   const [loading, setLoading] = useState<boolean>(false);
 
   const handleEmailLogin = async (
-    event: React.FormEvent<HTMLFormElement>
+    event: FormEvent<HTMLFormElement>
   ): Promise<void> => {
     event.preventDefault();
     setLoading(true);
@@ -44,12 +48,35 @@ function Login() {
   };
 
   const handleGoogleLogin = async (): Promise<void> => {
+    if (!googleRole) {
+      setStatus("error");
+      setMessage("Debes seleccionar un rol antes de continuar con Google.");
+      return;
+    }
+
     setLoading(true);
     setMessage("");
     setStatus("idle");
 
     try {
       const credential = await loginWithGoogle();
+      const name = credential.user.displayName?.trim() || "Usuario";
+      const email = credential.user.email?.trim();
+
+      if (!email) {
+        throw new Error(
+          "No pudimos obtener el correo de tu cuenta de Google. Intenta con otro metodo."
+        );
+      }
+
+      await syncGoogleUser({
+        uid: credential.user.uid,
+        name,
+        email,
+        picture: credential.user.photoURL?.trim() || "",
+        provider: "google",
+        role: googleRole,
+      });
 
       await credential.user.getIdToken();
 
@@ -116,6 +143,25 @@ function Login() {
 
         <div className="login-divider" aria-hidden="true">
           <span>o</span>
+        </div>
+
+        <div className="login-role-group">
+          <span className="login-label">Rol para continuar con Google</span>
+          <div className="login-role-options" role="radiogroup" aria-label="Seleccion de rol">
+            {USER_ROLE_OPTIONS.map((roleOption) => (
+              <label key={roleOption.value} className="login-role-option">
+                <input
+                  type="radio"
+                  name="google-role"
+                  value={roleOption.value}
+                  checked={googleRole === roleOption.value}
+                  onChange={() => setGoogleRole(roleOption.value)}
+                  disabled={loading}
+                />
+                <span>{roleOption.label}</span>
+              </label>
+            ))}
+          </div>
         </div>
 
         <button
