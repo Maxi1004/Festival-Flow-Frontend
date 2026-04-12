@@ -1,0 +1,400 @@
+.talent-page {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.talent-page__eyebrow {
+  margin: 0 0 8px;
+  font-size: 0.82rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #64748b;
+}
+
+.talent-page__title {
+  margin: 0;
+  font-size: clamp(1.8rem, 3vw, 2.3rem);
+  line-height: 1.1;
+  color: #0f172a;
+}
+
+.talent-page__subtitle {
+  margin: 10px 0 0;
+  color: #475569;
+  line-height: 1.6;
+}
+
+.talent-card {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 24px;
+  padding: 28px;
+  box-shadow: 0 24px 50px -40px rgba(15, 23, 42, 0.35);
+}
+
+.talent-hero,
+.talent-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+}
+
+.talent-hero__badge,
+.talent-status-card {
+  min-width: 240px;
+  padding: 20px;
+  border-radius: 20px;
+  background: linear-gradient(180deg, #f8fafc 0%, #eff6ff 100%);
+  border: 1px solid #dbeafe;
+}
+
+.talent-hero__badge strong,
+.talent-status-card h2 {
+  display: block;
+  margin-top: 12px;
+}
+
+.talent-hero__badge p,
+.talent-status-card p {
+  margin: 8px 0 0;
+  color: #475569;
+  line-height: 1.5;
+}
+
+.talent-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 24px;
+}
+
+.talent-grid--sidebar {
+  grid-template-columns: minmax(0, 1.7fr) minmax(260px, 0.8fr);
+}
+
+.talent-profile-header {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 20px;
+  align-items: center;
+}
+
+.talent-profile-header__content {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.talent-avatar {
+  width: 88px;
+  height: 88px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 28px;
+  background: linear-gradient(135deg, #0f172a, #334155);
+  color: #ffffff;
+  font-size: 2rem;
+  font-weight: 700;
+}
+
+.talent-meta-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.talent-meta-list span,
+.talent-badge,
+.talent-status {
+  display: inline-flex;
+  align-items: center;
+  padding: 8px 12px;
+  border-radius: 999px;
+  background: #f1f5f9;
+  color: #334155;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.talent-status--available {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.talent-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.talent-actions--inline {
+  flex-direction: row;
+  flex-wrap: wrap;
+}
+
+.talent-button,
+.talent-filter input,
+.talent-filter select {
+  border-radius: 14px;
+  border: 1px solid #dbe4ee;
+  background: #ffffff;
+  color: #0f172a;
+  transition: all 0.2s ease;
+}
+
+.talent-button {
+  padding: 12px 16px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.talent-button:hover,
+.talent-filter input:hover,
+.talent-filter select:hover,
+.talent-filter input:focus,
+.talent-filter select:focus {
+  border-color: #bfdbfe;
+  background: #eff6ff;
+  outline: none;
+}
+
+.talent-button--primary {
+  background: #0f172a;
+  border-color: #0f172a;
+  color: #ffffff;
+  box-shadow: 0 16px 30px -24px rgba(15, 23, 42, 0.8);
+}
+
+.talent-button--primary:hover {
+  background: #1e293b;
+}
+
+.talent-stack,
+.talent-list,
+.talent-timeline {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.talent-detail-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.talent-field {
+  padding: 18px;
+  border-radius: 18px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+}
+
+.talent-field__label {
+  display: block;
+  margin-bottom: 8px;
+  color: #64748b;
+  font-size: 0.88rem;
+  font-weight: 600;
+}
+
+.talent-field__text,
+.talent-list__text,
+.talent-list__meta {
+  margin: 0;
+  color: #475569;
+  line-height: 1.55;
+}
+
+.talent-list__title {
+  margin: 0 0 6px;
+  color: #0f172a;
+  font-size: 1.05rem;
+}
+
+.talent-list__meta {
+  margin-bottom: 8px;
+  font-size: 0.92rem;
+}
+
+.talent-list__item,
+.talent-timeline__item,
+.talent-application-card,
+.talent-opportunity-card {
+  padding: 18px;
+  border-radius: 20px;
+  border: 1px solid #e2e8f0;
+  background: #f8fafc;
+}
+
+.talent-list__item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.talent-inline-link {
+  color: #0f172a;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.talent-progress {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.talent-progress__track {
+  width: 100%;
+  height: 12px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #e2e8f0;
+}
+
+.talent-progress__bar {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #0f172a, #3b82f6);
+}
+
+.talent-chip-list {
+  margin: 18px 0 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.talent-chip-list__item {
+  padding: 9px 12px;
+  border-radius: 999px;
+  background: #eff6ff;
+  color: #1d4ed8;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.talent-timeline__item {
+  display: grid;
+  grid-template-columns: 72px minmax(0, 1fr);
+  gap: 16px;
+}
+
+.talent-timeline__year {
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.talent-filters {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.talent-filter {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  color: #334155;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.talent-filter input,
+.talent-filter select {
+  padding: 12px 14px;
+  font-size: 0.95rem;
+}
+
+.talent-opportunities,
+.talent-metrics {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 18px;
+}
+
+.talent-opportunity-card,
+.talent-application-card {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.talent-opportunity-card__top,
+.talent-application-card__top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.talent-metric {
+  text-align: left;
+}
+
+.talent-metric__value {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 2rem;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.talent-metric__label {
+  margin: 0;
+  color: #475569;
+}
+
+@media (max-width: 1120px) {
+  .talent-grid,
+  .talent-grid--sidebar,
+  .talent-opportunities,
+  .talent-metrics,
+  .talent-filters {
+    grid-template-columns: 1fr;
+  }
+
+  .talent-profile-header {
+    grid-template-columns: 1fr;
+  }
+
+  .talent-actions {
+    flex-direction: row;
+    flex-wrap: wrap;
+  }
+}
+
+@media (max-width: 720px) {
+  .talent-card,
+  .talent-list__item,
+  .talent-timeline__item,
+  .talent-application-card,
+  .talent-opportunity-card {
+    padding: 20px;
+  }
+
+  .talent-hero,
+  .talent-banner,
+  .talent-list__item,
+  .talent-opportunity-card__top,
+  .talent-application-card__top {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .talent-detail-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .talent-timeline__item {
+    grid-template-columns: 1fr;
+  }
+}

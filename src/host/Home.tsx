@@ -1,8 +1,6 @@
-import { useEffect, useState } from "react";
-import type { User } from "firebase/auth";
-import { getProfile } from "../service/authApi";
-import { observeAuthState } from "../service/auth";
-import type { AuthProfile, UserRole } from "../types/auth";
+import { Navigate } from "react-router-dom";
+import { useCurrentProfile } from "./useCurrentProfile";
+import type { UserRole } from "../types/auth";
 import "../styles/home.css";
 
 type DashboardContent = {
@@ -45,7 +43,7 @@ const dashboardContentByRole: Record<UserRole, DashboardContent> = {
   TALENT: {
     heroTitle: "Tu perfil profesional, al dia",
     heroDescription:
-      "Mantén visible tu experiencia, revisa convocatorias abiertas y da seguimiento a tus postulaciones desde tu panel.",
+      "Manten visible tu experiencia, revisa convocatorias abiertas y da seguimiento a tus postulaciones desde tu panel.",
     summaryTitle: "Resumen profesional",
     summaryText: "Un vistazo rapido a tu presencia y oportunidades activas.",
     summaryCards: [
@@ -72,35 +70,7 @@ const dashboardContentByRole: Record<UserRole, DashboardContent> = {
 };
 
 function Home() {
-  const [user, setUser] = useState<User | null>(null);
-  const [profile, setProfile] = useState<AuthProfile | null>(null);
-  const [isProfileLoading, setIsProfileLoading] = useState<boolean>(true);
-
-  useEffect(() => {
-    const unsubscribe = observeAuthState(async (firebaseUser) => {
-      setUser(firebaseUser);
-
-      if (!firebaseUser) {
-        setProfile(null);
-        setIsProfileLoading(false);
-        return;
-      }
-
-      setIsProfileLoading(true);
-
-      try {
-        const nextProfile = await getProfile();
-        setProfile(nextProfile.user);
-      } catch (error) {
-        console.error("Error al obtener /auth/me:", error);
-        setProfile(null);
-      } finally {
-        setIsProfileLoading(false);
-      }
-    });
-
-    return () => unsubscribe();
-  }, []);
+  const { user, profile, isProfileLoading } = useCurrentProfile();
 
   if (isProfileLoading) {
     return (
@@ -108,9 +78,7 @@ function Home() {
         <section className="home__hero">
           <div>
             <h1 className="home__title">Cargando perfil...</h1>
-            <p className="home__subtitle">
-              Estamos preparando tu panel principal.
-            </p>
+            <p className="home__subtitle">Estamos preparando tu panel principal.</p>
           </div>
         </section>
       </div>
@@ -133,6 +101,11 @@ function Home() {
   }
 
   const currentRole = profile?.role ?? "PRODUCER";
+
+  if (currentRole === "TALENT") {
+    return <Navigate to="/talent" replace />;
+  }
+
   const dashboard = dashboardContentByRole[currentRole];
   const displayName = profile?.name?.trim() || user.displayName?.trim() || "Usuario";
 
@@ -141,11 +114,9 @@ function Home() {
       <section className="home__hero">
         <div>
           <h1 className="home__title">{dashboard.heroTitle}</h1>
-          <p className="home__subtitle">
-            {dashboard.heroDescription}
-          </p>
+          <p className="home__subtitle">{dashboard.heroDescription}</p>
           <p className="home__subtitle home__subtitle--meta">
-            {displayName} · {profile?.email ?? user.email ?? "Sin correo"} · {currentRole}
+            {displayName} | {profile?.email ?? user.email ?? "Sin correo"} | {currentRole}
           </p>
         </div>
       </section>

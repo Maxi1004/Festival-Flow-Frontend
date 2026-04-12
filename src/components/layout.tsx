@@ -1,23 +1,22 @@
-import type { ReactNode } from "react";
-import "../styles/layout.css";
-import { useNavigate } from "react-router-dom";
-import { logoutUser, observeAuthState } from "../service/auth";
 import { useEffect, useState } from "react";
 import type { User } from "firebase/auth";
+import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
+import { logoutUser, observeAuthState } from "../service/auth";
 import { getProfile } from "../service/authApi";
 import type { AuthProfile, UserRole } from "../types/auth";
+import "../styles/layout.css";
 
-type LayoutProps = {
-  children: ReactNode;
+type NavigationItem = {
+  label: string;
+  path?: string;
 };
 
 type RoleLayoutContent = {
   eyebrow: string;
   title: string;
   actionLabel: string;
-  navigationItems: string[];
-  topbarEyebrow: string;
-  topbarTitle: string;
+  actionPath?: string;
+  navigationItems: NavigationItem[];
 };
 
 const roleLayoutContent: Record<UserRole, RoleLayoutContent> = {
@@ -25,22 +24,40 @@ const roleLayoutContent: Record<UserRole, RoleLayoutContent> = {
     eyebrow: "Panel de produccion",
     title: "Tinseltown",
     actionLabel: "Nuevo proyecto",
-    navigationItems: ["Inicio", "Mis proyectos", "Equipo", "Festivales", "Reportes"],
-    topbarEyebrow: "Vista general",
-    topbarTitle: "Inicio",
+    navigationItems: [
+      { label: "Inicio", path: "/" },
+      { label: "Mis proyectos" },
+      { label: "Equipo" },
+      { label: "Festivales" },
+      { label: "Reportes" },
+    ],
   },
   TALENT: {
     eyebrow: "Panel de talento",
     title: "Tinseltown",
     actionLabel: "Completar perfil",
-    navigationItems: ["Inicio", "Mi perfil", "Disponibilidad", "Convocatorias", "Postulaciones"],
-    topbarEyebrow: "Espacio profesional",
-    topbarTitle: "Mi panel",
+    actionPath: "/talent/profile",
+    navigationItems: [
+      { label: "Inicio", path: "/talent" },
+      { label: "Mi perfil", path: "/talent/profile" },
+      { label: "Disponibilidad", path: "/talent/availability" },
+      { label: "Convocatorias", path: "/talent/opportunities" },
+      { label: "Postulaciones", path: "/talent/applications" },
+    ],
   },
 };
 
-function Layout({ children }: LayoutProps) {
+const talentPageMeta: Record<string, { eyebrow: string; title: string }> = {
+  "/talent": { eyebrow: "Espacio profesional", title: "Inicio" },
+  "/talent/profile": { eyebrow: "Perfil audiovisual", title: "Mi perfil" },
+  "/talent/availability": { eyebrow: "Agenda profesional", title: "Disponibilidad" },
+  "/talent/opportunities": { eyebrow: "Oportunidades", title: "Convocatorias" },
+  "/talent/applications": { eyebrow: "Seguimiento", title: "Postulaciones" },
+};
+
+function Layout() {
   const navigate = useNavigate();
+  const location = useLocation();
 
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<AuthProfile | null>(null);
@@ -77,12 +94,20 @@ function Layout({ children }: LayoutProps) {
       await logoutUser();
       navigate("/");
     } catch (error) {
-      console.error("Error cerrando sesión:", error);
+      console.error("Error cerrando sesion:", error);
     }
   };
 
   const handleLogin = () => {
     navigate("/login");
+  };
+
+  const handlePrimaryAction = () => {
+    const actionPath = roleLayoutContent[profile?.role ?? "PRODUCER"].actionPath;
+
+    if (actionPath) {
+      navigate(actionPath);
+    }
   };
 
   const currentRole = profile?.role ?? "PRODUCER";
@@ -91,8 +116,12 @@ function Layout({ children }: LayoutProps) {
   const statusText = isProfileLoading
     ? "Cargando perfil..."
     : user
-    ? `Sesión activa · ${profile?.role ?? "Sin rol"}`
-    : "Agente IA · Online";
+    ? `Sesion activa | ${profile?.role ?? "Sin rol"}`
+    : "Agente IA | Online";
+  const topbarMeta =
+    currentRole === "TALENT"
+      ? talentPageMeta[location.pathname] ?? talentPageMeta["/talent"]
+      : { eyebrow: "Vista general", title: "Inicio" };
 
   return (
     <div className="layout">
@@ -106,22 +135,34 @@ function Layout({ children }: LayoutProps) {
             </div>
           </div>
 
-          <button className="sidebar__action" type="button" disabled={!user || isProfileLoading}>
+          <button
+            className="sidebar__action"
+            type="button"
+            disabled={!user || isProfileLoading || !currentContent.actionPath}
+            onClick={handlePrimaryAction}
+          >
             {currentContent.actionLabel}
           </button>
 
           <nav className="sidebar__nav" aria-label="Navegacion principal">
-            {currentContent.navigationItems.map((item, index) => (
-              <button
-                key={item}
-                className={`sidebar__link ${
-                  index === 0 ? "sidebar__link--active" : ""
-                }`}
-                type="button"
-              >
-                {item}
-              </button>
-            ))}
+            {currentContent.navigationItems.map((item) =>
+              item.path ? (
+                <NavLink
+                  key={item.label}
+                  to={item.path}
+                  end={item.path === "/" || item.path === "/talent"}
+                  className={({ isActive }) =>
+                    `sidebar__link ${isActive ? "sidebar__link--active" : ""}`
+                  }
+                >
+                  {item.label}
+                </NavLink>
+              ) : (
+                <button key={item.label} className="sidebar__link" type="button">
+                  {item.label}
+                </button>
+              )
+            )}
           </nav>
         </div>
 
@@ -134,11 +175,11 @@ function Layout({ children }: LayoutProps) {
       <div className="layout__content">
         <header className="topbar">
           <div>
-            <p className="topbar__eyebrow">{currentContent.topbarEyebrow}</p>
-            <h2 className="topbar__title">{currentContent.topbarTitle}</h2>
+            <p className="topbar__eyebrow">{topbarMeta.eyebrow}</p>
+            <h2 className="topbar__title">{topbarMeta.title}</h2>
             {user ? (
               <p className="topbar__meta">
-                {isProfileLoading ? "Cargando perfil..." : `${userName} · ${currentRole}`}
+                {isProfileLoading ? "Cargando perfil..." : `${userName} | ${currentRole}`}
               </p>
             ) : null}
           </div>
@@ -148,27 +189,25 @@ function Layout({ children }: LayoutProps) {
               ES / EN
             </button>
 
-            <button
-              className="topbar__icon"
-              type="button"
-              aria-label="Notificaciones"
-            >
-              🔔
+            <button className="topbar__icon" type="button" aria-label="Notificaciones">
+              N
             </button>
 
             {user ? (
               <button className="topbar__session" type="button" onClick={handleLogout}>
-                Cerrar sesión
+                Cerrar sesion
               </button>
             ) : (
               <button className="topbar__session" type="button" onClick={handleLogin}>
-                Iniciar sesión
+                Iniciar sesion
               </button>
             )}
           </div>
         </header>
 
-        <main className="layout__main">{children}</main>
+        <main className="layout__main">
+          <Outlet />
+        </main>
       </div>
     </div>
   );
