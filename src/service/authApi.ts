@@ -32,7 +32,7 @@ type SyncGoogleUserPayload = {
 
 const API_URL = import.meta.env.VITE_API_URL;
 
-async function getErrorMessage(response: Response): Promise<string> {
+export async function getErrorMessage(response: Response): Promise<string> {
   try {
     const errorData = (await response.json()) as ApiErrorResponse;
 
@@ -68,13 +68,30 @@ async function getErrorMessage(response: Response): Promise<string> {
   return "No se pudo completar la solicitud. Intenta nuevamente.";
 }
 
-async function parseJsonResponse<T>(response: Response): Promise<T> {
+export async function parseJsonResponse<T>(response: Response): Promise<T> {
   if (!response.ok) {
     throw new Error(await getErrorMessage(response));
   }
 
   return (await response.json()) as T;
 }
+
+export async function getAuthenticatedHeaders(
+  init?: HeadersInit
+): Promise<Record<string, string>> {
+  const token = await getFirebaseToken();
+
+  if (!token) {
+    throw new Error("No hay usuario autenticado");
+  }
+
+  return {
+    ...(init ? Object.fromEntries(new Headers(init).entries()) : {}),
+    Authorization: `Bearer ${token}`,
+  };
+}
+
+export { API_URL };
 
 export async function registerUser(payload: RegisterUserPayload): Promise<void> {
   const response = await fetch(`${API_URL}/auth/register`, {
@@ -103,17 +120,9 @@ export async function syncGoogleUser(payload: SyncGoogleUserPayload) {
 }
 
 export async function getProfile(): Promise<GetProfileResponse> {
-  const token = await getFirebaseToken();
-
-  if (!token) {
-    throw new Error("No hay usuario autenticado");
-  }
-
   const response = await fetch(`${API_URL}/auth/me`, {
     method: "GET",
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
+    headers: await getAuthenticatedHeaders(),
   });
 
   return await parseJsonResponse(response);
