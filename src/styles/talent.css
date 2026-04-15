@@ -136,7 +136,10 @@
 
 .talent-button,
 .talent-filter input,
-.talent-filter select {
+.talent-filter select,
+.talent-input-group input,
+.talent-input-group select,
+.talent-input-group textarea {
   border-radius: 14px;
   border: 1px solid #dbe4ee;
   background: #ffffff;
@@ -155,7 +158,13 @@
 .talent-filter input:hover,
 .talent-filter select:hover,
 .talent-filter input:focus,
-.talent-filter select:focus {
+.talent-filter select:focus,
+.talent-input-group input:hover,
+.talent-input-group select:hover,
+.talent-input-group textarea:hover,
+.talent-input-group input:focus,
+.talent-input-group select:focus,
+.talent-input-group textarea:focus {
   border-color: #bfdbfe;
   background: #eff6ff;
   outline: none;
@@ -299,6 +308,12 @@
   gap: 16px;
 }
 
+.talent-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
 .talent-filter {
   display: flex;
   flex-direction: column;
@@ -312,6 +327,64 @@
 .talent-filter select {
   padding: 12px 14px;
   font-size: 0.95rem;
+}
+
+.talent-input-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  color: #334155;
+  font-size: 0.92rem;
+  font-weight: 600;
+}
+
+.talent-input-group--full {
+  grid-column: 1 / -1;
+}
+
+.talent-input-group--checkbox {
+  flex-direction: row;
+  align-items: center;
+  padding-top: 36px;
+}
+
+.talent-input-group--checkbox input {
+  width: 18px;
+  height: 18px;
+}
+
+.talent-input-group input,
+.talent-input-group select,
+.talent-input-group textarea {
+  padding: 12px 14px;
+  font-size: 0.95rem;
+  font-family: inherit;
+}
+
+.talent-input-group textarea {
+  resize: vertical;
+  min-height: 120px;
+}
+
+.talent-feedback {
+  margin: 0;
+  padding: 14px 16px;
+  border-radius: 16px;
+  border: 1px solid #e2e8f0;
+  background: #f8fafc;
+  color: #334155;
+}
+
+.talent-feedback--error {
+  border-color: #fecaca;
+  background: #fef2f2;
+  color: #991b1b;
+}
+
+.talent-feedback--success {
+  border-color: #bbf7d0;
+  background: #f0fdf4;
+  color: #166534;
 }
 
 .talent-opportunities,
@@ -358,7 +431,8 @@
   .talent-grid--sidebar,
   .talent-opportunities,
   .talent-metrics,
-  .talent-filters {
+  .talent-filters,
+  .talent-form-grid {
     grid-template-columns: 1fr;
   }
 

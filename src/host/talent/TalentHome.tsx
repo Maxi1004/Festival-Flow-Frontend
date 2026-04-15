@@ -1,20 +1,93 @@
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useCurrentProfile } from "../useCurrentProfile";
-import {
-  talentProfileMock,
-  talentQuickActions,
-  talentRecentActivity,
-  talentSummaryCards,
-} from "./mock";
+import { getMyApplications } from "../../service/applicationApi";
+import { getPublicOpportunities } from "../../service/publicOpportunityApi";
+import { getMyTalentProfile } from "../../service/talentApi";
 import "../../styles/home.css";
 import "../../styles/talent.css";
+
+const talentQuickActions = [
+  { label: "Editar perfil", path: "/talent/profile" },
+  { label: "Actualizar disponibilidad", path: "/talent/availability" },
+  { label: "Ver convocatorias", path: "/talent/opportunities" },
+  { label: "Revisar postulaciones", path: "/talent/applications" },
+];
 
 function TalentHome() {
   const navigate = useNavigate();
   const { user, profile } = useCurrentProfile();
+  const [profileCompletion, setProfileCompletion] = useState(0);
+  const [mainSpecialty, setMainSpecialty] = useState("");
+  const [location, setLocation] = useState("");
+  const [applicationsCount, setApplicationsCount] = useState(0);
+  const [opportunitiesCount, setOpportunitiesCount] = useState(0);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState("");
 
-  const displayName = profile?.name?.trim() || user?.displayName?.trim() || talentProfileMock.name;
+  const displayName = profile?.name?.trim() || user?.displayName?.trim() || "Talento";
   const email = profile?.email ?? user?.email ?? "Sin correo";
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function loadDashboard() {
+      try {
+        setError("");
+        const [talentProfile, myApplications, opportunities] = await Promise.all([
+          getMyTalentProfile(),
+          getMyApplications(),
+          getPublicOpportunities(),
+        ]);
+
+        if (!isMounted) {
+          return;
+        }
+
+        setProfileCompletion(talentProfile?.profile_completion ?? 0);
+        setMainSpecialty(talentProfile?.main_specialty ?? "");
+        setLocation(talentProfile?.location ?? "");
+        setApplicationsCount(myApplications.length);
+        setOpportunitiesCount(opportunities.length);
+      } catch (loadError) {
+        if (isMounted) {
+          setError(
+            loadError instanceof Error
+              ? loadError.message
+              : "No se pudo cargar el resumen del panel."
+          );
+        }
+      } finally {
+        if (isMounted) {
+          setIsLoading(false);
+        }
+      }
+    }
+
+    void loadDashboard();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const summaryCards = useMemo(
+    () => [
+      { value: `${profileCompletion}%`, label: "Perfil completado" },
+      { value: String(opportunitiesCount), label: "Convocatorias disponibles" },
+      { value: String(applicationsCount), label: "Postulaciones registradas" },
+    ],
+    [applicationsCount, opportunitiesCount, profileCompletion]
+  );
+
+  const recentActivity = useMemo(
+    () => [
+      `Tu perfil muestra ${profileCompletion}% de completitud.`,
+      `Tienes ${applicationsCount} postulaciones registradas en tu cuenta.`,
+      `Hay ${opportunitiesCount} convocatorias disponibles para revisar.`,
+    ],
+    [applicationsCount, opportunitiesCount, profileCompletion]
+  );
 
   return (
     <div className="home talent-page">
@@ -27,18 +100,20 @@ function TalentHome() {
             a tus postulaciones desde un solo panel.
           </p>
           <p className="home__subtitle home__subtitle--meta">
-            {displayName} | {email} | {talentProfileMock.mainSpecialty}
+            {displayName} | {email} | {mainSpecialty || "Especialidad pendiente"}
           </p>
         </div>
 
         <div className="talent-hero__badge">
           <span className="talent-status talent-status--available">
-            {talentProfileMock.availabilityStatus}
+            {isLoading ? "Cargando..." : `${profileCompletion}% completado`}
           </span>
-          <strong>{talentProfileMock.location}</strong>
-          <p>Perfil listo para nuevas oportunidades audiovisuales.</p>
+          <strong>{location || "Ubicacion pendiente"}</strong>
+          <p>Dashboard conectado a datos reales de perfil, postulaciones y convocatorias.</p>
         </div>
       </section>
+
+      {error ? <p className="talent-feedback talent-feedback--error">{error}</p> : null}
 
       <section className="home__section">
         <div className="section-heading">
@@ -49,9 +124,9 @@ function TalentHome() {
         </div>
 
         <div className="summary-grid">
-          {talentSummaryCards.map((card) => (
+          {summaryCards.map((card) => (
             <article key={card.label} className="summary-card">
-              <span className="summary-card__value">{card.value}</span>
+              <span className="summary-card__value">{isLoading ? "..." : card.value}</span>
               <p className="summary-card__label">{card.label}</p>
             </article>
           ))}
@@ -63,12 +138,12 @@ function TalentHome() {
           <div className="section-heading">
             <h2 className="section-heading__title">Actividad reciente</h2>
             <p className="section-heading__text">
-              Novedades sobre tu perfil, visibilidad y avance en convocatorias.
+              Indicadores simples, honestos y basados en informacion real disponible.
             </p>
           </div>
 
           <ul className="activity-list">
-            {talentRecentActivity.map((item) => (
+            {(isLoading ? ["Cargando actividad..."] : recentActivity).map((item) => (
               <li key={item} className="activity-list__item">
                 {item}
               </li>
