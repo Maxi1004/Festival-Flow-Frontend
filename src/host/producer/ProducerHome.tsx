@@ -4,17 +4,64 @@ import ProducerGuard from "./ProducerGuard";
 import { useCurrentProfile } from "../useCurrentProfile";
 import { getMyProjects } from "../../service/projectApi";
 import { getMyOpportunities } from "../../service/opportunityApi";
+import { getAvailableTalents } from "../../service/talentApi";
 import type { Opportunity, Project } from "../../types/producer";
-import { formatDisplayDate } from "./utils";
+import type { AvailableTalent } from "../../types/talent";
+import {
+  formatDisplayDate,
+  isActiveStatus,
+  isCancelledStatus,
+} from "./utils";
 import "../../styles/home.css";
 import "../../styles/producer.css";
+
+function formatTalentName(talent: AvailableTalent): string {
+  return (
+    talent.display_name?.trim() ||
+    talent.profile?.display_name?.trim() ||
+    talent.name?.trim() ||
+    "Talento sin nombre"
+  );
+}
+
+function formatTalentModality(value?: string | null): string {
+  const labels: Record<string, string> = {
+    FREELANCE: "Freelance",
+    HYBRID: "Hibrido",
+    ONSITE: "Presencial",
+    REMOTE: "Remoto",
+  };
+
+  const normalizedValue = value?.trim().toUpperCase() ?? "";
+
+  return labels[normalizedValue] ?? value?.trim() ?? "Modalidad no informada";
+}
+
+function formatTalentStatus(value?: string | null): string {
+  const labels: Record<string, string> = {
+    AVAILABLE: "Disponible",
+    UNAVAILABLE: "No disponible",
+  };
+  const normalizedValue = value?.trim().toUpperCase() ?? "";
+
+  return labels[normalizedValue] ?? value?.trim() ?? "Sin estado";
+}
+
+function getTalentSpecialties(talent: AvailableTalent): string[] {
+  return talent.specialties?.length
+    ? talent.specialties
+    : talent.profile?.specialties ?? (talent.main_specialty ? [talent.main_specialty] : []);
+}
 
 function ProducerHomeContent() {
   const { user, profile } = useCurrentProfile();
   const [projects, setProjects] = useState<Project[]>([]);
   const [opportunities, setOpportunities] = useState<Opportunity[]>([]);
+  const [availableTalents, setAvailableTalents] = useState<AvailableTalent[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isLoadingTalents, setIsLoadingTalents] = useState(true);
   const [error, setError] = useState("");
+  const [talentsError, setTalentsError] = useState("");
 
   useEffect(() => {
     let isMounted = true;
@@ -59,9 +106,44 @@ function ProducerHomeContent() {
     };
   }, []);
 
+  useEffect(() => {
+    let isMounted = true;
+
+    async function loadAvailableTalents() {
+      try {
+        setIsLoadingTalents(true);
+        setTalentsError("");
+        const nextTalents = await getAvailableTalents();
+
+        if (isMounted) {
+          setAvailableTalents(nextTalents);
+        }
+      } catch (loadError) {
+        if (isMounted) {
+          setTalentsError(
+            loadError instanceof Error
+              ? loadError.message
+              : "No se pudieron cargar los talentos disponibles."
+          );
+          setAvailableTalents([]);
+        }
+      } finally {
+        if (isMounted) {
+          setIsLoadingTalents(false);
+        }
+      }
+    }
+
+    void loadAvailableTalents();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
   const displayName = profile?.name?.trim() || user?.displayName?.trim() || "Productor";
-  const activeOpportunities = opportunities.filter((item) => item.status === "OPEN").length;
-  const closedOpportunities = opportunities.filter((item) => item.status === "CLOSED").length;
+  const activeOpportunities = opportunities.filter((item) => isActiveStatus(item.status)).length;
+  const closedOpportunities = opportunities.filter((item) => isCancelledStatus(item.status)).length;
   const latestProjects = [...projects]
     .sort((a, b) => (b.created_at ?? "").localeCompare(a.created_at ?? ""))
     .slice(0, 3);
@@ -171,6 +253,69 @@ function ProducerHomeContent() {
             </Link>
           </div>
         </article>
+      </section>
+
+      <section className="home__section">
+        <div className="section-heading">
+          <h2 className="section-heading__title">Talentos disponibles</h2>
+          <p className="section-heading__text">
+            Consulta perfiles disponibles cuando el backend exponga el listado para productores.
+          </p>
+        </div>
+
+        {talentsError ? (
+          <article className="panel">
+            <p className="producer-muted">{talentsError}</p>
+          </article>
+        ) : isLoadingTalents ? (
+          <article className="panel">
+            <p className="producer-muted">Cargando talentos disponibles...</p>
+          </article>
+        ) : availableTalents.length > 0 ? (
+          <div className="producer-grid">
+            {availableTalents.map((talent) => (
+              <article
+                key={talent.id ?? talent.user_uid ?? talent.user_id ?? formatTalentName(talent)}
+                className="producer-card producer-record"
+              >
+                <div className="producer-record__header">
+                  <div>
+                    <p className="producer-record__eyebrow">{talent.email ?? "Sin correo"}</p>
+                    <h3 className="producer-record__title">{formatTalentName(talent)}</h3>
+                  </div>
+                  <span className="producer-status">
+                    {formatTalentStatus(talent.status)}
+                  </span>
+                </div>
+
+                <div className="producer-meta-list">
+                  <span>{formatTalentModality(talent.work_modality)}</span>
+                  <span>{talent.location ?? talent.work_location ?? "Ubicacion no informada"}</span>
+                  <span>{formatDisplayDate(talent.available_from)}</span>
+                  <span>{talent.travel_availability ? "Viaja: Si" : "Viaja: No"}</span>
+                </div>
+
+                {talent.notes ? (
+                  <p className="producer-record__text">{talent.notes}</p>
+                ) : null}
+
+                {getTalentSpecialties(talent).length ? (
+                  <div className="producer-chip-list">
+                    {getTalentSpecialties(talent).map((specialty) => (
+                      <span key={specialty} className="producer-chip">
+                        {specialty}
+                      </span>
+                    ))}
+                  </div>
+                ) : null}
+              </article>
+            ))}
+          </div>
+        ) : (
+          <article className="panel">
+            <p className="producer-muted">No hay talentos disponibles por ahora.</p>
+          </article>
+        )}
       </section>
     </div>
   );

@@ -7,6 +7,31 @@ function normalizeStatus(value: string): string {
   return value.trim().toLowerCase();
 }
 
+function formatStatus(value: string | null | undefined): string {
+  const normalizedValue = normalizeStatus(value ?? "");
+
+  const labels: Record<string, string> = {
+    accepted: "Aceptada",
+    aprobado: "Aceptada",
+    aprobada: "Aceptada",
+    cancelled: "Cancelada",
+    cancelada: "Cancelada",
+    cerrada: "Cerrada",
+    in_review: "En revisión",
+    "in review": "En revisión",
+    pending: "Pendiente",
+    pendiente: "Pendiente",
+    preselected: "Preseleccionada",
+    rejected: "Rechazada",
+    rechazada: "Rechazada",
+    review: "En revisión",
+    reviewing: "En revisión",
+    submitted: "Enviada",
+  };
+
+  return labels[normalizedValue] ?? value?.trim() ?? "Sin estado";
+}
+
 function formatDate(value: string | null | undefined): string {
   if (!value) {
     return "Sin fecha";
@@ -36,10 +61,20 @@ function getApplicationTitle(application: TalentApplication): string {
 
 function getApplicationSubtitle(application: TalentApplication): string {
   return (
+    application.opportunity?.project?.title?.trim() ||
+    application.project_title?.trim() ||
     application.opportunity?.role_needed?.trim() ||
     application.opportunity?.specialty?.trim() ||
-    application.project_title?.trim() ||
-    "Sin detalle adicional"
+    "Proyecto no informado"
+  );
+}
+
+function getApplicationDescription(application: TalentApplication): string {
+  return (
+    application.opportunity?.description?.trim() ||
+    application.opportunity?.role_needed?.trim() ||
+    application.opportunity?.specialty?.trim() ||
+    "Esta postulacion no incluye detalle de convocatoria."
   );
 }
 
@@ -127,7 +162,7 @@ function TalentApplications() {
         </article>
         <article className="talent-card talent-metric">
           <span className="talent-metric__value">{reviewCount}</span>
-          <p className="talent-metric__label">En revision</p>
+          <p className="talent-metric__label">En revisión</p>
         </article>
         <article className="talent-card talent-metric">
           <span className="talent-metric__value">{closedCount}</span>
@@ -154,14 +189,15 @@ function TalentApplications() {
                   <h2 className="talent-list__title">{getApplicationTitle(application)}</h2>
                   <p className="talent-list__meta">{getApplicationSubtitle(application)}</p>
                 </div>
-                <span className="talent-badge">{application.status || "Sin estado"}</span>
+                <span className="talent-badge">{formatStatus(application.status)}</span>
               </div>
 
+              <p className="talent-list__text">{getApplicationDescription(application)}</p>
               <p className="talent-list__text">
                 Fecha de postulacion: {formatDate(application.applied_at || application.created_at)}
               </p>
               <p className="talent-list__text">
-                {application.message?.trim() || "Sin mensaje adjunto."}
+                Mensaje enviado: {application.message?.trim() || "Sin mensaje adjunto."}
               </p>
             </article>
           ))}

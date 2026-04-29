@@ -19,6 +19,9 @@ type OpportunityEnvelope = {
 type OpportunityListEnvelope = {
   opportunities?: Opportunity[];
   data?: Opportunity[];
+  items?: Opportunity[];
+  records?: Opportunity[];
+  results?: Opportunity[];
 };
 
 function unwrapOpportunityResponse(payload: Opportunity | OpportunityEnvelope): Opportunity {
@@ -36,7 +39,7 @@ function unwrapOpportunityListResponse(
     return payload;
   }
 
-  return payload.opportunities ?? payload.data ?? [];
+  return payload.opportunities ?? payload.data ?? payload.items ?? payload.records ?? payload.results ?? [];
 }
 
 export async function createOpportunity(

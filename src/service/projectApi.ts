@@ -18,6 +18,9 @@ type ProjectEnvelope = {
 type ProjectListEnvelope = {
   projects?: Project[];
   data?: Project[];
+  items?: Project[];
+  records?: Project[];
+  results?: Project[];
 };
 
 function unwrapProjectResponse(payload: Project | ProjectEnvelope): Project {
@@ -33,7 +36,7 @@ function unwrapProjectListResponse(payload: Project[] | ProjectListEnvelope): Pr
     return payload;
   }
 
-  return payload.projects ?? payload.data ?? [];
+  return payload.projects ?? payload.data ?? payload.items ?? payload.records ?? payload.results ?? [];
 }
 
 export async function createProject(payload: ProjectCreatePayload): Promise<Project> {

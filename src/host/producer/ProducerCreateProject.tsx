@@ -23,7 +23,7 @@ const initialFormState: ProjectFormState = {
   location: "",
   start_date: "",
   end_date: "",
-  status: "DRAFT",
+  status: "ACTIVE",
 };
 
 function ProducerCreateProjectContent() {
@@ -132,8 +132,8 @@ function ProducerCreateProjectContent() {
             <span>Estado</span>
             <select name="status" value={formData.status} onChange={handleChange}>
               {PROJECT_STATUS_OPTIONS.map((status) => (
-                <option key={status} value={status}>
-                  {status}
+                <option key={status.value} value={status.value}>
+                  {status.label}
                 </option>
               ))}
             </select>

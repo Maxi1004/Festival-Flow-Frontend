@@ -1,5 +1,37 @@
 import type { Opportunity, Project } from "../../types/producer";
 
+const STATUS_LABELS: Record<string, string> = {
+  ACTIVE: "Activa",
+  CANCELLED: "Cancelada",
+  CLOSED: "Cancelada",
+  COMPLETED: "Completada",
+  DRAFT: "Borrador",
+  OPEN: "Activa",
+  PAUSED: "Pausada",
+};
+
+function normalizeStatus(value?: string | null): string {
+  return value?.trim().toUpperCase() ?? "";
+}
+
+export function formatStatusLabel(value?: string | null): string {
+  const normalizedValue = normalizeStatus(value);
+
+  return STATUS_LABELS[normalizedValue] ?? value?.trim() ?? "Sin estado";
+}
+
+export function isActiveStatus(value?: string | null): boolean {
+  return ["ACTIVE", "OPEN"].includes(normalizeStatus(value));
+}
+
+export function isCancelledStatus(value?: string | null): boolean {
+  return ["CANCELLED", "CLOSED"].includes(normalizeStatus(value));
+}
+
+export function toVisibleStatusAction(value?: string | null): "ACTIVE" | "CANCELLED" {
+  return isCancelledStatus(value) ? "CANCELLED" : "ACTIVE";
+}
+
 export function formatDisplayDate(value?: string | null): string {
   if (!value) {
     return "Sin definir";

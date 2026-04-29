@@ -12,6 +12,9 @@ const producerNav: NavigationItem[] = [
   { label: "Inicio", path: "/producer" },
   { label: "Mis proyectos", path: "/producer/projects" },
   { label: "Convocatorias", path: "/producer/opportunities" },
+  { label: "Talentos", path: "/producer/talents" },
+  { label: "Crew", path: "/producer/crew" },
+  { label: "Mensajes", path: "/producer/messages" },
 ];
 
 const talentNav: NavigationItem[] = [
@@ -20,6 +23,9 @@ const talentNav: NavigationItem[] = [
   { label: "Disponibilidad", path: "/talent/availability" },
   { label: "Convocatorias", path: "/talent/opportunities" },
   { label: "Postulaciones", path: "/talent/applications" },
+  { label: "Invitaciones", path: "/talent/invitations" },
+  { label: "Mi equipo", path: "/talent/crew" },
+  { label: "Mensajes", path: "/talent/messages" },
 ];
 
 const talentPageMeta: Record<string, { eyebrow: string; title: string }> = {
@@ -28,6 +34,9 @@ const talentPageMeta: Record<string, { eyebrow: string; title: string }> = {
   "/talent/availability": { eyebrow: "Agenda profesional", title: "Disponibilidad" },
   "/talent/opportunities": { eyebrow: "Oportunidades", title: "Convocatorias" },
   "/talent/applications": { eyebrow: "Seguimiento", title: "Postulaciones" },
+  "/talent/invitations": { eyebrow: "Reclutamiento", title: "Invitaciones" },
+  "/talent/crew": { eyebrow: "Equipo", title: "Mi equipo" },
+  "/talent/messages": { eyebrow: "Conversaciones", title: "Mensajes" },
 };
 
 const producerPageMeta: Record<string, { eyebrow: string; title: string }> = {
@@ -36,6 +45,9 @@ const producerPageMeta: Record<string, { eyebrow: string; title: string }> = {
   "/producer/projects/new": { eyebrow: "Produccion", title: "Nuevo proyecto" },
   "/producer/opportunities": { eyebrow: "Convocatorias", title: "Mis convocatorias" },
   "/producer/opportunities/new": { eyebrow: "Convocatorias", title: "Nueva convocatoria" },
+  "/producer/talents": { eyebrow: "Talentos", title: "Talentos disponibles" },
+  "/producer/crew": { eyebrow: "Equipo", title: "Crew" },
+  "/producer/messages": { eyebrow: "Conversaciones", title: "Mensajes" },
 };
 
 function Layout() {

@@ -33,7 +33,7 @@ const initialFormState: OpportunityFormState = {
   location: "",
   modality: "REMOTE",
   requirements: "",
-  status: "OPEN",
+  status: "ACTIVE",
   deadline: "",
 };
 
@@ -101,8 +101,10 @@ function ProducerCreateOpportunityContent() {
     try {
       setIsSubmitting(true);
       setError("");
-      await createOpportunity(normalizeOpportunityFormData(formData));
-      navigate("/producer/opportunities");
+      const createdOpportunity = await createOpportunity(normalizeOpportunityFormData(formData));
+      navigate("/producer/opportunities", {
+        state: { createdOpportunity },
+      });
     } catch (submitError) {
       setError(
         submitError instanceof Error
@@ -207,8 +209,8 @@ function ProducerCreateOpportunityContent() {
               <span>Estado</span>
               <select name="status" value={formData.status} onChange={handleChange}>
                 {OPPORTUNITY_STATUS_OPTIONS.map((status) => (
-                  <option key={status} value={status}>
-                    {status}
+                  <option key={status.value} value={status.value}>
+                    {status.label}
                   </option>
                 ))}
               </select>

@@ -426,13 +426,128 @@
   color: #475569;
 }
 
+.talent-form-grid--single {
+  grid-template-columns: 1fr;
+}
+
+.talent-crew-layout {
+  display: grid;
+  grid-template-columns: minmax(260px, 0.8fr) minmax(0, 1.6fr);
+  gap: 20px;
+  align-items: start;
+}
+
+.talent-crew-projects {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.talent-crew-project {
+  width: 100%;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+  padding: 18px;
+  border: 1px solid #e2e8f0;
+  border-radius: 18px;
+  background: #ffffff;
+  color: #0f172a;
+  text-align: left;
+  cursor: pointer;
+  box-shadow: 0 18px 42px -38px rgba(15, 23, 42, 0.4);
+}
+
+.talent-crew-project:hover,
+.talent-crew-project--active {
+  border-color: #bfdbfe;
+  background: #f8fafc;
+}
+
+.talent-crew-project strong,
+.talent-crew-project small,
+.talent-crew-project__count {
+  display: block;
+}
+
+.talent-crew-project small,
+.talent-crew-project__count {
+  margin-top: 6px;
+  color: #64748b;
+  font-size: 0.86rem;
+}
+
+.talent-crew-project__count {
+  grid-column: 1 / -1;
+  margin-top: 0;
+}
+
+.talent-crew-detail {
+  min-width: 0;
+}
+
+.talent-message-history {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 14px;
+  border-radius: 16px;
+  border: 1px solid #e2e8f0;
+  background: #ffffff;
+}
+
+.talent-message-history h4,
+.talent-message-history p {
+  margin: 0;
+}
+
+.talent-message-history h4 {
+  color: #0f172a;
+  font-size: 0.95rem;
+}
+
+.talent-message-history p {
+  color: #475569;
+  line-height: 1.5;
+}
+
+.talent-message-history span {
+  display: block;
+  margin-top: 4px;
+  color: #64748b;
+  font-size: 0.82rem;
+}
+
+.talent-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(15, 23, 42, 0.52);
+}
+
+.talent-modal__panel {
+  width: min(640px, 100%);
+  max-height: min(720px, calc(100vh - 48px));
+  overflow: auto;
+  padding: 28px;
+  border-radius: 24px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 30px 90px -40px rgba(15, 23, 42, 0.65);
+}
+
 @media (max-width: 1120px) {
   .talent-grid,
   .talent-grid--sidebar,
   .talent-opportunities,
   .talent-metrics,
   .talent-filters,
-  .talent-form-grid {
+  .talent-form-grid,
+  .talent-crew-layout {
     grid-template-columns: 1fr;
   }
 

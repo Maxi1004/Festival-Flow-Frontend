@@ -3,39 +3,74 @@ import {
   getMyTalentAvailability,
   updateMyTalentAvailability,
 } from "../../service/talentApi";
-import type { TalentAvailabilityUpdatePayload } from "../../types/talent";
+import {
+  AVAILABILITY_STATUS_OPTIONS,
+  WORK_MODALITY_OPTIONS,
+} from "../../types/talent";
+import type {
+  AvailabilityStatus,
+  TalentAvailability as TalentAvailabilityRecord,
+  TalentAvailabilityUpdatePayload,
+  WorkModality,
+} from "../../types/talent";
 import "../../styles/talent.css";
 
 type AvailabilityFormState = {
-  status: string;
-  travel_availability: string;
-  work_modality: string;
-  work_location: string;
+  status: AvailabilityStatus;
+  travel_availability: "true" | "false";
+  work_modality: WorkModality;
+  location: string;
   available_from: string;
   notes: string;
 };
 
 const initialFormState: AvailabilityFormState = {
-  status: "",
-  travel_availability: "",
-  work_modality: "",
-  work_location: "",
+  status: "AVAILABLE",
+  travel_availability: "false",
+  work_modality: "REMOTE",
+  location: "",
   available_from: "",
   notes: "",
 };
 
+function toAvailabilityStatus(value: unknown): AvailabilityStatus {
+  return value === "UNAVAILABLE" ? "UNAVAILABLE" : "AVAILABLE";
+}
+
+function toWorkModality(value: unknown): WorkModality {
+  return WORK_MODALITY_OPTIONS.some((option) => option.value === value)
+    ? (value as WorkModality)
+    : "REMOTE";
+}
+
+function toTravelAvailabilityFormValue(value: unknown): AvailabilityFormState["travel_availability"] {
+  if (typeof value === "boolean") {
+    return value ? "true" : "false";
+  }
+
+  if (typeof value === "string") {
+    const normalizedValue = value.trim().toLowerCase();
+
+    return ["si", "sí", "true", "1", "yes", "disponible"].includes(normalizedValue)
+      ? "true"
+      : "false";
+  }
+
+  return "false";
+}
+
 function mapAvailabilityToFormState(
-  availability: Partial<TalentAvailabilityUpdatePayload> | null
+  availability: Partial<TalentAvailabilityRecord> | null
 ): AvailabilityFormState {
   if (!availability) {
     return initialFormState;
   }
 
   return {
-    status: availability.status ?? "",
-    travel_availability: availability.travel_availability ?? "",
-    work_modality: availability.work_modality ?? "",
-    work_location: availability.work_location ?? "",
+    status: toAvailabilityStatus(availability.status),
+    travel_availability: toTravelAvailabilityFormValue(availability.travel_availability),
+    work_modality: toWorkModality(availability.work_modality),
+    location: availability.location ?? availability.work_location ?? "",
     available_from: availability.available_from ?? "",
     notes: availability.notes ?? "",
   };
@@ -45,10 +80,10 @@ function normalizeAvailabilityPayload(
   formData: AvailabilityFormState
 ): TalentAvailabilityUpdatePayload {
   return {
-    status: formData.status.trim(),
-    travel_availability: formData.travel_availability.trim(),
-    work_modality: formData.work_modality.trim(),
-    work_location: formData.work_location.trim(),
+    status: formData.status,
+    travel_availability: formData.travel_availability === "true",
+    work_modality: formData.work_modality,
+    location: formData.location.trim(),
     available_from: formData.available_from || null,
     notes: formData.notes.trim(),
   };
@@ -171,39 +206,51 @@ function TalentAvailability() {
             <div className="talent-form-grid">
               <label className="talent-input-group">
                 <span>Estado</span>
-                <input
+                <select
                   name="status"
                   value={formData.status}
                   onChange={handleChange}
-                  placeholder="Disponible"
-                />
+                >
+                  {AVAILABILITY_STATUS_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
               </label>
 
               <label className="talent-input-group">
                 <span>Disponibilidad para viajar</span>
-                <input
+                <select
                   name="travel_availability"
                   value={formData.travel_availability}
                   onChange={handleChange}
-                  placeholder="Disponible para viajar dentro y fuera del pais"
-                />
+                >
+                  <option value="true">Si</option>
+                  <option value="false">No</option>
+                </select>
               </label>
 
               <label className="talent-input-group">
                 <span>Modalidad de trabajo</span>
-                <input
+                <select
                   name="work_modality"
                   value={formData.work_modality}
                   onChange={handleChange}
-                  placeholder="Freelance, hibrido, remoto..."
-                />
+                >
+                  {WORK_MODALITY_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
               </label>
 
               <label className="talent-input-group">
                 <span>Ubicacion de trabajo</span>
                 <input
-                  name="work_location"
-                  value={formData.work_location}
+                  name="location"
+                  value={formData.location}
                   onChange={handleChange}
                   placeholder="Santiago, Chile"
                 />
@@ -234,15 +281,21 @@ function TalentAvailability() {
 
           <aside className="talent-card talent-status-card">
             <span className="talent-status talent-status--available">
-              {formData.status.trim() || "Sin estado definido"}
+              {
+                AVAILABILITY_STATUS_OPTIONS.find((option) => option.value === formData.status)
+                  ?.label
+              }
             </span>
             <h2 className="section-heading__title">Perfil listo para postular</h2>
             <p className="section-heading__text">
-              Modalidad principal: {formData.work_modality.trim() || "No informada"}.
+              Modalidad principal: {
+                WORK_MODALITY_OPTIONS.find((option) => option.value === formData.work_modality)
+                  ?.label
+              }.
               Inicio estimado: {formData.available_from || "Sin fecha"}.
             </p>
             <p className="section-heading__text">
-              Ubicacion: {formData.work_location.trim() || "No informada"}.
+              Ubicacion: {formData.location.trim() || "No informada"}.
             </p>
           </aside>
         </form>

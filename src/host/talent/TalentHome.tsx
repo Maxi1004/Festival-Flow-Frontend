@@ -12,6 +12,8 @@ const talentQuickActions = [
   { label: "Actualizar disponibilidad", path: "/talent/availability" },
   { label: "Ver convocatorias", path: "/talent/opportunities" },
   { label: "Revisar postulaciones", path: "/talent/applications" },
+  { label: "Ver invitaciones", path: "/talent/invitations" },
+  { label: "Ver mi equipo", path: "/talent/crew" },
 ];
 
 function TalentHome() {

@@ -1,6 +1,13 @@
 export type ProjectStatus = "DRAFT" | "ACTIVE" | "PAUSED" | "COMPLETED" | "CANCELLED";
 
-export type OpportunityStatus = "OPEN" | "CLOSED" | "PAUSED" | "DRAFT";
+export type OpportunityStatus =
+  | "ACTIVE"
+  | "CANCELLED"
+  | "OPEN"
+  | "CLOSED"
+  | "PAUSED"
+  | "DRAFT"
+  | "COMPLETED";
 
 export type OpportunityModality = "REMOTE" | "ONSITE" | "HYBRID" | "FLEXIBLE";
 
@@ -34,6 +41,7 @@ export type Opportunity = {
   id: string;
   project_id: string;
   producer_id?: string;
+  owner_uid?: string;
   title: string;
   role_needed: string;
   specialty: string;
@@ -67,20 +75,17 @@ export type OpportunityStatusPayload = {
   status: OpportunityStatus | string;
 };
 
-export const PROJECT_STATUS_OPTIONS: ProjectStatus[] = [
-  "DRAFT",
-  "ACTIVE",
-  "PAUSED",
-  "COMPLETED",
-  "CANCELLED",
+export const STATUS_ACTION_OPTIONS: Array<{
+  value: ProjectStatus | OpportunityStatus;
+  label: string;
+}> = [
+  { value: "ACTIVE", label: "Iniciar" },
+  { value: "CANCELLED", label: "Cancelar" },
 ];
 
-export const OPPORTUNITY_STATUS_OPTIONS: OpportunityStatus[] = [
-  "OPEN",
-  "CLOSED",
-  "PAUSED",
-  "DRAFT",
-];
+export const PROJECT_STATUS_OPTIONS = STATUS_ACTION_OPTIONS;
+
+export const OPPORTUNITY_STATUS_OPTIONS = STATUS_ACTION_OPTIONS;
 
 export const OPPORTUNITY_MODALITY_OPTIONS: OpportunityModality[] = [
   "REMOTE",

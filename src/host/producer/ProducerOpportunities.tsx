@@ -1,21 +1,109 @@
 import { useEffect, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import ProducerGuard from "./ProducerGuard";
+import {
+  getOpportunityApplications,
+  updateApplicationStatus,
+} from "../../service/applicationApi";
 import { getMyProjects } from "../../service/projectApi";
 import {
   getMyOpportunities,
   updateOpportunityStatus,
 } from "../../service/opportunityApi";
 import type { Opportunity, Project } from "../../types/producer";
-import { formatDisplayDate, getOpportunityProjectTitle } from "./utils";
+import type { TalentApplication } from "../../types/talent";
+import {
+  formatDisplayDate,
+  formatStatusLabel,
+  getOpportunityProjectTitle,
+  isActiveStatus,
+  isCancelledStatus,
+} from "./utils";
 import "../../styles/producer.css";
+
+function formatApplicationStatus(value?: string | null): string {
+  const labels: Record<string, string> = {
+    ACCEPTED: "Aceptada",
+    CANCELLED: "Cancelada",
+    IN_REVIEW: "En revision",
+    PENDING: "Pendiente",
+    PRESELECTED: "Preseleccionada",
+    REJECTED: "Rechazada",
+    SUBMITTED: "Enviada",
+  };
+  const normalizedValue = value?.trim().toUpperCase().replaceAll(" ", "_") ?? "";
+
+  return labels[normalizedValue] ?? value?.trim() ?? "Sin estado";
+}
+
+function formatApplicationDate(value?: string | null): string {
+  if (!value) {
+    return "Sin fecha";
+  }
+
+  const parsedDate = new Date(value);
+
+  if (Number.isNaN(parsedDate.getTime())) {
+    return value;
+  }
+
+  return new Intl.DateTimeFormat("es-CL", {
+    dateStyle: "medium",
+    timeStyle: "short",
+  }).format(parsedDate);
+}
+
+function getApplicantName(application: TalentApplication): string {
+  return (
+    application.talent_name?.trim() ||
+    application.talent?.name?.trim() ||
+    application.talent?.display_name?.trim() ||
+    application.talent?.profile?.display_name?.trim() ||
+    application.user?.name?.trim() ||
+    application.user?.display_name?.trim() ||
+    application.talent_profile?.display_name?.trim() ||
+    application.profile?.display_name?.trim() ||
+    "Talento sin nombre"
+  );
+}
+
+function getApplicantEmail(application: TalentApplication): string {
+  return (
+    application.talent_email?.trim() ||
+    application.talent?.email?.trim() ||
+    application.user?.email?.trim() ||
+    "Sin correo"
+  );
+}
+
+function getApplicantSpecialties(application: TalentApplication): string[] {
+  return (
+    application.specialties ??
+    application.talent_profile?.specialties ??
+    application.profile?.specialties ??
+    (application.main_specialty ? [application.main_specialty] : [])
+  );
+}
 
 function ProducerOpportunitiesContent() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [projects, setProjects] = useState<Project[]>([]);
   const [opportunities, setOpportunities] = useState<Opportunity[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [closingId, setClosingId] = useState("");
+  const [expandedApplicantsId, setExpandedApplicantsId] = useState("");
+  const [loadingApplicantsId, setLoadingApplicantsId] = useState("");
+  const [updatingApplicationId, setUpdatingApplicationId] = useState("");
+  const [applicantsByOpportunity, setApplicantsByOpportunity] = useState<
+    Record<string, TalentApplication[]>
+  >({});
+  const [applicantsErrorByOpportunity, setApplicantsErrorByOpportunity] = useState<
+    Record<string, string>
+  >({});
+  const [applicantsSuccessByOpportunity, setApplicantsSuccessByOpportunity] = useState<
+    Record<string, string>
+  >({});
   const [error, setError] = useState("");
 
   useEffect(() => {
@@ -35,8 +123,17 @@ function ProducerOpportunitiesContent() {
           return;
         }
 
+        const createdOpportunity =
+          (location.state as { createdOpportunity?: Opportunity } | null)?.createdOpportunity ??
+          null;
+        const mergedOpportunities =
+          createdOpportunity &&
+          !nextOpportunities.some((opportunity) => opportunity.id === createdOpportunity.id)
+            ? [createdOpportunity, ...nextOpportunities]
+            : nextOpportunities;
+
         setProjects(nextProjects);
-        setOpportunities(nextOpportunities);
+        setOpportunities(mergedOpportunities);
       } catch (loadError) {
         if (isMounted) {
           setError(
@@ -57,15 +154,15 @@ function ProducerOpportunitiesContent() {
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, [location.state]);
 
-  const activeCount = opportunities.filter((item) => item.status === "OPEN").length;
+  const activeCount = opportunities.filter((item) => isActiveStatus(item.status)).length;
 
   const handleCloseOpportunity = async (opportunityId: string) => {
     try {
       setClosingId(opportunityId);
       setError("");
-      const updated = await updateOpportunityStatus(opportunityId, { status: "CLOSED" });
+      const updated = await updateOpportunityStatus(opportunityId, { status: "CANCELLED" });
       setOpportunities((current) =>
         current.map((item) => (item.id === updated.id ? updated : item))
       );
@@ -77,6 +174,90 @@ function ProducerOpportunitiesContent() {
       );
     } finally {
       setClosingId("");
+    }
+  };
+
+  const handleToggleApplicants = async (opportunityId: string) => {
+    if (expandedApplicantsId === opportunityId) {
+      setExpandedApplicantsId("");
+      return;
+    }
+
+    setExpandedApplicantsId(opportunityId);
+
+    if (applicantsByOpportunity[opportunityId] || applicantsErrorByOpportunity[opportunityId]) {
+      return;
+    }
+
+    try {
+      setLoadingApplicantsId(opportunityId);
+      setApplicantsErrorByOpportunity((current) => {
+        const nextValue = { ...current };
+        delete nextValue[opportunityId];
+        return nextValue;
+      });
+      const applicants = await getOpportunityApplications(opportunityId);
+      setApplicantsByOpportunity((current) => ({
+        ...current,
+        [opportunityId]: applicants,
+      }));
+    } catch (loadError) {
+      setApplicantsErrorByOpportunity((current) => ({
+        ...current,
+        [opportunityId]:
+          loadError instanceof Error
+            ? loadError.message
+            : "No se pudieron cargar los postulantes.",
+      }));
+    } finally {
+      setLoadingApplicantsId("");
+    }
+  };
+
+  const handleUpdateApplicantStatus = async (
+    opportunityId: string,
+    applicationId: string,
+    status: "ACCEPTED" | "REJECTED"
+  ) => {
+    try {
+      setUpdatingApplicationId(applicationId);
+      setApplicantsErrorByOpportunity((current) => {
+        const nextValue = { ...current };
+        delete nextValue[opportunityId];
+        return nextValue;
+      });
+      const updatedApplication = await updateApplicationStatus(applicationId, status);
+      setApplicantsByOpportunity((current) => ({
+        ...current,
+        [opportunityId]: (current[opportunityId] ?? []).map((application) =>
+          application.id === applicationId
+            ? {
+                ...application,
+                ...(updatedApplication.opportunity_id ? updatedApplication : {}),
+                id: application.id,
+                opportunity_id: application.opportunity_id,
+                status: updatedApplication.status || status,
+              }
+            : application
+        ),
+      }));
+      setApplicantsSuccessByOpportunity((current) => ({
+        ...current,
+        [opportunityId]:
+          status === "ACCEPTED"
+            ? "Postulante aceptado correctamente."
+            : "Postulante rechazado correctamente.",
+      }));
+    } catch (updateError) {
+      setApplicantsErrorByOpportunity((current) => ({
+        ...current,
+        [opportunityId]:
+          updateError instanceof Error
+            ? updateError.message
+            : "No se pudo actualizar el estado del postulante.",
+      }));
+    } finally {
+      setUpdatingApplicationId("");
     }
   };
 
@@ -130,7 +311,7 @@ function ProducerOpportunitiesContent() {
                   </p>
                   <h2 className="producer-record__title">{opportunity.title}</h2>
                 </div>
-                <span className="producer-status">{opportunity.status}</span>
+                <span className="producer-status">{formatStatusLabel(opportunity.status)}</span>
               </div>
 
               <div className="producer-meta-list">
@@ -164,16 +345,119 @@ function ProducerOpportunitiesContent() {
                 <button
                   className="producer-button"
                   type="button"
-                  disabled={opportunity.status === "CLOSED" || closingId === opportunity.id}
+                  disabled={loadingApplicantsId === opportunity.id}
+                  onClick={() => void handleToggleApplicants(opportunity.id)}
+                >
+                  {loadingApplicantsId === opportunity.id
+                    ? "Cargando..."
+                    : expandedApplicantsId === opportunity.id
+                      ? "Ocultar postulantes"
+                      : "Ver postulantes"}
+                </button>
+                <button
+                  className="producer-button"
+                  type="button"
+                  disabled={isCancelledStatus(opportunity.status) || closingId === opportunity.id}
                   onClick={() => void handleCloseOpportunity(opportunity.id)}
                 >
                   {closingId === opportunity.id
-                    ? "Cerrando..."
-                    : opportunity.status === "CLOSED"
-                    ? "Cerrada"
-                    : "Cerrar convocatoria"}
+                    ? "Cancelando..."
+                    : isCancelledStatus(opportunity.status)
+                      ? "Cancelada"
+                      : "Cancelar convocatoria"}
                 </button>
               </div>
+
+              {expandedApplicantsId === opportunity.id ? (
+                <section className="producer-applicants">
+                  <h3 className="producer-applicants__title">Postulantes</h3>
+
+                  {loadingApplicantsId === opportunity.id ? (
+                    <p className="producer-muted">Cargando postulantes...</p>
+                  ) : applicantsErrorByOpportunity[opportunity.id] ? (
+                    <p className="producer-muted">
+                      {applicantsErrorByOpportunity[opportunity.id]}
+                    </p>
+                  ) : applicantsByOpportunity[opportunity.id]?.length ? (
+                    <>
+                      {applicantsSuccessByOpportunity[opportunity.id] ? (
+                        <p className="producer-feedback producer-feedback--success">
+                          {applicantsSuccessByOpportunity[opportunity.id]}
+                        </p>
+                      ) : null}
+                      <div className="producer-list">
+                        {applicantsByOpportunity[opportunity.id].map((application) => (
+                          <article key={application.id} className="producer-list-card">
+                            <div className="producer-record__header">
+                              <div>
+                                <p className="producer-list-card__meta">
+                                  {getApplicantEmail(application)}
+                                </p>
+                                <h4 className="producer-list-card__title">
+                                  {getApplicantName(application)}
+                                </h4>
+                              </div>
+                              <span className="producer-status">
+                                {formatApplicationStatus(application.status)}
+                              </span>
+                            </div>
+
+                            <p className="producer-list-card__text">
+                              Fecha: {formatApplicationDate(application.applied_at || application.created_at)}
+                            </p>
+                            <p className="producer-list-card__text">
+                              Mensaje: {application.message?.trim() || "Sin mensaje."}
+                            </p>
+
+                            {getApplicantSpecialties(application).length ? (
+                              <div className="producer-chip-list">
+                                {getApplicantSpecialties(application).map((specialty) => (
+                                  <span key={specialty} className="producer-chip">
+                                    {specialty}
+                                  </span>
+                                ))}
+                              </div>
+                            ) : null}
+
+                            <div className="producer-actions producer-actions--inline">
+                              <button
+                                className="producer-button producer-button--primary"
+                                type="button"
+                                disabled={updatingApplicationId === application.id}
+                                onClick={() =>
+                                  void handleUpdateApplicantStatus(
+                                    opportunity.id,
+                                    application.id,
+                                    "ACCEPTED"
+                                  )
+                                }
+                              >
+                                {updatingApplicationId === application.id ? "Actualizando..." : "Aceptar"}
+                              </button>
+                              <button
+                                className="producer-button"
+                                type="button"
+                                disabled={updatingApplicationId === application.id}
+                                onClick={() =>
+                                  void handleUpdateApplicantStatus(
+                                    opportunity.id,
+                                    application.id,
+                                    "REJECTED"
+                                  )
+                                }
+                              >
+                                Rechazar
+                              </button>
+                            </div>
+                          </article>
+                        ))}
+                      </div>
+                    </>
+                  ) : (
+                    <p className="producer-muted">No hay postulantes para esta convocatoria.</p>
+                  )}
+                </section>
+              ) : null}
             </article>
           ))
         ) : (

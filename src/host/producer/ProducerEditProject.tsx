@@ -3,7 +3,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import ProducerGuard from "./ProducerGuard";
 import { getProjectById, updateProject } from "../../service/projectApi";
 import { PROJECT_STATUS_OPTIONS } from "../../types/producer";
-import { normalizeProjectFormData, toDateInputValue } from "./utils";
+import { normalizeProjectFormData, toDateInputValue, toVisibleStatusAction } from "./utils";
 import "../../styles/producer.css";
 
 type ProjectFormState = {
@@ -23,7 +23,7 @@ const initialFormState: ProjectFormState = {
   location: "",
   start_date: "",
   end_date: "",
-  status: "DRAFT",
+  status: "ACTIVE",
 };
 
 function ProducerEditProjectContent() {
@@ -59,7 +59,7 @@ function ProducerEditProjectContent() {
           location: project.location ?? "",
           start_date: toDateInputValue(project.start_date),
           end_date: toDateInputValue(project.end_date),
-          status: project.status ?? "DRAFT",
+          status: toVisibleStatusAction(project.status),
         });
       } catch (loadError) {
         if (isMounted) {
@@ -191,8 +191,8 @@ function ProducerEditProjectContent() {
             <span>Estado</span>
             <select name="status" value={formData.status} onChange={handleChange}>
               {PROJECT_STATUS_OPTIONS.map((status) => (
-                <option key={status} value={status}>
-                  {status}
+                <option key={status.value} value={status.value}>
+                  {status.label}
                 </option>
               ))}
             </select>

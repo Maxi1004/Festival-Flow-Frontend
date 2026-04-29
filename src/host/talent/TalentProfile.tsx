@@ -278,7 +278,7 @@ function TalentProfile() {
                 </label>
 
                 <label className="talent-input-group">
-                  <span>Anos de experiencia</span>
+                  <span>Años de experiencia</span>
                   <input
                     type="number"
                     min="0"

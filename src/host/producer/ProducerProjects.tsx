@@ -3,7 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import ProducerGuard from "./ProducerGuard";
 import { getMyProjects } from "../../service/projectApi";
 import type { Project } from "../../types/producer";
-import { formatDisplayDate } from "./utils";
+import { formatDisplayDate, formatStatusLabel } from "./utils";
 import "../../styles/producer.css";
 
 function ProducerProjectsContent() {
@@ -81,7 +81,7 @@ function ProducerProjectsContent() {
                   <p className="producer-record__eyebrow">{project.production_type}</p>
                   <h2 className="producer-record__title">{project.title}</h2>
                 </div>
-                <span className="producer-status">{project.status}</span>
+                <span className="producer-status">{formatStatusLabel(project.status)}</span>
               </div>
 
               <p className="producer-record__text">{project.description}</p>

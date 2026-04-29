@@ -32,6 +32,21 @@ function formatModality(value: string | null | undefined): string {
     .join(" ");
 }
 
+function formatOpportunityStatus(value: string | null | undefined): string {
+  const labels: Record<string, string> = {
+    ACTIVE: "Activa",
+    CANCELLED: "Cancelada",
+    CLOSED: "Cancelada",
+    COMPLETED: "Completada",
+    DRAFT: "Borrador",
+    OPEN: "Activa",
+    PAUSED: "Pausada",
+  };
+  const normalizedValue = normalizeText(value).toUpperCase();
+
+  return labels[normalizedValue] ?? value?.trim() ?? "Activa";
+}
+
 function formatDate(value: string | null | undefined): string {
   if (!value) {
     return "Sin fecha limite";
@@ -327,7 +342,7 @@ function TalentOpportunities() {
                     <p className="talent-list__meta">{getProjectLabel(opportunity)}</p>
                     <h2 className="talent-list__title">{getOpportunityTitle(opportunity)}</h2>
                   </div>
-                  <span className="talent-badge">{opportunity.status || "OPEN"}</span>
+                  <span className="talent-badge">{formatOpportunityStatus(opportunity.status)}</span>
                 </div>
 
                 <div className="talent-meta-list">

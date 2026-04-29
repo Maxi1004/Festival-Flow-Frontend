@@ -12,6 +12,7 @@ import {
   normalizeOpportunityFormData,
   requirementsToTextarea,
   toDateInputValue,
+  toVisibleStatusAction,
 } from "./utils";
 import "../../styles/producer.css";
 
@@ -37,7 +38,7 @@ const initialFormState: OpportunityFormState = {
   location: "",
   modality: "REMOTE",
   requirements: "",
-  status: "OPEN",
+  status: "ACTIVE",
   deadline: "",
 };
 
@@ -81,7 +82,7 @@ function ProducerEditOpportunityContent() {
           location: opportunity.location ?? "",
           modality: opportunity.modality ?? "REMOTE",
           requirements: requirementsToTextarea(opportunity.requirements),
-          status: opportunity.status ?? "OPEN",
+          status: toVisibleStatusAction(opportunity.status),
           deadline: toDateInputValue(opportunity.deadline),
         });
       } catch (loadError) {
@@ -220,8 +221,8 @@ function ProducerEditOpportunityContent() {
             <span>Estado</span>
             <select name="status" value={formData.status} onChange={handleChange}>
               {OPPORTUNITY_STATUS_OPTIONS.map((status) => (
-                <option key={status} value={status}>
-                  {status}
+                <option key={status.value} value={status.value}>
+                  {status.label}
                 </option>
               ))}
             </select>
