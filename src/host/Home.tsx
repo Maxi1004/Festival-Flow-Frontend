@@ -1,8 +1,10 @@
 import { Navigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { useCurrentProfile } from "./useCurrentProfile";
 import "../styles/home.css";
 
 function Home() {
+  const { t } = useTranslation();
   const { user, profile, isProfileLoading } = useCurrentProfile();
 
   if (isProfileLoading) {
@@ -10,8 +12,8 @@ function Home() {
       <div className="home">
         <section className="home__hero">
           <div>
-            <h1 className="home__title">Cargando perfil...</h1>
-            <p className="home__subtitle">Estamos preparando tu panel principal.</p>
+            <h1 className="home__title">{t("home.loadingTitle")}</h1>
+            <p className="home__subtitle">{t("home.loadingSubtitle")}</p>
           </div>
         </section>
       </div>
@@ -23,10 +25,8 @@ function Home() {
       <div className="home">
         <section className="home__hero">
           <div>
-            <h1 className="home__title">Inicia sesion para continuar</h1>
-            <p className="home__subtitle">
-              Tu panel se personalizara segun el rol asociado a tu cuenta.
-            </p>
+            <h1 className="home__title">{t("home.loginTitle")}</h1>
+            <p className="home__subtitle">{t("home.loginSubtitle")}</p>
           </div>
         </section>
       </div>
@@ -45,10 +45,8 @@ function Home() {
     <div className="home">
       <section className="home__hero">
         <div>
-          <h1 className="home__title">No encontramos un rol disponible</h1>
-          <p className="home__subtitle">
-            Intenta cerrar sesion y volver a entrar para refrescar tu perfil.
-          </p>
+          <h1 className="home__title">{t("home.missingRoleTitle")}</h1>
+          <p className="home__subtitle">{t("home.missingRoleSubtitle")}</p>
         </div>
       </section>
     </div>

@@ -1,4 +1,5 @@
 import { useEffect, useState, type ChangeEvent, type FormEvent } from "react";
+import { useTranslation } from "react-i18next";
 import ProducerGuard from "./ProducerGuard";
 import { getMyProjects } from "../../service/projectApi";
 import { createRecruitment } from "../../service/recruitmentApi";
@@ -6,6 +7,7 @@ import { getAvailableTalents } from "../../service/talentApi";
 import type { Project } from "../../types/producer";
 import type { AvailableTalent } from "../../types/talent";
 import { formatDisplayDate } from "./utils";
+import { translateStatus } from "../../utils/translateStatus";
 import "../../styles/producer.css";
 
 type RecruitmentFormState = {
@@ -35,39 +37,17 @@ const ROLE_OPTIONS = [
   "Otro",
 ];
 
-function formatTalentName(talent: AvailableTalent): string {
+function formatTalentName(talent: AvailableTalent, fallback: string): string {
   return (
     talent.display_name?.trim() ||
     talent.profile?.display_name?.trim() ||
     talent.name?.trim() ||
-    "Talento sin nombre"
+    fallback
   );
 }
 
 function getTalentId(talent: AvailableTalent): string {
   return talent.user_uid ?? talent.user_id ?? talent.id ?? "";
-}
-
-function formatTalentStatus(value?: string | null): string {
-  const labels: Record<string, string> = {
-    AVAILABLE: "Disponible",
-    UNAVAILABLE: "No disponible",
-  };
-  const normalizedValue = value?.trim().toUpperCase() ?? "";
-
-  return labels[normalizedValue] ?? value?.trim() ?? "Sin estado";
-}
-
-function formatTalentModality(value?: string | null): string {
-  const labels: Record<string, string> = {
-    FREELANCE: "Freelance",
-    HYBRID: "Hibrido",
-    ONSITE: "Presencial",
-    REMOTE: "Remoto",
-  };
-  const normalizedValue = value?.trim().toUpperCase() ?? "";
-
-  return labels[normalizedValue] ?? value?.trim() ?? "Modalidad no informada";
 }
 
 function getTalentSpecialties(talent: AvailableTalent): string[] {
@@ -77,6 +57,7 @@ function getTalentSpecialties(talent: AvailableTalent): string[] {
 }
 
 function ProducerTalentsContent() {
+  const { t } = useTranslation();
   const [talents, setTalents] = useState<AvailableTalent[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
   const [selectedTalent, setSelectedTalent] = useState<AvailableTalent | null>(null);
@@ -109,7 +90,7 @@ function ProducerTalentsContent() {
           setError(
             loadError instanceof Error
               ? loadError.message
-              : "No se pudieron cargar los talentos disponibles."
+              : t("producer.talents.errors.load")
           );
         }
       } finally {
@@ -124,7 +105,7 @@ function ProducerTalentsContent() {
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, [t]);
 
   const openRecruitmentModal = (talent: AvailableTalent) => {
     const projectId = projects[0]?.id ?? "";
@@ -176,13 +157,13 @@ function ProducerTalentsContent() {
         role: formData.role,
         message: formData.message.trim(),
       });
-      setSuccessMessage("Invitacion enviada correctamente.");
+      setSuccessMessage(t("producer.talents.invitationSent"));
       closeRecruitmentModal();
     } catch (submitError) {
       setError(
         submitError instanceof Error
           ? submitError.message
-          : "No se pudo enviar la invitacion."
+          : t("producer.talents.errors.invite")
       );
     } finally {
       setIsSubmitting(false);
@@ -193,10 +174,10 @@ function ProducerTalentsContent() {
     <div className="producer-shell">
       <section className="producer-card producer-banner">
         <div>
-          <p className="producer-page__eyebrow">Talentos</p>
-          <h1 className="producer-page__title">Talentos disponibles</h1>
+          <p className="producer-page__eyebrow">{t("producer.talents.eyebrow")}</p>
+          <h1 className="producer-page__title">{t("producer.talents.title")}</h1>
           <p className="producer-page__subtitle">
-            Revisa disponibilidad real y recluta talento para tus proyectos o convocatorias.
+            {t("producer.talents.subtitle")}
           </p>
         </div>
       </section>
@@ -214,11 +195,11 @@ function ProducerTalentsContent() {
 
       {isLoading ? (
         <article className="producer-card producer-empty">
-          <p>Cargando talentos disponibles...</p>
+          <p>{t("producer.talents.loading")}</p>
         </article>
       ) : talents.length === 0 ? (
         <article className="producer-card producer-empty">
-          <p>No hay talentos disponibles por ahora.</p>
+          <p>{t("producer.talents.empty")}</p>
         </article>
       ) : (
         <section className="producer-grid">
@@ -227,21 +208,35 @@ function ProducerTalentsContent() {
 
             return (
               <article
-                key={talentId || formatTalentName(talent)}
+                key={talentId || formatTalentName(talent, t("producer.talents.unnamed"))}
                 className="producer-card producer-record"
               >
                 <div className="producer-record__header">
                   <div>
-                    <p className="producer-record__eyebrow">{talent.email ?? "Sin correo"}</p>
-                    <h2 className="producer-record__title">{formatTalentName(talent)}</h2>
+                    <p className="producer-record__eyebrow">{talent.email ?? t("common.noEmail")}</p>
+                    <h2 className="producer-record__title">
+                      {formatTalentName(talent, t("producer.talents.unnamed"))}
+                    </h2>
                   </div>
-                  <span className="producer-status">{formatTalentStatus(talent.status)}</span>
+                  <span className="producer-status">
+                    {translateStatus(t, talent.status)}
+                  </span>
                 </div>
 
                 <div className="producer-meta-list">
-                  <span>{formatTalentModality(talent.work_modality)}</span>
-                  <span>{talent.travel_availability ? "Viaja: Si" : "Viaja: No"}</span>
-                  <span>{talent.location ?? talent.work_location ?? "Ubicacion no informada"}</span>
+                  <span>
+                    {talent.work_modality
+                      ? t(`options.opportunityModality.${talent.work_modality}`, {
+                          defaultValue: talent.work_modality,
+                        })
+                      : t("producer.talents.modalityMissing")}
+                  </span>
+                  <span>
+                    {t("producer.talents.travel", {
+                      value: talent.travel_availability ? t("common.yes") : t("common.no"),
+                    })}
+                  </span>
+                  <span>{talent.location ?? talent.work_location ?? t("producer.talents.locationMissing")}</span>
                   <span>{formatDisplayDate(talent.available_from)}</span>
                 </div>
 
@@ -264,7 +259,7 @@ function ProducerTalentsContent() {
                     disabled={!talentId}
                     onClick={() => openRecruitmentModal(talent)}
                   >
-                    Reclutar
+                    {t("producer.talents.recruit")}
                   </button>
                 </div>
               </article>
@@ -278,11 +273,13 @@ function ProducerTalentsContent() {
           <div className="producer-modal__panel">
             <div className="producer-record__header">
               <div>
-                <p className="producer-record__eyebrow">Reclutar talento</p>
-                <h2 className="producer-record__title">{formatTalentName(selectedTalent)}</h2>
+                <p className="producer-record__eyebrow">{t("producer.talents.recruitTalent")}</p>
+                <h2 className="producer-record__title">
+                  {formatTalentName(selectedTalent, t("producer.talents.unnamed"))}
+                </h2>
               </div>
               <button className="producer-button" type="button" onClick={closeRecruitmentModal}>
-                Cerrar
+                {t("common.close")}
               </button>
             </div>
 
@@ -292,7 +289,7 @@ function ProducerTalentsContent() {
 
             <form className="producer-form producer-form--single" onSubmit={handleSubmitRecruitment}>
               <label className="producer-field">
-                <span>Proyecto</span>
+                <span>{t("producer.opportunityForm.project")}</span>
                 <select
                   name="project_id"
                   value={formData.project_id}
@@ -300,7 +297,7 @@ function ProducerTalentsContent() {
                   required
                 >
                   {projects.length === 0 ? (
-                    <option value="">No tienes proyectos disponibles</option>
+                    <option value="">{t("producer.talents.noProjects")}</option>
                   ) : null}
                   {projects.map((project) => (
                     <option key={project.id} value={project.id}>
@@ -311,7 +308,7 @@ function ProducerTalentsContent() {
               </label>
 
               <label className="producer-field">
-                <span>Rol a asignar</span>
+                <span>{t("crew.assignedRole")}</span>
                 <select
                   name="role"
                   value={formData.role}
@@ -320,14 +317,14 @@ function ProducerTalentsContent() {
                 >
                   {ROLE_OPTIONS.map((role) => (
                     <option key={role} value={role}>
-                      {role}
+                      {t(`producer.talents.roles.${role}`, { defaultValue: role })}
                     </option>
                   ))}
                 </select>
               </label>
 
               <label className="producer-field producer-field--full">
-                <span>Mensaje para el talento</span>
+                <span>{t("producer.talents.messageForTalent")}</span>
                 <textarea
                   name="message"
                   value={formData.message}
@@ -339,14 +336,14 @@ function ProducerTalentsContent() {
 
               <div className="producer-actions">
                 <button className="producer-button" type="button" onClick={closeRecruitmentModal}>
-                  Cancelar
+                  {t("common.cancel")}
                 </button>
                 <button
                   className="producer-button producer-button--primary"
                   type="submit"
                   disabled={isSubmitting || !formData.project_id || !formData.talent_user_id}
                 >
-                  {isSubmitting ? "Enviando..." : "Enviar invitacion"}
+                  {isSubmitting ? t("common.sending") : t("producer.talents.sendInvitation")}
                 </button>
               </div>
             </form>

@@ -1,40 +1,17 @@
 import { useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { getMyApplications } from "../../service/applicationApi";
 import type { TalentApplication } from "../../types/talent";
+import { translateStatus } from "../../utils/translateStatus";
 import "../../styles/talent.css";
 
 function normalizeStatus(value: string): string {
   return value.trim().toLowerCase();
 }
 
-function formatStatus(value: string | null | undefined): string {
-  const normalizedValue = normalizeStatus(value ?? "");
-
-  const labels: Record<string, string> = {
-    accepted: "Aceptada",
-    aprobado: "Aceptada",
-    aprobada: "Aceptada",
-    cancelled: "Cancelada",
-    cancelada: "Cancelada",
-    cerrada: "Cerrada",
-    in_review: "En revisión",
-    "in review": "En revisión",
-    pending: "Pendiente",
-    pendiente: "Pendiente",
-    preselected: "Preseleccionada",
-    rejected: "Rechazada",
-    rechazada: "Rechazada",
-    review: "En revisión",
-    reviewing: "En revisión",
-    submitted: "Enviada",
-  };
-
-  return labels[normalizedValue] ?? value?.trim() ?? "Sin estado";
-}
-
-function formatDate(value: string | null | undefined): string {
+function formatDate(value: string | null | undefined, locale: string, fallback: string): string {
   if (!value) {
-    return "Sin fecha";
+    return fallback;
   }
 
   const parsedDate = new Date(value);
@@ -43,42 +20,33 @@ function formatDate(value: string | null | undefined): string {
     return value;
   }
 
-  return new Intl.DateTimeFormat("es-CL", {
+  return new Intl.DateTimeFormat(locale, {
     dateStyle: "medium",
     timeStyle: "short",
   }).format(parsedDate);
 }
 
-function getApplicationTitle(application: TalentApplication): string {
+function getApplicationTitle(application: TalentApplication, fallback: string): string {
   return (
     application.opportunity?.title?.trim() ||
     application.opportunity_title?.trim() ||
     application.project_title?.trim() ||
     application.opportunity?.project?.title?.trim() ||
-    "Postulacion"
+    fallback
   );
 }
 
-function getApplicationSubtitle(application: TalentApplication): string {
+function getApplicationSubtitle(application: TalentApplication, fallback: string): string {
   return (
-    application.opportunity?.project?.title?.trim() ||
+    application.opportunity?.role_needed?.trim() ||
+    application.opportunity?.specialty?.trim() ||
     application.project_title?.trim() ||
-    application.opportunity?.role_needed?.trim() ||
-    application.opportunity?.specialty?.trim() ||
-    "Proyecto no informado"
-  );
-}
-
-function getApplicationDescription(application: TalentApplication): string {
-  return (
-    application.opportunity?.description?.trim() ||
-    application.opportunity?.role_needed?.trim() ||
-    application.opportunity?.specialty?.trim() ||
-    "Esta postulacion no incluye detalle de convocatoria."
+    fallback
   );
 }
 
 function TalentApplications() {
+  const { t, i18n } = useTranslation();
   const [applications, setApplications] = useState<TalentApplication[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
@@ -101,7 +69,7 @@ function TalentApplications() {
           setError(
             loadError instanceof Error
               ? loadError.message
-              : "No se pudieron cargar tus postulaciones."
+              : t("talent.errors.loadApplications")
           );
         }
       } finally {
@@ -116,7 +84,7 @@ function TalentApplications() {
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, [t]);
 
   const activeCount = useMemo(
     () =>
@@ -147,10 +115,10 @@ function TalentApplications() {
     <div className="talent-page">
       <section className="talent-card talent-banner">
         <div>
-          <p className="talent-page__eyebrow">Postulaciones</p>
-          <h1 className="talent-page__title">Seguimiento de postulaciones</h1>
+          <p className="talent-page__eyebrow">{t("talent.applications.eyebrow")}</p>
+          <h1 className="talent-page__title">{t("talent.applications.title")}</h1>
           <p className="talent-page__subtitle">
-            Revisa el estado real de tus postulaciones registradas en backend.
+            {t("talent.applications.subtitle")}
           </p>
         </div>
       </section>
@@ -158,15 +126,15 @@ function TalentApplications() {
       <section className="talent-metrics">
         <article className="talent-card talent-metric">
           <span className="talent-metric__value">{activeCount}</span>
-          <p className="talent-metric__label">Activas</p>
+          <p className="talent-metric__label">{t("talent.applications.active")}</p>
         </article>
         <article className="talent-card talent-metric">
           <span className="talent-metric__value">{reviewCount}</span>
-          <p className="talent-metric__label">En revisión</p>
+          <p className="talent-metric__label">{t("talent.applications.review")}</p>
         </article>
         <article className="talent-card talent-metric">
           <span className="talent-metric__value">{closedCount}</span>
-          <p className="talent-metric__label">Cerradas</p>
+          <p className="talent-metric__label">{t("talent.applications.closed")}</p>
         </article>
       </section>
 
@@ -174,11 +142,11 @@ function TalentApplications() {
 
       {isLoading ? (
         <section className="talent-card">
-          <p className="talent-feedback">Cargando postulaciones...</p>
+          <p className="talent-feedback">{t("talent.applications.loading")}</p>
         </section>
       ) : applications.length === 0 ? (
         <section className="talent-card">
-          <p className="talent-feedback">Aun no tienes postulaciones registradas.</p>
+          <p className="talent-feedback">{t("talent.applications.empty")}</p>
         </section>
       ) : (
         <section className="talent-list">
@@ -186,18 +154,32 @@ function TalentApplications() {
             <article key={application.id} className="talent-card talent-application-card">
               <div className="talent-application-card__top">
                 <div>
-                  <h2 className="talent-list__title">{getApplicationTitle(application)}</h2>
-                  <p className="talent-list__meta">{getApplicationSubtitle(application)}</p>
+                  <h2 className="talent-list__title">
+                    {getApplicationTitle(application, t("talent.applications.fallbackTitle"))}
+                  </h2>
+                  <p className="talent-list__meta">
+                    {getApplicationSubtitle(
+                      application,
+                      t("talent.applications.fallbackSubtitle")
+                    )}
+                  </p>
                 </div>
-                <span className="talent-badge">{formatStatus(application.status)}</span>
+                <span className="talent-badge">
+                  {translateStatus(t, application.status, "talent.applications.noStatus")}
+                </span>
               </div>
 
-              <p className="talent-list__text">{getApplicationDescription(application)}</p>
               <p className="talent-list__text">
-                Fecha de postulacion: {formatDate(application.applied_at || application.created_at)}
+                {t("talent.applications.appliedAt", {
+                  date: formatDate(
+                    application.applied_at || application.created_at,
+                    i18n.language,
+                    t("common.noDate")
+                  ),
+                })}
               </p>
               <p className="talent-list__text">
-                Mensaje enviado: {application.message?.trim() || "Sin mensaje adjunto."}
+                {application.message?.trim() || t("talent.applications.noMessage")}
               </p>
             </article>
           ))}

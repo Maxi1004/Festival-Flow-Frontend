@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { getTalentCrew } from "../../service/crewApi";
 import type { CrewMember } from "../../types/talent";
+import { translateStatus } from "../../utils/translateStatus";
 import "../../styles/talent.css";
 
 type CrewProjectGroup = {
@@ -12,21 +14,9 @@ type CrewProjectGroup = {
   members: CrewMember[];
 };
 
-function formatStatus(value?: string | null): string {
-  const labels: Record<string, string> = {
-    ACCEPTED: "Aceptada",
-    ACTIVE: "Activa",
-    HIRED: "Reclutada",
-    RECRUITED: "Reclutada",
-  };
-  const normalizedValue = value?.trim().toUpperCase().replaceAll(" ", "_") ?? "";
-
-  return labels[normalizedValue] ?? value?.trim() ?? "Sin estado";
-}
-
-function formatDate(value?: string | null): string {
+function formatDate(value: string | null | undefined, locale: string, fallback: string): string {
   if (!value) {
-    return "Sin fecha";
+    return fallback;
   }
 
   const parsedDate = new Date(value);
@@ -35,18 +25,18 @@ function formatDate(value?: string | null): string {
     return value;
   }
 
-  return new Intl.DateTimeFormat("es-CL", {
+  return new Intl.DateTimeFormat(locale, {
     dateStyle: "medium",
     timeStyle: "short",
   }).format(parsedDate);
 }
 
-function getProjectTitle(member: CrewMember): string {
-  return member.project?.title?.trim() || member.project?.name?.trim() || "Proyecto no informado";
+function getProjectTitle(member: CrewMember, fallback: string): string {
+  return member.project?.title?.trim() || member.project?.name?.trim() || fallback;
 }
 
-function getProjectStatus(member: CrewMember): string {
-  return member.project?.status?.trim() || member.status?.trim() || "Sin estado";
+function getProjectStatus(member: CrewMember): string | null | undefined {
+  return member.project?.status?.trim() || member.status?.trim();
 }
 
 function getProjectDate(member: CrewMember): string {
@@ -60,34 +50,34 @@ function getProjectDate(member: CrewMember): string {
   );
 }
 
-function getOpportunityTitle(member: CrewMember): string {
-  return member.opportunity?.title?.trim() || "Convocatoria no informada";
+function getOpportunityTitle(member: CrewMember, fallback: string): string {
+  return member.opportunity?.title?.trim() || fallback;
 }
 
-function getRole(member: CrewMember): string {
-  return member.role?.trim() || "Rol no asignado";
+function getRole(member: CrewMember, fallback: string): string {
+  return member.role?.trim() || fallback;
 }
 
-function getProducer(member: CrewMember): string {
+function getProducer(member: CrewMember, fallback: string): string {
   return (
     member.producer_name?.trim() ||
     member.producer?.name?.trim() ||
     member.producer?.display_name?.trim() ||
     member.producer_email?.trim() ||
-    "Productor no informado"
+    fallback
   );
 }
 
-function getMemberDate(member: CrewMember): string {
-  return formatDate(member.joined_at || member.accepted_at || member.updated_at || member.created_at);
+function getMemberDate(member: CrewMember, locale: string, fallback: string): string {
+  return formatDate(member.joined_at || member.accepted_at || member.updated_at || member.created_at, locale, fallback);
 }
 
-function getProducerMessage(member: CrewMember): string {
-  return member.producer_note?.trim() || "Sin nota o instruccion";
+function getProducerMessage(member: CrewMember, fallback: string): string {
+  return member.producer_note?.trim() || fallback;
 }
 
-function getTaskDescription(member: CrewMember): string {
-  return member.task_description?.trim() || "Sin tarea asignada";
+function getTaskDescription(member: CrewMember, fallback: string): string {
+  return member.task_description?.trim() || fallback;
 }
 
 function getProjectGroupId(member: CrewMember): string {
@@ -100,7 +90,7 @@ function getProjectGroupId(member: CrewMember): string {
   );
 }
 
-function groupCrewByProject(crew: CrewMember[]): CrewProjectGroup[] {
+function groupCrewByProject(crew: CrewMember[], fallbackProject: string): CrewProjectGroup[] {
   const groups = new Map<string, CrewProjectGroup>();
 
   crew.forEach((member) => {
@@ -114,8 +104,8 @@ function groupCrewByProject(crew: CrewMember[]): CrewProjectGroup[] {
 
     groups.set(projectId, {
       id: projectId,
-      title: getProjectTitle(member),
-      status: getProjectStatus(member),
+      title: getProjectTitle(member, fallbackProject),
+      status: getProjectStatus(member) ?? "",
       date: getProjectDate(member),
       members: [member],
     });
@@ -125,6 +115,7 @@ function groupCrewByProject(crew: CrewMember[]): CrewProjectGroup[] {
 }
 
 function TalentCrew() {
+  const { t, i18n } = useTranslation();
   const navigate = useNavigate();
   const [crew, setCrew] = useState<CrewMember[]>([]);
   const [selectedProjectId, setSelectedProjectId] = useState("");
@@ -148,7 +139,7 @@ function TalentCrew() {
           setError(
             loadError instanceof Error
               ? loadError.message
-              : "No hay datos de equipo disponibles todavia."
+              : t("crew.empty")
           );
         }
       } finally {
@@ -163,9 +154,9 @@ function TalentCrew() {
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, [t]);
 
-  const projectGroups = useMemo(() => groupCrewByProject(crew), [crew]);
+  const projectGroups = useMemo(() => groupCrewByProject(crew, t("crew.projectMissing")), [crew, t]);
   const selectedProject = useMemo(
     () =>
       projectGroups.find((group) => group.id === selectedProjectId) ??
@@ -178,10 +169,10 @@ function TalentCrew() {
     <div className="talent-page">
       <section className="talent-card talent-banner">
         <div>
-          <p className="talent-page__eyebrow">Mi equipo</p>
-          <h1 className="talent-page__title">Proyectos donde participas</h1>
+          <p className="talent-page__eyebrow">{t("crew.myTeam")}</p>
+          <h1 className="talent-page__title">{t("crew.talentTitle")}</h1>
           <p className="talent-page__subtitle">
-            Selecciona un proyecto para ver tu rol, tareas, mensajes y convocatoria asociada.
+            {t("crew.talentSubtitle")}
           </p>
         </div>
       </section>
@@ -189,15 +180,15 @@ function TalentCrew() {
       {error ? <p className="talent-feedback talent-feedback--error">{error}</p> : null}
       {isLoading ? (
         <section className="talent-card">
-          <p className="talent-feedback">Cargando equipo...</p>
+          <p className="talent-feedback">{t("crew.loading")}</p>
         </section>
       ) : crew.length === 0 ? (
         <section className="talent-card">
-          <p className="talent-feedback">No hay datos de equipo disponibles todavia.</p>
+          <p className="talent-feedback">{t("crew.empty")}</p>
         </section>
       ) : (
         <section className="talent-crew-layout">
-          <div className="talent-crew-projects" aria-label="Proyectos donde participas">
+          <div className="talent-crew-projects" aria-label={t("crew.talentTitle")}>
             {projectGroups.map((group) => (
               <button
                 key={group.id}
@@ -209,11 +200,11 @@ function TalentCrew() {
               >
                 <span>
                   <strong>{group.title}</strong>
-                  <small>{formatDate(group.date)}</small>
+                  <small>{formatDate(group.date, i18n.language, t("common.noDate"))}</small>
                 </span>
-                <span className="talent-badge">{formatStatus(group.status)}</span>
+                <span className="talent-badge">{translateStatus(t, group.status)}</span>
                 <span className="talent-crew-project__count">
-                  {group.members.length} participacion{group.members.length === 1 ? "" : "es"}
+                  {t("crew.participationCount", { count: group.members.length })}
                 </span>
               </button>
             ))}
@@ -222,13 +213,15 @@ function TalentCrew() {
           <section className="talent-card talent-crew-detail">
             <div className="talent-application-card__top">
               <div>
-                <p className="talent-page__eyebrow">Proyecto seleccionado</p>
+                <p className="talent-page__eyebrow">{t("crew.selectedProject")}</p>
                 <h2 className="talent-list__title">
-                  {selectedProject?.title ?? "Proyecto no informado"}
+                  {selectedProject?.title ?? t("crew.projectMissing")}
                 </h2>
               </div>
               {selectedProject ? (
-                <span className="talent-badge">{selectedProject.members.length} registros</span>
+                <span className="talent-badge">
+                  {t("crew.recordCount", { count: selectedProject.members.length })}
+                </span>
               ) : null}
             </div>
 
@@ -240,24 +233,29 @@ function TalentCrew() {
                 >
                   <div className="talent-application-card__top">
                     <div>
-                      <h3 className="talent-list__title">{getRole(member)}</h3>
+                      <h3 className="talent-list__title">{getRole(member, t("crew.roleMissing"))}</h3>
                       <p className="talent-list__meta">
-                        Convocatoria: {getOpportunityTitle(member)} | {getProducer(member)}
+                        {t("crew.opportunityLabel", { value: getOpportunityTitle(member, t("crew.opportunityMissing")) })} |{" "}
+                        {getProducer(member, t("crew.producerMissing"))}
                       </p>
                     </div>
-                    <span className="talent-badge">{formatStatus(member.status)}</span>
+                    <span className="talent-badge">{translateStatus(t, member.status)}</span>
                   </div>
 
                   <p className="talent-list__text">
-                    Rol asignado: {getRole(member)}
+                    {t("crew.assignedRoleLabel", { value: getRole(member, t("crew.roleMissing")) })}
                   </p>
                   <p className="talent-list__text">
-                    Tarea: {getTaskDescription(member)}
+                    {t("crew.taskLabel", { value: getTaskDescription(member, t("crew.taskMissing")) })}
                   </p>
                   <p className="talent-list__text">
-                    Nota/mensaje del productor: {getProducerMessage(member)}
+                    {t("crew.producerMessageLabel", {
+                      value: getProducerMessage(member, t("crew.noteMissing")),
+                    })}
                   </p>
-                  <p className="talent-list__text">Fecha de ingreso: {getMemberDate(member)}</p>
+                  <p className="talent-list__text">
+                    {t("crew.joinedAt", { value: getMemberDate(member, i18n.language, t("common.noDate")) })}
+                  </p>
 
                   <div className="talent-actions talent-actions--inline">
                     <button
@@ -266,7 +264,7 @@ function TalentCrew() {
                       disabled={!member.id}
                       onClick={() => member.id && navigate(`/talent/messages?crewId=${encodeURIComponent(member.id)}`)}
                     >
-                      Ver mensajes
+                      {t("messages.viewMessages")}
                     </button>
                   </div>
                 </article>

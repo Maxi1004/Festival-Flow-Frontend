@@ -1,8 +1,10 @@
 import { useEffect, useMemo, useState, type ChangeEvent, type FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import ProducerGuard from "./ProducerGuard";
 import { getProducerCrew, updateCrewMember } from "../../service/crewApi";
 import type { CrewMember, CrewMemberUpdatePayload } from "../../types/talent";
+import { translateStatus } from "../../utils/translateStatus";
 import "../../styles/producer.css";
 
 type CrewProjectGroup = {
@@ -19,21 +21,9 @@ const emptyEditForm: CrewMemberUpdatePayload = {
   producer_note: "",
 };
 
-function formatStatus(value?: string | null): string {
-  const labels: Record<string, string> = {
-    ACCEPTED: "Aceptado",
-    ACTIVE: "Activo",
-    HIRED: "Reclutado",
-    RECRUITED: "Reclutado",
-  };
-  const normalizedValue = value?.trim().toUpperCase().replaceAll(" ", "_") ?? "";
-
-  return labels[normalizedValue] ?? value?.trim() ?? "Sin estado";
-}
-
-function formatDate(value?: string | null): string {
+function formatDate(value: string | null | undefined, locale: string, fallback: string): string {
   if (!value) {
-    return "Sin fecha";
+    return fallback;
   }
 
   const parsedDate = new Date(value);
@@ -42,13 +32,13 @@ function formatDate(value?: string | null): string {
     return value;
   }
 
-  return new Intl.DateTimeFormat("es-CL", {
+  return new Intl.DateTimeFormat(locale, {
     dateStyle: "medium",
     timeStyle: "short",
   }).format(parsedDate);
 }
 
-function getTalentName(member: CrewMember): string {
+function getTalentName(member: CrewMember, fallback: string): string {
   return (
     member.talent_name?.trim() ||
     member.talent?.name?.trim() ||
@@ -56,29 +46,29 @@ function getTalentName(member: CrewMember): string {
     member.talent?.profile?.display_name?.trim() ||
     member.user?.name?.trim() ||
     member.user?.display_name?.trim() ||
-    "Talento sin nombre"
+    fallback
   );
 }
 
-function getTalentEmail(member: CrewMember): string {
+function getTalentEmail(member: CrewMember, fallback: string): string {
   return (
     member.talent_email?.trim() ||
     member.talent?.email?.trim() ||
     member.user?.email?.trim() ||
-    "Sin correo"
+    fallback
   );
 }
 
-function getMemberRole(member: CrewMember): string {
-  return member.role?.trim() || "Rol no asignado";
+function getMemberRole(member: CrewMember, fallback: string): string {
+  return member.role?.trim() || fallback;
 }
 
-function getProjectTitle(member: CrewMember): string {
-  return member.project?.title?.trim() || member.project?.name?.trim() || "Proyecto no informado";
+function getProjectTitle(member: CrewMember, fallback: string): string {
+  return member.project?.title?.trim() || member.project?.name?.trim() || fallback;
 }
 
-function getProjectStatus(member: CrewMember): string {
-  return member.project?.status?.trim() || member.status?.trim() || "Sin estado";
+function getProjectStatus(member: CrewMember): string | null | undefined {
+  return member.project?.status?.trim() || member.status?.trim();
 }
 
 function getProjectDate(member: CrewMember): string {
@@ -92,20 +82,20 @@ function getProjectDate(member: CrewMember): string {
   );
 }
 
-function getOpportunityTitle(member: CrewMember): string {
-  return member.opportunity?.title?.trim() || "Convocatoria no informada";
+function getOpportunityTitle(member: CrewMember, fallback: string): string {
+  return member.opportunity?.title?.trim() || fallback;
 }
 
-function getMemberDate(member: CrewMember): string {
-  return formatDate(member.joined_at || member.accepted_at || member.updated_at || member.created_at);
+function getMemberDate(member: CrewMember, locale: string, fallback: string): string {
+  return formatDate(member.joined_at || member.accepted_at || member.updated_at || member.created_at, locale, fallback);
 }
 
-function getMemberNote(member: CrewMember): string {
-  return member.producer_note?.trim() || "Sin nota o instruccion";
+function getMemberNote(member: CrewMember, fallback: string): string {
+  return member.producer_note?.trim() || fallback;
 }
 
-function getMemberTask(member: CrewMember): string {
-  return member.task_description?.trim() || "Sin tarea asignada";
+function getMemberTask(member: CrewMember, fallback: string): string {
+  return member.task_description?.trim() || fallback;
 }
 
 function getProjectGroupId(member: CrewMember): string {
@@ -118,7 +108,7 @@ function getProjectGroupId(member: CrewMember): string {
   );
 }
 
-function groupCrewByProject(crew: CrewMember[]): CrewProjectGroup[] {
+function groupCrewByProject(crew: CrewMember[], fallbackProject: string): CrewProjectGroup[] {
   const groups = new Map<string, CrewProjectGroup>();
 
   crew.forEach((member) => {
@@ -132,8 +122,8 @@ function groupCrewByProject(crew: CrewMember[]): CrewProjectGroup[] {
 
     groups.set(projectId, {
       id: projectId,
-      title: getProjectTitle(member),
-      status: getProjectStatus(member),
+      title: getProjectTitle(member, fallbackProject),
+      status: getProjectStatus(member) ?? "",
       date: getProjectDate(member),
       members: [member],
     });
@@ -143,6 +133,7 @@ function groupCrewByProject(crew: CrewMember[]): CrewProjectGroup[] {
 }
 
 function ProducerCrewContent() {
+  const { t, i18n } = useTranslation();
   const navigate = useNavigate();
   const [crew, setCrew] = useState<CrewMember[]>([]);
   const [selectedProjectId, setSelectedProjectId] = useState("");
@@ -171,7 +162,7 @@ function ProducerCrewContent() {
           setError(
             loadError instanceof Error
               ? loadError.message
-              : "No hay datos de equipo disponibles todavia."
+              : t("crew.empty")
           );
         }
       } finally {
@@ -186,9 +177,9 @@ function ProducerCrewContent() {
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, [t]);
 
-  const projectGroups = useMemo(() => groupCrewByProject(crew), [crew]);
+  const projectGroups = useMemo(() => groupCrewByProject(crew, t("crew.projectMissing")), [crew, t]);
   const selectedProject = useMemo(
     () =>
       projectGroups.find((group) => group.id === selectedProjectId) ??
@@ -234,7 +225,7 @@ function ProducerCrewContent() {
     event.preventDefault();
 
     if (!editingMember?.id) {
-      setModalError("No se pudo actualizar el integrante.");
+      setModalError(t("crew.errors.updateMember"));
       return;
     }
 
@@ -250,10 +241,10 @@ function ProducerCrewContent() {
             : member
         )
       );
-      setSuccessMessage("Integrante actualizado correctamente.");
+      setSuccessMessage(t("crew.memberUpdated"));
       closeEditModal();
     } catch {
-      setModalError("No se pudo actualizar el integrante.");
+      setModalError(t("crew.errors.updateMember"));
     } finally {
       setIsSaving(false);
     }
@@ -263,10 +254,10 @@ function ProducerCrewContent() {
     <div className="producer-shell">
       <section className="producer-card producer-banner">
         <div>
-          <p className="producer-page__eyebrow">Crew</p>
-          <h1 className="producer-page__title">Equipo por proyecto</h1>
+          <p className="producer-page__eyebrow">{t("crew.eyebrow")}</p>
+          <h1 className="producer-page__title">{t("crew.producerTitle")}</h1>
           <p className="producer-page__subtitle">
-            Revisa cada pelicula o proyecto y administra roles, tareas e instrucciones.
+            {t("crew.producerSubtitle")}
           </p>
         </div>
       </section>
@@ -274,11 +265,11 @@ function ProducerCrewContent() {
       <section className="producer-metrics">
         <article className="producer-card producer-metric">
           <span className="producer-metric__value">{isLoading ? "..." : projectGroups.length}</span>
-          <p className="producer-metric__label">Proyectos con equipo</p>
+          <p className="producer-metric__label">{t("crew.projectsWithCrew")}</p>
         </article>
         <article className="producer-card producer-metric">
           <span className="producer-metric__value">{isLoading ? "..." : acceptedCount}</span>
-          <p className="producer-metric__label">Integrantes aceptados</p>
+          <p className="producer-metric__label">{t("crew.acceptedMembers")}</p>
         </article>
       </section>
 
@@ -295,15 +286,15 @@ function ProducerCrewContent() {
 
       {isLoading ? (
         <article className="producer-card producer-empty">
-          <p>Cargando equipo...</p>
+          <p>{t("crew.loading")}</p>
         </article>
       ) : crew.length === 0 ? (
         <article className="producer-card producer-empty">
-          <p>No hay datos de equipo disponibles todavia.</p>
+          <p>{t("crew.empty")}</p>
         </article>
       ) : (
         <section className="producer-crew-layout">
-          <div className="producer-crew-projects" aria-label="Proyectos con equipo">
+          <div className="producer-crew-projects" aria-label={t("crew.projectsWithCrew")}>
             {projectGroups.map((group) => (
               <button
                 key={group.id}
@@ -315,11 +306,11 @@ function ProducerCrewContent() {
               >
                 <span>
                   <strong>{group.title}</strong>
-                  <small>{formatDate(group.date)}</small>
+                  <small>{formatDate(group.date, i18n.language, t("common.noDate"))}</small>
                 </span>
-                <span className="producer-status">{formatStatus(group.status)}</span>
+                <span className="producer-status">{translateStatus(t, group.status)}</span>
                 <span className="producer-crew-project__count">
-                  {group.members.length} integrante{group.members.length === 1 ? "" : "s"}
+                  {t("crew.memberCount", { count: group.members.length })}
                 </span>
               </button>
             ))}
@@ -328,13 +319,15 @@ function ProducerCrewContent() {
           <section className="producer-card producer-crew-detail">
             <div className="producer-record__header">
               <div>
-                <p className="producer-record__eyebrow">Equipo seleccionado</p>
+                <p className="producer-record__eyebrow">{t("crew.selectedTeam")}</p>
                 <h2 className="producer-record__title">
-                  {selectedProject?.title ?? "Proyecto no informado"}
+                  {selectedProject?.title ?? t("crew.projectMissing")}
                 </h2>
               </div>
               {selectedProject ? (
-                <span className="producer-status">{selectedProject.members.length} integrantes</span>
+                <span className="producer-status">
+                  {t("crew.memberCount", { count: selectedProject.members.length })}
+                </span>
               ) : null}
             </div>
 
@@ -346,20 +339,22 @@ function ProducerCrewContent() {
                 >
                   <div className="producer-record__header">
                     <div>
-                      <p className="producer-list-card__meta">{getTalentEmail(member)}</p>
-                      <h3 className="producer-list-card__title">{getTalentName(member)}</h3>
+                      <p className="producer-list-card__meta">{getTalentEmail(member, t("common.noEmail"))}</p>
+                      <h3 className="producer-list-card__title">
+                        {getTalentName(member, t("producer.talents.unnamed"))}
+                      </h3>
                     </div>
-                    <span className="producer-status">{formatStatus(member.status)}</span>
+                    <span className="producer-status">{translateStatus(t, member.status)}</span>
                   </div>
 
                   <div className="producer-meta-list">
-                    <span>Convocatoria: {getOpportunityTitle(member)}</span>
-                    <span>Rol asignado: {getMemberRole(member)}</span>
-                    <span>Ingreso: {getMemberDate(member)}</span>
+                    <span>{t("crew.opportunityLabel", { value: getOpportunityTitle(member, t("crew.opportunityMissing")) })}</span>
+                    <span>{t("crew.assignedRoleLabel", { value: getMemberRole(member, t("crew.roleMissing")) })}</span>
+                    <span>{t("crew.joinedAt", { value: getMemberDate(member, i18n.language, t("common.noDate")) })}</span>
                   </div>
 
-                  <p className="producer-list-card__text">Tarea: {getMemberTask(member)}</p>
-                  <p className="producer-list-card__text">Nota: {getMemberNote(member)}</p>
+                  <p className="producer-list-card__text">{t("crew.taskLabel", { value: getMemberTask(member, t("crew.taskMissing")) })}</p>
+                  <p className="producer-list-card__text">{t("crew.noteLabel", { value: getMemberNote(member, t("crew.noteMissing")) })}</p>
 
                   <div className="producer-actions producer-actions--inline">
                     <button
@@ -368,7 +363,7 @@ function ProducerCrewContent() {
                       disabled={!member.id}
                       onClick={() => openEditModal(member)}
                     >
-                      Editar integrante
+                      {t("crew.editMember")}
                     </button>
                     <button
                       className="producer-button"
@@ -376,7 +371,7 @@ function ProducerCrewContent() {
                       disabled={!member.id}
                       onClick={() => member.id && navigate(`/producer/messages?crewId=${encodeURIComponent(member.id)}`)}
                     >
-                      Ver mensajes
+                      {t("messages.viewMessages")}
                     </button>
                   </div>
                 </article>
@@ -391,11 +386,13 @@ function ProducerCrewContent() {
           <div className="producer-modal__panel">
             <div className="producer-record__header">
               <div>
-                <p className="producer-record__eyebrow">Editar integrante</p>
-                <h2 className="producer-record__title">{getTalentName(editingMember)}</h2>
+                <p className="producer-record__eyebrow">{t("crew.editMember")}</p>
+                <h2 className="producer-record__title">
+                  {getTalentName(editingMember, t("producer.talents.unnamed"))}
+                </h2>
               </div>
               <button className="producer-button" type="button" onClick={closeEditModal}>
-                Cerrar
+                {t("common.close")}
               </button>
             </div>
 
@@ -405,47 +402,47 @@ function ProducerCrewContent() {
 
             <form className="producer-form producer-form--single" onSubmit={handleSubmitEdit}>
               <label className="producer-field">
-                <span>Rol asignado</span>
+                <span>{t("crew.assignedRole")}</span>
                 <input
                   name="role"
                   value={editForm.role}
                   onChange={handleEditChange}
-                  placeholder="Actor secundario"
+                  placeholder={t("producer.talents.roles.Actor secundario")}
                 />
               </label>
 
               <label className="producer-field producer-field--full">
-                <span>Descripcion / tarea</span>
+                <span>{t("crew.taskDescription")}</span>
                 <textarea
                   name="task_description"
                   value={editForm.task_description}
                   onChange={handleEditChange}
                   rows={4}
-                  placeholder="Interpretar villano en escenas 3 y 4"
+                  placeholder={t("crew.taskPlaceholder")}
                 />
               </label>
 
               <label className="producer-field producer-field--full">
-                <span>Nota interna o instruccion para el talento</span>
+                <span>{t("crew.internalNote")}</span>
                 <textarea
                   name="producer_note"
                   value={editForm.producer_note}
                   onChange={handleEditChange}
                   rows={4}
-                  placeholder="Llevar vestuario oscuro"
+                  placeholder={t("crew.notePlaceholder")}
                 />
               </label>
 
               <div className="producer-actions">
                 <button className="producer-button" type="button" onClick={closeEditModal}>
-                  Cancelar
+                  {t("common.cancel")}
                 </button>
                 <button
                   className="producer-button producer-button--primary"
                   type="submit"
                   disabled={isSaving}
                 >
-                  {isSaving ? "Guardando..." : "Guardar cambios"}
+                  {isSaving ? t("common.saving") : t("common.saveChanges")}
                 </button>
               </div>
             </form>

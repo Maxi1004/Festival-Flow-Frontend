@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type ChangeEvent, type FormEvent } from "react";
 import { useSearchParams } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { getCrewMessages, getProducerCrew, getTalentCrew, sendCrewMessage } from "../../service/crewApi";
 import type { CrewMember, CrewMessage } from "../../types/talent";
 import "../../styles/messages.css";
@@ -13,9 +14,9 @@ type Conversation = {
   messages: CrewMessage[];
 };
 
-function formatDate(value?: string | null): string {
+function formatDate(value: string | null | undefined, locale: string, fallback: string): string {
   if (!value) {
-    return "Sin fecha";
+    return fallback;
   }
 
   const parsedDate = new Date(value);
@@ -24,17 +25,17 @@ function formatDate(value?: string | null): string {
     return value;
   }
 
-  return new Intl.DateTimeFormat("es-CL", {
+  return new Intl.DateTimeFormat(locale, {
     dateStyle: "medium",
     timeStyle: "short",
   }).format(parsedDate);
 }
 
-function getProjectTitle(member: CrewMember): string {
-  return member.project?.title?.trim() || member.project?.name?.trim() || "Proyecto no informado";
+function getProjectTitle(member: CrewMember, fallback: string): string {
+  return member.project?.title?.trim() || member.project?.name?.trim() || fallback;
 }
 
-function getTalentName(member: CrewMember): string {
+function getTalentName(member: CrewMember, fallback: string): string {
   return (
     member.talent_name?.trim() ||
     member.talent?.name?.trim() ||
@@ -42,22 +43,22 @@ function getTalentName(member: CrewMember): string {
     member.talent?.profile?.display_name?.trim() ||
     member.user?.name?.trim() ||
     member.user?.display_name?.trim() ||
-    "Talento sin nombre"
+    fallback
   );
 }
 
-function getProducerName(member: CrewMember): string {
+function getProducerName(member: CrewMember, fallback: string): string {
   return (
     member.producer_name?.trim() ||
     member.producer?.name?.trim() ||
     member.producer?.display_name?.trim() ||
     member.producer_email?.trim() ||
-    "Productor no informado"
+    fallback
   );
 }
 
-function getRole(member: CrewMember): string {
-  return member.role?.trim() || member.role_needed?.trim() || member.specialty?.trim() || "Rol no asignado";
+function getRole(member: CrewMember, fallback: string): string {
+  return member.role?.trim() || member.role_needed?.trim() || member.specialty?.trim() || fallback;
 }
 
 function getMemberId(member: CrewMember, index: number): string {
@@ -68,8 +69,8 @@ function getLastMessage(messages: CrewMessage[]): CrewMessage | null {
   return messages.at(-1) ?? null;
 }
 
-function getConversationName(member: CrewMember, mode: CrewMessagesProps["mode"]): string {
-  return mode === "PRODUCER" ? getTalentName(member) : getProducerName(member);
+function getConversationName(member: CrewMember, mode: CrewMessagesProps["mode"], fallback: string): string {
+  return mode === "PRODUCER" ? getTalentName(member, fallback) : getProducerName(member, fallback);
 }
 
 function getInitialMessagesMap(crew: CrewMember[]): Record<string, CrewMessage[]> {
@@ -81,6 +82,7 @@ function getInitialMessagesMap(crew: CrewMember[]): Record<string, CrewMessage[]
 }
 
 function CrewMessages({ mode }: CrewMessagesProps) {
+  const { t, i18n } = useTranslation();
   const [searchParams, setSearchParams] = useSearchParams();
   const initialCrewIdRef = useRef(searchParams.get("crewId") ?? "");
   const [crew, setCrew] = useState<CrewMember[]>([]);
@@ -145,7 +147,7 @@ function CrewMessages({ mode }: CrewMessagesProps) {
           setError(
             loadError instanceof Error
               ? loadError.message
-              : "No se pudieron cargar las conversaciones."
+              : t("messages.errors.loadConversations")
           );
           setCrew([]);
           setMessagesByMember({});
@@ -162,7 +164,7 @@ function CrewMessages({ mode }: CrewMessagesProps) {
     return () => {
       isMounted = false;
     };
-  }, [mode, setSearchParams]);
+  }, [mode, setSearchParams, t]);
 
   const conversations = useMemo<Conversation[]>(
     () =>
@@ -206,7 +208,7 @@ function CrewMessages({ mode }: CrewMessagesProps) {
         }
       } catch {
         if (isMounted) {
-          setMessageError("No se pudieron cargar los mensajes.");
+          setMessageError(t("messages.errors.loadMessages"));
         }
       } finally {
         if (isMounted) {
@@ -220,7 +222,7 @@ function CrewMessages({ mode }: CrewMessagesProps) {
     return () => {
       isMounted = false;
     };
-  }, [selectedConversation?.member.id, selectedCrewId]);
+  }, [selectedConversation?.member.id, selectedCrewId, t]);
 
   const handleSelectConversation = (member: CrewMember, index: number) => {
     const memberId = getMemberId(member, index);
@@ -239,7 +241,7 @@ function CrewMessages({ mode }: CrewMessagesProps) {
     event.preventDefault();
 
     if (!selectedConversation?.member.id || !draftMessage.trim()) {
-      setMessageError("No se pudo enviar el mensaje.");
+      setMessageError(t("messages.errors.send"));
       return;
     }
 
@@ -252,9 +254,9 @@ function CrewMessages({ mode }: CrewMessagesProps) {
 
       setMessagesByMember((current) => ({ ...current, [selectedCrewId]: nextMessages }));
       setDraftMessage("");
-      setSuccessMessage("Mensaje enviado correctamente.");
+      setSuccessMessage(t("messages.sent"));
     } catch {
-      setMessageError("No se pudo enviar el mensaje.");
+      setMessageError(t("messages.errors.send"));
     } finally {
       setIsSending(false);
     }
@@ -264,10 +266,10 @@ function CrewMessages({ mode }: CrewMessagesProps) {
     <div className="messages-page">
       <section className="messages-card messages-banner">
         <div>
-          <p className="messages-page__eyebrow">Mensajes</p>
-          <h1 className="messages-page__title">Bandeja de conversaciones</h1>
+          <p className="messages-page__eyebrow">{t("messages.eyebrow")}</p>
+          <h1 className="messages-page__title">{t("messages.title")}</h1>
           <p className="messages-page__subtitle">
-            Revisa conversaciones por integrante de crew y continua el intercambio desde aqui.
+            {t("messages.subtitle")}
           </p>
         </div>
       </section>
@@ -279,15 +281,15 @@ function CrewMessages({ mode }: CrewMessagesProps) {
 
       {isLoadingCrew ? (
         <section className="messages-card messages-empty">
-          <p>Cargando conversaciones...</p>
+          <p>{t("messages.loadingConversations")}</p>
         </section>
       ) : conversations.length === 0 ? (
         <section className="messages-card messages-empty">
-          <p>No hay conversaciones disponibles todavia.</p>
+          <p>{t("messages.noConversations")}</p>
         </section>
       ) : (
         <section className="messages-layout">
-          <div className="messages-inbox" aria-label="Conversaciones">
+          <div className="messages-inbox" aria-label={t("messages.conversations")}>
             {conversations.map((conversation, index) => {
               const memberId = getMemberId(conversation.member, index);
               const lastMessage = getLastMessage(conversation.messages);
@@ -300,14 +302,26 @@ function CrewMessages({ mode }: CrewMessagesProps) {
                   type="button"
                   onClick={() => handleSelectConversation(conversation.member, index)}
                 >
-                  <span className="messages-thread__project">{getProjectTitle(conversation.member)}</span>
-                  <strong>{getConversationName(conversation.member, mode)}</strong>
-                  <span>{getRole(conversation.member)}</span>
+                  <span className="messages-thread__project">
+                    {getProjectTitle(conversation.member, t("crew.projectMissing"))}
+                  </span>
+                  <strong>
+                    {getConversationName(
+                      conversation.member,
+                      mode,
+                      mode === "PRODUCER" ? t("producer.talents.unnamed") : t("crew.producerMissing")
+                    )}
+                  </strong>
+                  <span>{getRole(conversation.member, t("crew.roleMissing"))}</span>
                   <span className="messages-thread__preview">
-                    {lastMessage?.message?.trim() || "Sin mensajes todavía."}
+                    {lastMessage?.message?.trim() || t("messages.noMessagesYet")}
                   </span>
                   <span className="messages-thread__date">
-                    {formatDate(lastMessage?.created_at || conversation.member.updated_at || conversation.member.created_at)}
+                    {formatDate(
+                      lastMessage?.created_at || conversation.member.updated_at || conversation.member.created_at,
+                      i18n.language,
+                      t("common.noDate")
+                    )}
                   </span>
                 </button>
               );
@@ -319,9 +333,17 @@ function CrewMessages({ mode }: CrewMessagesProps) {
               <>
                 <div className="messages-chat__header">
                   <div>
-                    <p className="messages-page__eyebrow">{getProjectTitle(selectedConversation.member)}</p>
-                    <h2>{getConversationName(selectedConversation.member, mode)}</h2>
-                    <span>{getRole(selectedConversation.member)}</span>
+                    <p className="messages-page__eyebrow">
+                      {getProjectTitle(selectedConversation.member, t("crew.projectMissing"))}
+                    </p>
+                    <h2>
+                      {getConversationName(
+                        selectedConversation.member,
+                        mode,
+                        mode === "PRODUCER" ? t("producer.talents.unnamed") : t("crew.producerMissing")
+                      )}
+                    </h2>
+                    <span>{getRole(selectedConversation.member, t("crew.roleMissing"))}</span>
                   </div>
                 </div>
 
@@ -331,7 +353,7 @@ function CrewMessages({ mode }: CrewMessagesProps) {
 
                 <div className="messages-history" aria-live="polite">
                   {isLoadingMessages ? (
-                    <p className="messages-history__empty">Cargando mensajes...</p>
+                    <p className="messages-history__empty">{t("messages.loadingMessages")}</p>
                   ) : selectedConversation.messages.length ? (
                     selectedConversation.messages.map((item, index) => (
                       <article
@@ -340,24 +362,24 @@ function CrewMessages({ mode }: CrewMessagesProps) {
                           item.sender_role === mode ? "messages-bubble--own" : ""
                         }`}
                       >
-                        <strong>{item.sender_role || "Mensaje"}</strong>
-                        <p>{item.message?.trim() || "Sin contenido."}</p>
-                        <span>{formatDate(item.created_at)}</span>
+                        <strong>{item.sender_role || t("messages.message")}</strong>
+                        <p>{item.message?.trim() || t("messages.emptyContent")}</p>
+                        <span>{formatDate(item.created_at, i18n.language, t("common.noDate"))}</span>
                       </article>
                     ))
                   ) : (
-                    <p className="messages-history__empty">Sin mensajes todavía.</p>
+                    <p className="messages-history__empty">{t("messages.noMessagesYet")}</p>
                   )}
                 </div>
 
                 <form className="messages-compose" onSubmit={handleSubmit}>
                   <label>
-                    <span>Nuevo mensaje</span>
+                    <span>{t("messages.newMessage")}</span>
                     <textarea
                       value={draftMessage}
                       onChange={handleDraftChange}
                       rows={4}
-                      placeholder="Escribe un mensaje"
+                      placeholder={t("messages.placeholder")}
                       required
                     />
                   </label>
@@ -366,12 +388,12 @@ function CrewMessages({ mode }: CrewMessagesProps) {
                     type="submit"
                     disabled={isSending || !draftMessage.trim() || !selectedConversation.member.id}
                   >
-                    {isSending ? "Enviando..." : "Enviar mensaje"}
+                    {isSending ? t("common.sending") : t("messages.sendMessage")}
                   </button>
                 </form>
               </>
             ) : (
-              <p className="messages-history__empty">Selecciona una conversacion.</p>
+              <p className="messages-history__empty">{t("messages.selectConversation")}</p>
             )}
           </section>
         </section>

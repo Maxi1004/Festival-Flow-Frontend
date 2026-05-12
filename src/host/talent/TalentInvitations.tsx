@@ -1,53 +1,45 @@
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
   getMyRecruitments,
   updateRecruitmentStatus,
   type RecruitmentResponse,
 } from "../../service/recruitmentApi";
+import { translateStatus } from "../../utils/translateStatus";
 import "../../styles/talent.css";
 
 function normalizeStatus(value?: string | null): string {
   return value?.trim().toUpperCase().replaceAll(" ", "_") ?? "";
 }
 
-function formatStatus(value?: string | null): string {
-  const labels: Record<string, string> = {
-    ACCEPTED: "Aceptada",
-    PENDING: "Pendiente",
-    REJECTED: "Rechazada",
-  };
-  const normalizedValue = normalizeStatus(value);
-
-  return labels[normalizedValue] ?? value?.trim() ?? "Sin estado";
-}
-
-function getProjectTitle(recruitment: RecruitmentResponse): string {
+function getProjectTitle(recruitment: RecruitmentResponse, fallback: string): string {
   return (
     recruitment.project_title?.trim() ||
     recruitment.project?.title?.trim() ||
-    "Proyecto no informado"
+    fallback
   );
 }
 
-function getOpportunityTitle(recruitment: RecruitmentResponse): string {
+function getOpportunityTitle(recruitment: RecruitmentResponse, fallback: string): string {
   return (
     recruitment.opportunity_title?.trim() ||
     recruitment.opportunity?.title?.trim() ||
-    "Convocatoria no informada"
+    fallback
   );
 }
 
-function getProducerName(recruitment: RecruitmentResponse): string {
+function getProducerName(recruitment: RecruitmentResponse, fallback: string): string {
   return (
     recruitment.producer_name?.trim() ||
     recruitment.producer?.name?.trim() ||
     recruitment.producer?.display_name?.trim() ||
     recruitment.producer_email?.trim() ||
-    "Productor no informado"
+    fallback
   );
 }
 
 function TalentInvitations() {
+  const { t } = useTranslation();
   const [invitations, setInvitations] = useState<RecruitmentResponse[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [updatingId, setUpdatingId] = useState("");
@@ -71,7 +63,7 @@ function TalentInvitations() {
           setError(
             loadError instanceof Error
               ? loadError.message
-              : "No se pudieron cargar tus invitaciones."
+              : t("talent.invitationsPage.errors.load")
           );
         }
       } finally {
@@ -86,7 +78,7 @@ function TalentInvitations() {
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, [t]);
 
   const handleUpdateStatus = async (
     recruitmentId: string,
@@ -106,13 +98,15 @@ function TalentInvitations() {
         )
       );
       setSuccessMessage(
-        status === "ACCEPTED" ? "Invitación aceptada." : "Invitación rechazada."
+        status === "ACCEPTED"
+          ? t("talent.invitationsPage.accepted")
+          : t("talent.invitationsPage.rejected")
       );
     } catch (updateError) {
       setError(
         updateError instanceof Error
           ? updateError.message
-          : "No se pudo actualizar la invitación."
+          : t("talent.invitationsPage.errors.update")
       );
     } finally {
       setUpdatingId("");
@@ -123,10 +117,10 @@ function TalentInvitations() {
     <div className="talent-page">
       <section className="talent-card talent-banner">
         <div>
-          <p className="talent-page__eyebrow">Invitaciones</p>
-          <h1 className="talent-page__title">Invitaciones de reclutamiento</h1>
+          <p className="talent-page__eyebrow">{t("talent.invitationsPage.eyebrow")}</p>
+          <h1 className="talent-page__title">{t("talent.invitationsPage.title")}</h1>
           <p className="talent-page__subtitle">
-            Revisa propuestas enviadas por productores y responde las pendientes.
+            {t("talent.invitationsPage.subtitle")}
           </p>
         </div>
       </section>
@@ -138,11 +132,11 @@ function TalentInvitations() {
 
       {isLoading ? (
         <section className="talent-card">
-          <p className="talent-feedback">Cargando invitaciones...</p>
+          <p className="talent-feedback">{t("talent.invitationsPage.loading")}</p>
         </section>
       ) : invitations.length === 0 ? (
         <section className="talent-card">
-          <p className="talent-feedback">No tienes invitaciones de reclutamiento.</p>
+          <p className="talent-feedback">{t("talent.invitationsPage.empty")}</p>
         </section>
       ) : (
         <section className="talent-list">
@@ -157,16 +151,21 @@ function TalentInvitations() {
               >
                 <div className="talent-application-card__top">
                   <div>
-                    <h2 className="talent-list__title">{getProjectTitle(invitation)}</h2>
+                    <h2 className="talent-list__title">
+                      {getProjectTitle(invitation, t("crew.projectMissing"))}
+                    </h2>
                     <p className="talent-list__meta">
-                      {getOpportunityTitle(invitation)} | {getProducerName(invitation)}
+                      {getOpportunityTitle(invitation, t("crew.opportunityMissing"))} |{" "}
+                      {getProducerName(invitation, t("crew.producerMissing"))}
                     </p>
                   </div>
-                  <span className="talent-badge">{formatStatus(invitation.status)}</span>
+                  <span className="talent-badge">{translateStatus(t, invitation.status)}</span>
                 </div>
 
                 <p className="talent-list__text">
-                  Mensaje: {invitation.message?.trim() || "Sin mensaje."}
+                  {t("messages.messageLabel", {
+                    value: invitation.message?.trim() || t("messages.noMessage"),
+                  })}
                 </p>
 
                 {isPending ? (
@@ -177,7 +176,7 @@ function TalentInvitations() {
                       disabled={!invitationId || updatingId === invitationId}
                       onClick={() => void handleUpdateStatus(invitationId, "ACCEPTED")}
                     >
-                      {updatingId === invitationId ? "Actualizando..." : "Aceptar"}
+                      {updatingId === invitationId ? t("common.updating") : t("common.accept")}
                     </button>
                     <button
                       className="talent-button"
@@ -185,7 +184,7 @@ function TalentInvitations() {
                       disabled={!invitationId || updatingId === invitationId}
                       onClick={() => void handleUpdateStatus(invitationId, "REJECTED")}
                     >
-                      Rechazar
+                      {t("common.reject")}
                     </button>
                   </div>
                 ) : null}

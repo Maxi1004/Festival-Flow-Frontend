@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useCurrentProfile } from "../useCurrentProfile";
 import {
   getMyTalentProfile,
@@ -97,8 +98,9 @@ function normalizeProfilePayload(
 }
 
 function TalentProfile() {
+  const { t } = useTranslation();
   const { user, profile } = useCurrentProfile();
-  const fallbackDisplayName = profile?.name?.trim() || user?.displayName?.trim() || "Talento";
+  const fallbackDisplayName = profile?.name?.trim() || user?.displayName?.trim() || t("talent.profile.fallbackName");
   const [formData, setFormData] = useState<TalentProfileFormState>({
     ...initialFormState,
     display_name: fallbackDisplayName,
@@ -127,7 +129,7 @@ function TalentProfile() {
           setError(
             loadError instanceof Error
               ? loadError.message
-              : "No se pudo cargar tu perfil."
+              : t("talent.errors.loadProfile")
           );
           setFormData(mapProfileToFormState(null, fallbackDisplayName));
         }
@@ -143,7 +145,7 @@ function TalentProfile() {
     return () => {
       isMounted = false;
     };
-  }, [fallbackDisplayName]);
+  }, [fallbackDisplayName, t]);
 
   const handleChange = (
     event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
@@ -167,12 +169,12 @@ function TalentProfile() {
       setSuccessMessage("");
       const savedProfile = await updateMyTalentProfile(normalizeProfilePayload(formData));
       setFormData(mapProfileToFormState(savedProfile, fallbackDisplayName));
-      setSuccessMessage("Perfil guardado correctamente.");
+      setSuccessMessage(t("talent.profile.success"));
     } catch (submitError) {
       setError(
         submitError instanceof Error
           ? submitError.message
-          : "No se pudo guardar el perfil."
+          : t("talent.errors.saveProfile")
       );
     } finally {
       setIsSaving(false);
@@ -200,17 +202,17 @@ function TalentProfile() {
 
         <div className="talent-profile-header__content">
           <div>
-            <p className="talent-page__eyebrow">Mi perfil</p>
+            <p className="talent-page__eyebrow">{t("talent.profile.eyebrow")}</p>
             <h1 className="talent-page__title">{displayName}</h1>
             <p className="talent-page__subtitle">
-              {formData.main_specialty.trim() || "Completa tu especialidad principal"}
+              {formData.main_specialty.trim() || t("talent.profile.completeMainSpecialty")}
             </p>
           </div>
 
           <div className="talent-meta-list">
-            <span>{formData.location.trim() || "Ubicacion pendiente"}</span>
-            <span>{profileCompletion}% completado</span>
-            <span>{formData.is_public ? "Perfil publico" : "Perfil privado"}</span>
+            <span>{formData.location.trim() || t("talent.profile.pendingLocation")}</span>
+            <span>{profileCompletion}% {t("common.completed")}</span>
+            <span>{formData.is_public ? t("talent.profile.public") : t("talent.profile.private")}</span>
           </div>
         </div>
 
@@ -221,14 +223,14 @@ function TalentProfile() {
             form="talent-profile-form"
             disabled={isLoading || isSaving}
           >
-            {isSaving ? "Guardando..." : "Guardar perfil"}
+            {isSaving ? t("common.saving") : t("talent.profile.save")}
           </button>
         </div>
       </section>
 
       {isLoading ? (
         <section className="talent-card">
-          <p className="talent-feedback">Cargando perfil...</p>
+          <p className="talent-feedback">{t("talent.profile.loading")}</p>
         </section>
       ) : (
         <form id="talent-profile-form" className="talent-stack" onSubmit={handleSubmit}>
@@ -240,45 +242,45 @@ function TalentProfile() {
           <section className="talent-grid talent-grid--sidebar">
             <article className="talent-card">
               <div className="section-heading">
-                <h2 className="section-heading__title">Informacion profesional</h2>
+                <h2 className="section-heading__title">{t("talent.profile.professionalInfo")}</h2>
                 <p className="section-heading__text">
-                  Edita los datos base que veran productores y equipos al revisar tu perfil.
+                  {t("talent.profile.professionalInfoText")}
                 </p>
               </div>
 
               <div className="talent-form-grid">
                 <label className="talent-input-group">
-                  <span>Nombre para mostrar</span>
+                  <span>{t("talent.profile.displayName")}</span>
                   <input
                     name="display_name"
                     value={formData.display_name}
                     onChange={handleChange}
-                    placeholder="Tu nombre profesional"
+                    placeholder={t("talent.profile.displayNamePlaceholder")}
                   />
                 </label>
 
                 <label className="talent-input-group">
-                  <span>Especialidad principal</span>
+                  <span>{t("talent.profile.mainSpecialty")}</span>
                   <input
                     name="main_specialty"
                     value={formData.main_specialty}
                     onChange={handleChange}
-                    placeholder="Actriz, montajista, sonidista..."
+                    placeholder={t("talent.profile.mainSpecialtyPlaceholder")}
                   />
                 </label>
 
                 <label className="talent-input-group">
-                  <span>Ubicacion</span>
+                  <span>{t("talent.profile.location")}</span>
                   <input
                     name="location"
                     value={formData.location}
                     onChange={handleChange}
-                    placeholder="Santiago, Chile"
+                    placeholder={t("talent.profile.locationPlaceholder")}
                   />
                 </label>
 
                 <label className="talent-input-group">
-                  <span>Años de experiencia</span>
+                  <span>{t("talent.profile.experienceYears")}</span>
                   <input
                     type="number"
                     min="0"
@@ -289,37 +291,37 @@ function TalentProfile() {
                 </label>
 
                 <label className="talent-input-group">
-                  <span>Especialidades</span>
+                  <span>{t("talent.profile.specialties")}</span>
                   <input
                     name="specialties"
                     value={formData.specialties}
                     onChange={handleChange}
-                    placeholder="Separadas por coma"
+                    placeholder={t("talent.profile.commaSeparated")}
                   />
                 </label>
 
                 <label className="talent-input-group">
-                  <span>Idiomas</span>
+                  <span>{t("talent.profile.languages")}</span>
                   <input
                     name="languages"
                     value={formData.languages}
                     onChange={handleChange}
-                    placeholder="Separados por coma"
+                    placeholder={t("talent.profile.commaSeparatedMale")}
                   />
                 </label>
 
                 <label className="talent-input-group">
-                  <span>Skills</span>
+                  <span>{t("talent.profile.skills")}</span>
                   <input
                     name="skills"
                     value={formData.skills}
                     onChange={handleChange}
-                    placeholder="Separados por coma"
+                    placeholder={t("talent.profile.commaSeparatedMale")}
                   />
                 </label>
 
                 <label className="talent-input-group">
-                  <span>Completitud del perfil</span>
+                  <span>{t("talent.profile.completion")}</span>
                   <input
                     type="number"
                     min="0"
@@ -337,28 +339,28 @@ function TalentProfile() {
                     checked={formData.is_public}
                     onChange={handleChange}
                   />
-                  <span>Perfil publico</span>
+                  <span>{t("talent.profile.public")}</span>
                 </label>
 
                 <label className="talent-input-group talent-input-group--full">
-                  <span>Biografia</span>
+                  <span>{t("talent.profile.bio")}</span>
                   <textarea
                     name="bio"
                     value={formData.bio}
                     onChange={handleChange}
                     rows={5}
-                    placeholder="Cuenta tu experiencia, enfoque y tipo de proyectos."
+                    placeholder={t("talent.profile.bioPlaceholder")}
                   />
                 </label>
 
                 <label className="talent-input-group talent-input-group--full">
-                  <span>Portfolio links</span>
+                  <span>{t("talent.profile.portfolioLinks")}</span>
                   <textarea
                     name="portfolio_links"
                     value={formData.portfolio_links}
                     onChange={handleChange}
                     rows={4}
-                    placeholder="Un link por linea"
+                    placeholder={t("talent.profile.oneLinkPerLine")}
                   />
                 </label>
               </div>
@@ -366,9 +368,9 @@ function TalentProfile() {
 
             <aside className="talent-card">
               <div className="section-heading">
-                <h2 className="section-heading__title">Estado del perfil</h2>
+                <h2 className="section-heading__title">{t("talent.profile.profileStatus")}</h2>
                 <p className="section-heading__text">
-                  Resumen en vivo de los datos que se estan guardando en backend.
+                  {t("talent.profile.profileStatusText")}
                 </p>
               </div>
 
@@ -379,7 +381,7 @@ function TalentProfile() {
                     style={{ width: `${profileCompletion}%` }}
                   />
                 </div>
-                <strong>{profileCompletion}% completado</strong>
+                <strong>{profileCompletion}% {t("common.completed")}</strong>
               </div>
 
               <ul className="talent-chip-list">
@@ -390,7 +392,7 @@ function TalentProfile() {
                     </li>
                   ))
                 ) : (
-                  <li className="talent-chip-list__item">Sin especialidades aun</li>
+                  <li className="talent-chip-list__item">{t("talent.profile.noSpecialties")}</li>
                 )}
               </ul>
             </aside>
@@ -399,9 +401,9 @@ function TalentProfile() {
           <section className="talent-grid">
             <article className="talent-card">
               <div className="section-heading">
-                <h2 className="section-heading__title">Portafolio</h2>
+                <h2 className="section-heading__title">{t("talent.profile.portfolio")}</h2>
                 <p className="section-heading__text">
-                  Links reales guardados en tu perfil para compartir material y referencias.
+                  {t("talent.profile.portfolioText")}
                 </p>
               </div>
 
@@ -411,7 +413,7 @@ function TalentProfile() {
                     <div key={link} className="talent-list__item">
                       <div>
                         <h3 className="talent-list__title">{link}</h3>
-                        <p className="talent-list__text">Recurso vinculado a tu perfil real.</p>
+                        <p className="talent-list__text">{t("talent.profile.linkedResource")}</p>
                       </div>
                       <a
                         className="talent-inline-link"
@@ -419,16 +421,16 @@ function TalentProfile() {
                         target="_blank"
                         rel="noreferrer"
                       >
-                        Ver recurso
+                        {t("talent.profile.viewResource")}
                       </a>
                     </div>
                   ))
                 ) : (
                   <div className="talent-list__item">
                     <div>
-                      <h3 className="talent-list__title">Sin links registrados</h3>
+                      <h3 className="talent-list__title">{t("talent.profile.noLinks")}</h3>
                       <p className="talent-list__text">
-                        Puedes agregar enlaces a reels, portafolios o redes profesionales.
+                        {t("talent.profile.noLinksText")}
                       </p>
                     </div>
                   </div>
@@ -438,29 +440,29 @@ function TalentProfile() {
 
             <article className="talent-card">
               <div className="section-heading">
-                <h2 className="section-heading__title">Visibilidad del perfil</h2>
+                <h2 className="section-heading__title">{t("talent.profile.visibility")}</h2>
                 <p className="section-heading__text">
-                  Esta seccion usa datos reales del formulario actual en lugar de contenido mock.
+                  {t("talent.profile.visibilityText")}
                 </p>
               </div>
 
               <div className="talent-stack">
                 <div className="talent-field">
-                  <span className="talent-field__label">Nombre visible</span>
+                  <span className="talent-field__label">{t("talent.profile.visibleName")}</span>
                   <p className="talent-field__text">{displayName}</p>
                 </div>
                 <div className="talent-field">
-                  <span className="talent-field__label">Bio</span>
+                  <span className="talent-field__label">{t("talent.profile.bio")}</span>
                   <p className="talent-field__text">
-                    {formData.bio.trim() || "Todavia no has agregado una biografia."}
+                    {formData.bio.trim() || t("talent.profile.noBio")}
                   </p>
                 </div>
                 <div className="talent-field">
-                  <span className="talent-field__label">Visibilidad</span>
+                  <span className="talent-field__label">{t("talent.profile.visibilityLabel")}</span>
                   <p className="talent-field__text">
                     {formData.is_public
-                      ? "Tu perfil esta visible para nuevas oportunidades."
-                      : "Tu perfil esta marcado como privado."}
+                      ? t("talent.profile.publicText")
+                      : t("talent.profile.privateText")}
                   </p>
                 </div>
               </div>
@@ -473,5 +475,3 @@ function TalentProfile() {
 }
 
 export default TalentProfile;
-
-//7
