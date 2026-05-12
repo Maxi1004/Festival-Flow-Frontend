@@ -1,6 +1,7 @@
 import { useState } from "react";
 import type { FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { loginWithEmail, loginWithGoogle } from "../service/auth";
 import { syncGoogleUser } from "../service/authApi";
 import { USER_ROLE_OPTIONS, type UserRole } from "../types/auth";
@@ -9,6 +10,7 @@ import "../styles/login.css";
 type StatusType = "idle" | "success" | "error";
 
 function Login() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
 
   const [email, setEmail] = useState<string>("");
@@ -32,13 +34,11 @@ function Login() {
       await credential.user.getIdToken();
 
       setStatus("success");
-      setMessage("Inicio de sesión exitoso.");
+      setMessage(t("auth.login.success"));
       navigate("/");
     } catch (error: unknown) {
       const errorMessage =
-        error instanceof Error
-          ? error.message
-          : "No fue posible iniciar sesión. Inténtalo nuevamente.";
+        error instanceof Error ? error.message : t("auth.login.error");
 
       setStatus("error");
       setMessage(errorMessage);
@@ -50,7 +50,7 @@ function Login() {
   const handleGoogleLogin = async (): Promise<void> => {
     if (!googleRole) {
       setStatus("error");
-      setMessage("Debes seleccionar un rol antes de continuar con Google.");
+      setMessage(t("auth.login.roleRequired"));
       return;
     }
 
@@ -60,13 +60,11 @@ function Login() {
 
     try {
       const credential = await loginWithGoogle();
-      const name = credential.user.displayName?.trim() || "Usuario";
+      const name = credential.user.displayName?.trim() || t("common.user");
       const email = credential.user.email?.trim();
 
       if (!email) {
-        throw new Error(
-          "No pudimos obtener el correo de tu cuenta de Google. Intenta con otro metodo."
-        );
+        throw new Error(t("auth.login.googleEmailError"));
       }
 
       await syncGoogleUser({
@@ -81,13 +79,11 @@ function Login() {
       await credential.user.getIdToken();
 
       setStatus("success");
-      setMessage("Sesión con Google iniciada correctamente.");
+      setMessage(t("auth.login.googleSuccess"));
       navigate("/");
     } catch (error: unknown) {
       const errorMessage =
-        error instanceof Error
-          ? error.message
-          : "No fue posible iniciar sesión con Google. Inténtalo nuevamente.";
+        error instanceof Error ? error.message : t("auth.login.googleError");
 
       setStatus("error");
       setMessage(errorMessage);
@@ -98,22 +94,20 @@ function Login() {
 
   return (
     <main className="login-container">
-      <section className="login-card" aria-label="Formulario de inicio de sesion">
+      <section className="login-card" aria-label={t("auth.login.aria")}>
         <div className="login-header">
-          <p className="login-eyebrow">Festival Flow</p>
-          <h1 className="login-title">Iniciar sesion</h1>
-          <p className="login-subtitle">
-            Accede a tu panel para gestionar tu experiencia.
-          </p>
+          <p className="login-eyebrow">{t("common.brand")}</p>
+          <h1 className="login-title">{t("auth.login.title")}</h1>
+          <p className="login-subtitle">{t("auth.login.subtitle")}</p>
         </div>
 
         <form className="login-form" onSubmit={handleEmailLogin}>
           <label className="login-field">
-            <span className="login-label">Correo electronico</span>
+            <span className="login-label">{t("auth.email")}</span>
             <input
               className="login-input"
               type="email"
-              placeholder="correo@ejemplo.com"
+              placeholder={t("auth.emailPlaceholder")}
               value={email}
               onChange={(event) => setEmail(event.target.value)}
               autoComplete="email"
@@ -123,11 +117,11 @@ function Login() {
           </label>
 
           <label className="login-field">
-            <span className="login-label">Contrasena</span>
+            <span className="login-label">{t("auth.password")}</span>
             <input
               className="login-input"
               type="password"
-              placeholder="Ingresa tu contrasena"
+              placeholder={t("auth.passwordPlaceholder")}
               value={password}
               onChange={(event) => setPassword(event.target.value)}
               autoComplete="current-password"
@@ -137,17 +131,21 @@ function Login() {
           </label>
 
           <button className="login-button" type="submit" disabled={loading}>
-            {loading ? "Cargando..." : "Iniciar sesion"}
+            {loading ? t("common.loading") : t("auth.login.button")}
           </button>
         </form>
 
         <div className="login-divider" aria-hidden="true">
-          <span>o</span>
+          <span>{t("auth.or")}</span>
         </div>
 
         <div className="login-role-group">
-          <span className="login-label">Rol para continuar con Google</span>
-          <div className="login-role-options" role="radiogroup" aria-label="Seleccion de rol">
+          <span className="login-label">{t("auth.login.googleRole")}</span>
+          <div
+            className="login-role-options"
+            role="radiogroup"
+            aria-label={t("auth.login.roleAria")}
+          >
             {USER_ROLE_OPTIONS.map((roleOption) => (
               <label key={roleOption.value} className="login-role-option">
                 <input
@@ -158,7 +156,7 @@ function Login() {
                   onChange={() => setGoogleRole(roleOption.value)}
                   disabled={loading}
                 />
-                <span>{roleOption.label}</span>
+                <span>{t(`roles.${roleOption.value}`)}</span>
               </label>
             ))}
           </div>
@@ -170,7 +168,7 @@ function Login() {
           onClick={handleGoogleLogin}
           disabled={loading}
         >
-          {loading ? "Procesando..." : "Continuar con Google"}
+          {loading ? t("common.processing") : t("auth.login.googleButton")}
         </button>
 
         {message ? (
@@ -190,7 +188,7 @@ function Login() {
           onClick={() => navigate("/register")}
           disabled={loading}
         >
-          No tienes cuenta? Registrate
+          {t("auth.login.registerLink")}
         </button>
       </section>
     </main>

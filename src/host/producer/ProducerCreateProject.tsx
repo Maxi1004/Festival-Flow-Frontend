@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import ProducerGuard from "./ProducerGuard";
 import { createProject } from "../../service/projectApi";
 import { PROJECT_STATUS_OPTIONS } from "../../types/producer";
@@ -27,6 +28,7 @@ const initialFormState: ProjectFormState = {
 };
 
 function ProducerCreateProjectContent() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const [formData, setFormData] = useState<ProjectFormState>(initialFormState);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -51,7 +53,7 @@ function ProducerCreateProjectContent() {
       setError(
         submitError instanceof Error
           ? submitError.message
-          : "No se pudo crear el proyecto."
+          : t("producer.errors.createProject")
       );
     } finally {
       setIsSubmitting(false);
@@ -62,21 +64,21 @@ function ProducerCreateProjectContent() {
     <div className="producer-shell">
       <section className="producer-card producer-form-card">
         <div className="section-heading">
-          <p className="producer-page__eyebrow">Nuevo proyecto</p>
-          <h1 className="producer-page__title">Crear proyecto</h1>
+          <p className="producer-page__eyebrow">{t("producer.projectForm.newEyebrow")}</p>
+          <h1 className="producer-page__title">{t("producer.projectForm.createTitle")}</h1>
           <p className="producer-page__subtitle">
-            Registra la base del proyecto para luego abrir convocatorias asociadas.
+            {t("producer.projectForm.createSubtitle")}
           </p>
         </div>
 
         <form className="producer-form" onSubmit={handleSubmit}>
           <label className="producer-field">
-            <span>Titulo</span>
+            <span>{t("producer.projectForm.title")}</span>
             <input name="title" value={formData.title} onChange={handleChange} required />
           </label>
 
           <label className="producer-field producer-field--full">
-            <span>Descripcion</span>
+            <span>{t("producer.projectForm.description")}</span>
             <textarea
               name="description"
               value={formData.description}
@@ -87,29 +89,29 @@ function ProducerCreateProjectContent() {
           </label>
 
           <label className="producer-field">
-            <span>Tipo de produccion</span>
+            <span>{t("producer.projectForm.productionType")}</span>
             <input
               name="production_type"
               value={formData.production_type}
               onChange={handleChange}
-              placeholder="Serie, videoclip, documental..."
+              placeholder={t("producer.projectForm.productionTypePlaceholder")}
               required
             />
           </label>
 
           <label className="producer-field">
-            <span>Ubicacion</span>
+            <span>{t("producer.projectForm.location")}</span>
             <input
               name="location"
               value={formData.location}
               onChange={handleChange}
-              placeholder="Santiago, Chile"
+              placeholder={t("producer.projectForm.locationPlaceholder")}
               required
             />
           </label>
 
           <label className="producer-field">
-            <span>Fecha de inicio</span>
+            <span>{t("producer.projectForm.startDate")}</span>
             <input
               type="date"
               name="start_date"
@@ -119,7 +121,7 @@ function ProducerCreateProjectContent() {
           </label>
 
           <label className="producer-field">
-            <span>Fecha de termino</span>
+            <span>{t("producer.projectForm.endDate")}</span>
             <input
               type="date"
               name="end_date"
@@ -129,11 +131,11 @@ function ProducerCreateProjectContent() {
           </label>
 
           <label className="producer-field">
-            <span>Estado</span>
+            <span>{t("producer.projectForm.status")}</span>
             <select name="status" value={formData.status} onChange={handleChange}>
               {PROJECT_STATUS_OPTIONS.map((status) => (
                 <option key={status} value={status}>
-                  {status}
+                  {t(`options.projectStatus.${status}`)}
                 </option>
               ))}
             </select>
@@ -143,14 +145,14 @@ function ProducerCreateProjectContent() {
 
           <div className="producer-actions">
             <button className="producer-button" type="button" onClick={() => navigate(-1)}>
-              Cancelar
+              {t("common.cancel")}
             </button>
             <button
               className="producer-button producer-button--primary"
               type="submit"
               disabled={isSubmitting}
             >
-              {isSubmitting ? "Creando..." : "Crear proyecto"}
+              {isSubmitting ? t("common.creating") : t("producer.projectForm.createButton")}
             </button>
           </div>
         </form>

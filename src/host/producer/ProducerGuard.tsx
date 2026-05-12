@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { Navigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { useCurrentProfile } from "../useCurrentProfile";
 
 type ProducerGuardProps = {
@@ -7,14 +8,15 @@ type ProducerGuardProps = {
 };
 
 function ProducerGuard({ children }: ProducerGuardProps) {
+  const { t } = useTranslation();
   const { user, profile, isProfileLoading } = useCurrentProfile();
 
   if (isProfileLoading) {
     return (
       <section className="producer-shell">
         <article className="producer-card producer-empty">
-          <h1 className="producer-card__title">Cargando perfil...</h1>
-          <p className="producer-card__text">Estamos preparando tu espacio de produccion.</p>
+          <h1 className="producer-card__title">{t("producer.guard.loadingTitle")}</h1>
+          <p className="producer-card__text">{t("producer.guard.loadingText")}</p>
         </article>
       </section>
     );

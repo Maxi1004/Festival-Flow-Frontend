@@ -1,10 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { createApplication, getMyApplications } from "../../service/applicationApi";
 import {
   getOpportunityById,
   getPublicOpportunities,
 } from "../../service/publicOpportunityApi";
 import type { PublicOpportunity } from "../../types/talent";
+import { translateStatus } from "../../utils/translateStatus";
 import "../../styles/talent.css";
 
 type FilterState = {
@@ -14,27 +16,27 @@ type FilterState = {
   modality: string;
 };
 
+const ALL_FILTER = "__ALL__";
+const ANY_FILTER = "__ANY__";
+
 function normalizeText(value: string | null | undefined): string {
   return value?.trim().toLowerCase() ?? "";
 }
 
-function formatModality(value: string | null | undefined): string {
-  const normalizedValue = normalizeText(value).replaceAll("_", " ");
-
-  if (!normalizedValue) {
-    return "Modalidad no informada";
+function formatModality(
+  value: string | null | undefined,
+  t: ReturnType<typeof useTranslation>["t"]
+): string {
+  if (!normalizeText(value)) {
+    return t("talent.opportunities.unreportedModality");
   }
 
-  return normalizedValue
-    .split(" ")
-    .filter(Boolean)
-    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-    .join(" ");
+  return t(`options.opportunityModality.${value}`, { defaultValue: value });
 }
 
-function formatDate(value: string | null | undefined): string {
+function formatDate(value: string | null | undefined, locale: string, fallback: string): string {
   if (!value) {
-    return "Sin fecha limite";
+    return fallback;
   }
 
   const parsedDate = new Date(value);
@@ -43,23 +45,28 @@ function formatDate(value: string | null | undefined): string {
     return value;
   }
 
-  return new Intl.DateTimeFormat("es-CL", {
+  return new Intl.DateTimeFormat(locale, {
     dateStyle: "medium",
   }).format(parsedDate);
 }
 
-function getOpportunityTitle(opportunity: PublicOpportunity): string {
-  return opportunity.title?.trim() || opportunity.role_needed?.trim() || "Convocatoria";
+function getOpportunityTitle(opportunity: PublicOpportunity, fallback: string): string {
+  return opportunity.title?.trim() || opportunity.role_needed?.trim() || fallback;
 }
 
-function getProjectLabel(opportunity: PublicOpportunity): string {
-  return opportunity.project?.title?.trim() || opportunity.specialty?.trim() || "Proyecto";
+function getProjectLabel(opportunity: PublicOpportunity, fallback: string): string {
+  return opportunity.project?.title?.trim() || opportunity.specialty?.trim() || fallback;
 }
 
-function matchesFilter(opportunity: PublicOpportunity, filters: FilterState): boolean {
+function matchesFilter(
+  opportunity: PublicOpportunity,
+  filters: FilterState,
+  fallbackTitle: string,
+  fallbackProject: string
+): boolean {
   const searchTarget = [
-    getOpportunityTitle(opportunity),
-    getProjectLabel(opportunity),
+    getOpportunityTitle(opportunity, fallbackTitle),
+    getProjectLabel(opportunity, fallbackProject),
     opportunity.role_needed,
     opportunity.specialty,
     opportunity.description,
@@ -72,16 +79,17 @@ function matchesFilter(opportunity: PublicOpportunity, filters: FilterState): bo
   const searchMatch =
     !filters.search.trim() || searchTarget.includes(filters.search.trim().toLowerCase());
   const specialtyMatch =
-    filters.specialty === "Todas" || opportunity.specialty === filters.specialty;
+    filters.specialty === ALL_FILTER || opportunity.specialty === filters.specialty;
   const locationMatch =
-    filters.location === "Cualquiera" || opportunity.location === filters.location;
+    filters.location === ANY_FILTER || opportunity.location === filters.location;
   const modalityMatch =
-    filters.modality === "Todas" || formatModality(opportunity.modality) === filters.modality;
+    filters.modality === ALL_FILTER || opportunity.modality === filters.modality;
 
   return searchMatch && specialtyMatch && locationMatch && modalityMatch;
 }
 
 function TalentOpportunities() {
+  const { t, i18n } = useTranslation();
   const [opportunities, setOpportunities] = useState<PublicOpportunity[]>([]);
   const [appliedOpportunityIds, setAppliedOpportunityIds] = useState<Set<string>>(new Set());
   const [expandedOpportunityIds, setExpandedOpportunityIds] = useState<Set<string>>(new Set());
@@ -92,9 +100,9 @@ function TalentOpportunities() {
   const [loadingDetailId, setLoadingDetailId] = useState("");
   const [filters, setFilters] = useState<FilterState>({
     search: "",
-    specialty: "Todas",
-    location: "Cualquiera",
-    modality: "Todas",
+    specialty: ALL_FILTER,
+    location: ANY_FILTER,
+    modality: ALL_FILTER,
   });
 
   useEffect(() => {
@@ -122,7 +130,7 @@ function TalentOpportunities() {
           setError(
             loadError instanceof Error
               ? loadError.message
-              : "No se pudieron cargar las convocatorias."
+              : t("talent.errors.loadOpportunities")
           );
         }
       } finally {
@@ -137,7 +145,7 @@ function TalentOpportunities() {
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, [t]);
 
   const specialties = useMemo(() => {
     const values = new Set(
@@ -146,7 +154,7 @@ function TalentOpportunities() {
         .filter((value): value is string => Boolean(value))
     );
 
-    return ["Todas", ...Array.from(values)];
+    return [ALL_FILTER, ...Array.from(values)];
   }, [opportunities]);
 
   const locations = useMemo(() => {
@@ -156,22 +164,30 @@ function TalentOpportunities() {
         .filter((value): value is string => Boolean(value))
     );
 
-    return ["Cualquiera", ...Array.from(values)];
+    return [ANY_FILTER, ...Array.from(values)];
   }, [opportunities]);
 
   const modalities = useMemo(() => {
     const values = new Set(
       opportunities
-        .map((opportunity) => formatModality(opportunity.modality))
+        .map((opportunity) => opportunity.modality?.trim())
         .filter(Boolean)
     );
 
-    return ["Todas", ...Array.from(values)];
+    return [ALL_FILTER, ...Array.from(values)];
   }, [opportunities]);
 
   const filteredOpportunities = useMemo(
-    () => opportunities.filter((opportunity) => matchesFilter(opportunity, filters)),
-    [filters, opportunities]
+    () =>
+      opportunities.filter((opportunity) =>
+        matchesFilter(
+          opportunity,
+          filters,
+          t("talent.opportunities.fallbackTitle"),
+          t("talent.opportunities.fallbackProject")
+        )
+      ),
+    [filters, opportunities, t]
   );
 
   const handleFilterChange = (
@@ -191,12 +207,12 @@ function TalentOpportunities() {
         message: "",
       });
       setAppliedOpportunityIds((current) => new Set(current).add(opportunityId));
-      setSuccessMessage("Postulacion enviada correctamente.");
+      setSuccessMessage(t("talent.opportunities.success"));
     } catch (submitError) {
       setError(
         submitError instanceof Error
           ? submitError.message
-          : "No se pudo enviar la postulacion."
+          : t("talent.errors.sendApplication")
       );
     } finally {
       setSubmittingOpportunityId("");
@@ -228,7 +244,7 @@ function TalentOpportunities() {
       setError(
         detailError instanceof Error
           ? detailError.message
-          : "No se pudo cargar el detalle de la convocatoria."
+          : t("talent.errors.loadOpportunityDetail")
       );
     } finally {
       setLoadingDetailId("");
@@ -239,59 +255,61 @@ function TalentOpportunities() {
     <div className="talent-page">
       <section className="talent-card talent-banner">
         <div>
-          <p className="talent-page__eyebrow">Convocatorias</p>
-          <h1 className="talent-page__title">Convocatorias abiertas para talento</h1>
+          <p className="talent-page__eyebrow">{t("talent.opportunities.eyebrow")}</p>
+          <h1 className="talent-page__title">{t("talent.opportunities.title")}</h1>
           <p className="talent-page__subtitle">
-            Explora oportunidades reales creadas por productores y postula desde este panel.
+            {t("talent.opportunities.subtitle")}
           </p>
         </div>
       </section>
 
       <section className="talent-card">
         <div className="section-heading">
-          <h2 className="section-heading__title">Filtros</h2>
+          <h2 className="section-heading__title">{t("talent.opportunities.filters")}</h2>
           <p className="section-heading__text">
-            Los filtros funcionan sobre el listado real entregado por `GET /opportunities`.
+            {t("talent.opportunities.filtersText")}
           </p>
         </div>
 
         <div className="talent-filters">
           <label className="talent-filter">
-            <span>Busqueda</span>
+            <span>{t("talent.opportunities.search")}</span>
             <input
               name="search"
               type="text"
-              placeholder="Buscar por proyecto o rol"
+              placeholder={t("talent.opportunities.searchPlaceholder")}
               value={filters.search}
               onChange={handleFilterChange}
             />
           </label>
           <label className="talent-filter">
-            <span>Especialidad</span>
+            <span>{t("talent.opportunities.specialty")}</span>
             <select name="specialty" value={filters.specialty} onChange={handleFilterChange}>
               {specialties.map((specialty) => (
                 <option key={specialty} value={specialty}>
-                  {specialty}
+                  {specialty === ALL_FILTER ? t("talent.opportunities.filterAll") : specialty}
                 </option>
               ))}
             </select>
           </label>
           <label className="talent-filter">
-            <span>Ubicacion</span>
+            <span>{t("talent.opportunities.location")}</span>
             <select name="location" value={filters.location} onChange={handleFilterChange}>
               {locations.map((location) => (
                 <option key={location} value={location}>
-                  {location}
+                  {location === ANY_FILTER ? t("talent.opportunities.filterAny") : location}
                 </option>
               ))}
             </select>
           </label>
           <label className="talent-filter">
-            <span>Modalidad</span>
+            <span>{t("talent.opportunities.modality")}</span>
             <select name="modality" value={filters.modality} onChange={handleFilterChange}>
               {modalities.map((modality) => (
                 <option key={modality} value={modality}>
-                  {modality}
+                  {modality === ALL_FILTER
+                    ? t("talent.opportunities.filterAll")
+                    : formatModality(modality, t)}
                 </option>
               ))}
             </select>
@@ -306,12 +324,12 @@ function TalentOpportunities() {
 
       {isLoading ? (
         <section className="talent-card">
-          <p className="talent-feedback">Cargando convocatorias...</p>
+          <p className="talent-feedback">{t("talent.opportunities.loading")}</p>
         </section>
       ) : filteredOpportunities.length === 0 ? (
         <section className="talent-card">
           <p className="talent-feedback">
-            No hay convocatorias disponibles con los filtros actuales.
+            {t("talent.opportunities.empty")}
           </p>
         </section>
       ) : (
@@ -324,34 +342,52 @@ function TalentOpportunities() {
               <article key={opportunity.id} className="talent-card talent-opportunity-card">
                 <div className="talent-opportunity-card__top">
                   <div>
-                    <p className="talent-list__meta">{getProjectLabel(opportunity)}</p>
-                    <h2 className="talent-list__title">{getOpportunityTitle(opportunity)}</h2>
+                    <p className="talent-list__meta">
+                      {getProjectLabel(opportunity, t("talent.opportunities.fallbackProject"))}
+                    </p>
+                    <h2 className="talent-list__title">
+                      {getOpportunityTitle(opportunity, t("talent.opportunities.fallbackTitle"))}
+                    </h2>
                   </div>
-                  <span className="talent-badge">{opportunity.status || "OPEN"}</span>
+                  <span className="talent-badge">
+                    {opportunity.status
+                      ? translateStatus(t, opportunity.status)
+                      : t("talent.opportunities.defaultStatus")}
+                  </span>
                 </div>
 
                 <div className="talent-meta-list">
-                  <span>{opportunity.role_needed || "Rol sin definir"}</span>
-                  <span>{opportunity.location || "Ubicacion pendiente"}</span>
-                  <span>{formatModality(opportunity.modality)}</span>
+                  <span>{opportunity.role_needed || t("talent.opportunities.undefinedRole")}</span>
+                  <span>{opportunity.location || t("talent.opportunities.pendingLocation")}</span>
+                  <span>{formatModality(opportunity.modality, t)}</span>
                 </div>
 
                 <p className="talent-list__text">
-                  {opportunity.description || "Esta convocatoria no incluye descripcion adicional."}
+                  {opportunity.description || t("talent.opportunities.noDescription")}
                 </p>
 
                 {isExpanded ? (
                   <div className="talent-stack">
                     <div className="talent-field">
-                      <span className="talent-field__label">Deadline</span>
-                      <p className="talent-field__text">{formatDate(opportunity.deadline)}</p>
+                      <span className="talent-field__label">
+                        {t("talent.opportunities.deadline")}
+                      </span>
+                      <p className="talent-field__text">
+                        {formatDate(
+                          opportunity.deadline,
+                          i18n.language,
+                          t("talent.opportunities.noDeadline")
+                        )}
+                      </p>
                     </div>
                     <div className="talent-field">
-                      <span className="talent-field__label">Requisitos</span>
+                      <span className="talent-field__label">
+                        {t("talent.opportunities.requirements")}
+                      </span>
                       <p className="talent-field__text">
                         {opportunity.requirements?.length
                           ? opportunity.requirements.join(", ")
-                          : "Sin requisitos detallados."}
+                          : t("talent.opportunities.noRequirements")}
                       </p>
                     </div>
                   </div>
@@ -365,10 +401,10 @@ function TalentOpportunities() {
                     onClick={() => void handleApply(opportunity.id)}
                   >
                     {isApplied
-                      ? "Postulado"
+                      ? t("talent.opportunities.applied")
                       : submittingOpportunityId === opportunity.id
-                        ? "Postulando..."
-                        : "Postular"}
+                        ? t("talent.opportunities.applying")
+                        : t("talent.opportunities.apply")}
                   </button>
                   <button
                     className="talent-button"
@@ -377,10 +413,10 @@ function TalentOpportunities() {
                     onClick={() => void handleToggleDetails(opportunity.id)}
                   >
                     {loadingDetailId === opportunity.id
-                      ? "Cargando..."
+                      ? t("common.loading")
                       : isExpanded
-                        ? "Ocultar detalle"
-                        : "Ver detalle"}
+                        ? t("talent.opportunities.hideDetail")
+                        : t("talent.opportunities.showDetail")}
                   </button>
                 </div>
               </article>

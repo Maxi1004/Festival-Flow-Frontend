@@ -1,44 +1,68 @@
 import { Outlet, useLocation, useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
+import LanguageSelector from "./LanguageSelector";
 import { logoutUser } from "../service/auth";
 import { useCurrentProfile } from "../host/useCurrentProfile";
 import "../styles/layout.css";
 
 type NavigationItem = {
-  label: string;
+  labelKey: string;
   path: string;
 };
 
 const producerNav: NavigationItem[] = [
-  { label: "Inicio", path: "/producer" },
-  { label: "Mis proyectos", path: "/producer/projects" },
-  { label: "Convocatorias", path: "/producer/opportunities" },
+  { labelKey: "layout.producerNav.home", path: "/producer" },
+  { labelKey: "layout.producerNav.projects", path: "/producer/projects" },
+  { labelKey: "layout.producerNav.opportunities", path: "/producer/opportunities" },
 ];
 
 const talentNav: NavigationItem[] = [
-  { label: "Inicio", path: "/talent" },
-  { label: "Mi perfil", path: "/talent/profile" },
-  { label: "Disponibilidad", path: "/talent/availability" },
-  { label: "Convocatorias", path: "/talent/opportunities" },
-  { label: "Postulaciones", path: "/talent/applications" },
+  { labelKey: "layout.talentNav.home", path: "/talent" },
+  { labelKey: "layout.talentNav.profile", path: "/talent/profile" },
+  { labelKey: "layout.talentNav.availability", path: "/talent/availability" },
+  { labelKey: "layout.talentNav.opportunities", path: "/talent/opportunities" },
+  { labelKey: "layout.talentNav.applications", path: "/talent/applications" },
 ];
 
-const talentPageMeta: Record<string, { eyebrow: string; title: string }> = {
-  "/talent": { eyebrow: "Espacio profesional", title: "Inicio" },
-  "/talent/profile": { eyebrow: "Perfil audiovisual", title: "Mi perfil" },
-  "/talent/availability": { eyebrow: "Agenda profesional", title: "Disponibilidad" },
-  "/talent/opportunities": { eyebrow: "Oportunidades", title: "Convocatorias" },
-  "/talent/applications": { eyebrow: "Seguimiento", title: "Postulaciones" },
+const talentPageMeta: Record<string, { eyebrowKey: string; titleKey: string }> = {
+  "/talent": { eyebrowKey: "layout.talentMeta.homeEyebrow", titleKey: "layout.talentNav.home" },
+  "/talent/profile": { eyebrowKey: "layout.talentMeta.profileEyebrow", titleKey: "layout.talentNav.profile" },
+  "/talent/availability": {
+    eyebrowKey: "layout.talentMeta.availabilityEyebrow",
+    titleKey: "layout.talentNav.availability",
+  },
+  "/talent/opportunities": {
+    eyebrowKey: "layout.talentMeta.opportunitiesEyebrow",
+    titleKey: "layout.talentNav.opportunities",
+  },
+  "/talent/applications": {
+    eyebrowKey: "layout.talentMeta.applicationsEyebrow",
+    titleKey: "layout.talentNav.applications",
+  },
 };
 
-const producerPageMeta: Record<string, { eyebrow: string; title: string }> = {
-  "/producer": { eyebrow: "Vista general", title: "Inicio" },
-  "/producer/projects": { eyebrow: "Produccion", title: "Mis proyectos" },
-  "/producer/projects/new": { eyebrow: "Produccion", title: "Nuevo proyecto" },
-  "/producer/opportunities": { eyebrow: "Convocatorias", title: "Mis convocatorias" },
-  "/producer/opportunities/new": { eyebrow: "Convocatorias", title: "Nueva convocatoria" },
+const producerPageMeta: Record<string, { eyebrowKey: string; titleKey: string }> = {
+  "/producer": { eyebrowKey: "layout.producerMeta.homeEyebrow", titleKey: "layout.producerNav.home" },
+  "/producer/projects": {
+    eyebrowKey: "layout.producerMeta.productionEyebrow",
+    titleKey: "layout.producerNav.projects",
+  },
+  "/producer/projects/new": {
+    eyebrowKey: "layout.producerMeta.productionEyebrow",
+    titleKey: "layout.producerMeta.newProject",
+  },
+  "/producer/opportunities": {
+    eyebrowKey: "layout.producerMeta.opportunitiesEyebrow",
+    titleKey: "layout.producerNav.opportunities",
+  },
+  "/producer/opportunities/new": {
+    eyebrowKey: "layout.producerMeta.opportunitiesEyebrow",
+    titleKey: "layout.producerMeta.newOpportunity",
+  },
 };
 
 function Layout() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const location = useLocation();
   const { user, profile, isProfileLoading } = useCurrentProfile();
@@ -46,23 +70,29 @@ function Layout() {
   const isProducer = profile?.role === "PRODUCER";
   const isTalent = profile?.role === "TALENT";
   const navItems = isProducer ? producerNav : talentNav;
-  const userName = profile?.name?.trim() || user?.displayName?.trim() || "Usuario";
+  const userName = profile?.name?.trim() || user?.displayName?.trim() || t("common.user");
+  const roleLabel = profile?.role
+    ? t(`roles.${profile.role}`, { defaultValue: profile.role })
+    : t("common.noRole");
 
   const topbarMeta = isTalent
     ? talentPageMeta[location.pathname] ?? talentPageMeta["/talent"]
     : producerPageMeta[location.pathname] ??
       (location.pathname.includes("/producer/projects/")
-        ? { eyebrow: "Produccion", title: "Editar proyecto" }
+        ? { eyebrowKey: "layout.producerMeta.productionEyebrow", titleKey: "layout.producerMeta.editProject" }
         : location.pathname.includes("/producer/opportunities/")
-        ? { eyebrow: "Convocatorias", title: "Editar convocatoria" }
-        : { eyebrow: "Panel principal", title: "Inicio" });
+        ? {
+            eyebrowKey: "layout.producerMeta.opportunitiesEyebrow",
+            titleKey: "layout.producerMeta.editOpportunity",
+          }
+        : { eyebrowKey: "layout.producerMeta.mainEyebrow", titleKey: "layout.producerNav.home" });
 
   const handleLogout = async () => {
     try {
       await logoutUser();
       navigate("/");
     } catch (error) {
-      console.error("Error cerrando sesion:", error);
+      console.error("Error signing out:", error);
     }
   };
 
@@ -84,20 +114,20 @@ function Layout() {
             <div>
               <p className="sidebar__eyebrow">
                 {isProfileLoading
-                  ? "Cargando..."
+                  ? t("common.loading")
                   : isProducer
-                  ? "Panel de produccion"
+                  ? t("layout.producerPanel")
                   : isTalent
-                  ? "Panel de talento"
-                  : "Acceso"}
+                  ? t("layout.talentPanel")
+                  : t("layout.access")}
               </p>
-              <h1 className="sidebar__title">Tinseltown</h1>
+              <h1 className="sidebar__title">{t("app.name")}</h1>
             </div>
           </div>
 
           {!user ? (
             <button className="sidebar__action" type="button" onClick={() => navigate("/login")}>
-              Iniciar sesion
+              {t("layout.login")}
             </button>
           ) : (
             <>
@@ -107,12 +137,12 @@ function Layout() {
                 disabled={isProfileLoading}
                 onClick={handlePrimaryAction}
               >
-                {isProducer ? "Nuevo proyecto" : "Editar perfil"}
+                {isProducer ? t("layout.producerMeta.newProject") : t("layout.editProfile")}
               </button>
 
-              <nav className="sidebar__nav" aria-label="Navegacion principal">
+              <nav className="sidebar__nav" aria-label={t("layout.primaryNavigation")}>
                 {isProfileLoading ? (
-                  <span className="sidebar__link">Cargando...</span>
+                  <span className="sidebar__link">{t("common.loading")}</span>
                 ) : (
                   navItems.map((item) => {
                     const isActive =
@@ -128,7 +158,7 @@ function Layout() {
                         type="button"
                         onClick={() => navigate(item.path)}
                       >
-                        {item.label}
+                        {t(item.labelKey)}
                       </button>
                     );
                   })
@@ -142,10 +172,10 @@ function Layout() {
           <span className="sidebar__status-dot" aria-hidden="true"></span>
           <span>
             {isProfileLoading
-              ? "Cargando perfil..."
+              ? t("layout.loadingProfile")
               : user
-              ? `Sesion activa | ${profile?.role ?? "Sin rol"}`
-              : "Sesion no iniciada"}
+              ? t("layout.activeSession", { role: roleLabel })
+              : t("layout.inactiveSession")}
           </span>
         </div>
       </aside>
@@ -153,29 +183,27 @@ function Layout() {
       <div className="layout__content">
         <header className="topbar">
           <div>
-            <p className="topbar__eyebrow">{topbarMeta.eyebrow}</p>
-            <h2 className="topbar__title">{topbarMeta.title}</h2>
+            <p className="topbar__eyebrow">{t(topbarMeta.eyebrowKey)}</p>
+            <h2 className="topbar__title">{t(topbarMeta.titleKey)}</h2>
             {user ? (
               <p className="topbar__meta">
                 {isProfileLoading
-                  ? "Cargando perfil..."
-                  : `${userName} | ${profile?.role ?? "Sin rol"}`}
+                  ? t("layout.loadingProfile")
+                  : `${userName} | ${roleLabel}`}
               </p>
             ) : null}
           </div>
 
           <div className="topbar__actions">
-            <button className="topbar__language" type="button">
-              ES / EN
-            </button>
+            <LanguageSelector />
 
-            <button className="topbar__icon" type="button" aria-label="Notificaciones">
+            <button className="topbar__icon" type="button" aria-label={t("layout.notifications")}>
               N
             </button>
 
             {user ? (
               <button className="topbar__session" type="button" onClick={handleLogout}>
-                Cerrar sesion
+                {t("layout.logout")}
               </button>
             ) : (
               <button
@@ -183,7 +211,7 @@ function Layout() {
                 type="button"
                 onClick={() => navigate("/login")}
               >
-                Iniciar sesion
+                {t("layout.login")}
               </button>
             )}
           </div>

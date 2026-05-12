@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import ProducerGuard from "./ProducerGuard";
 import { getMyProjects } from "../../service/projectApi";
 import {
@@ -8,9 +9,11 @@ import {
 } from "../../service/opportunityApi";
 import type { Opportunity, Project } from "../../types/producer";
 import { formatDisplayDate, getOpportunityProjectTitle } from "./utils";
+import { translateStatus } from "../../utils/translateStatus";
 import "../../styles/producer.css";
 
 function ProducerOpportunitiesContent() {
+  const { t, i18n } = useTranslation();
   const navigate = useNavigate();
   const [projects, setProjects] = useState<Project[]>([]);
   const [opportunities, setOpportunities] = useState<Opportunity[]>([]);
@@ -42,7 +45,7 @@ function ProducerOpportunitiesContent() {
           setError(
             loadError instanceof Error
               ? loadError.message
-              : "No se pudieron cargar tus convocatorias."
+              : t("producer.errors.loadOpportunities")
           );
         }
       } finally {
@@ -57,7 +60,7 @@ function ProducerOpportunitiesContent() {
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, [t]);
 
   const activeCount = opportunities.filter((item) => item.status === "OPEN").length;
 
@@ -73,7 +76,7 @@ function ProducerOpportunitiesContent() {
       setError(
         closeError instanceof Error
           ? closeError.message
-          : "No se pudo cerrar la convocatoria."
+          : t("producer.errors.closeOpportunity")
       );
     } finally {
       setClosingId("");
@@ -84,28 +87,28 @@ function ProducerOpportunitiesContent() {
     <div className="producer-shell">
       <section className="producer-card producer-banner">
         <div>
-          <p className="producer-page__eyebrow">Convocatorias</p>
-          <h1 className="producer-page__title">Administra tus oportunidades</h1>
+          <p className="producer-page__eyebrow">{t("producer.opportunities.eyebrow")}</p>
+          <h1 className="producer-page__title">{t("producer.opportunities.title")}</h1>
           <p className="producer-page__subtitle">
-            Publica, actualiza o cierra convocatorias conectadas a tus proyectos reales.
+            {t("producer.opportunities.subtitle")}
           </p>
         </div>
         <Link
           className="producer-button producer-button--primary"
           to="/producer/opportunities/new"
         >
-          Nueva convocatoria
+          {t("producer.opportunities.newOpportunity")}
         </Link>
       </section>
 
       <section className="producer-metrics">
         <article className="producer-card producer-metric">
           <span className="producer-metric__value">{isLoading ? "..." : opportunities.length}</span>
-          <p className="producer-metric__label">Total convocatorias</p>
+          <p className="producer-metric__label">{t("producer.opportunities.total")}</p>
         </article>
         <article className="producer-card producer-metric">
           <span className="producer-metric__value">{isLoading ? "..." : activeCount}</span>
-          <p className="producer-metric__label">Activas</p>
+          <p className="producer-metric__label">{t("producer.opportunities.active")}</p>
         </article>
       </section>
 
@@ -118,7 +121,7 @@ function ProducerOpportunitiesContent() {
       <section className="producer-grid producer-grid--single">
         {isLoading ? (
           <article className="producer-card producer-empty">
-            <p>Cargando convocatorias...</p>
+            <p>{t("producer.opportunities.loading")}</p>
           </article>
         ) : opportunities.length > 0 ? (
           opportunities.map((opportunity) => (
@@ -126,19 +129,31 @@ function ProducerOpportunitiesContent() {
               <div className="producer-record__header">
                 <div>
                   <p className="producer-record__eyebrow">
-                    {getOpportunityProjectTitle(opportunity, projects)}
+                    {getOpportunityProjectTitle(
+                      opportunity,
+                      projects,
+                      t("producer.opportunities.fallbackProject")
+                    )}
                   </p>
                   <h2 className="producer-record__title">{opportunity.title}</h2>
                 </div>
-                <span className="producer-status">{opportunity.status}</span>
+                <span className="producer-status">
+                  {translateStatus(t, opportunity.status)}
+                </span>
               </div>
 
               <div className="producer-meta-list">
                 <span>{opportunity.role_needed}</span>
                 <span>{opportunity.specialty}</span>
                 <span>{opportunity.location}</span>
-                <span>{opportunity.modality}</span>
-                <span>{formatDisplayDate(opportunity.deadline)}</span>
+                <span>
+                  {t(`options.opportunityModality.${opportunity.modality}`, {
+                    defaultValue: opportunity.modality,
+                  })}
+                </span>
+                <span>
+                  {formatDisplayDate(opportunity.deadline, i18n.language, t("common.noDate"))}
+                </span>
               </div>
 
               <p className="producer-record__text">{opportunity.description}</p>
@@ -159,7 +174,7 @@ function ProducerOpportunitiesContent() {
                   type="button"
                   onClick={() => navigate(`/producer/opportunities/${opportunity.id}/edit`)}
                 >
-                  Editar
+                  {t("common.edit")}
                 </button>
                 <button
                   className="producer-button"
@@ -168,19 +183,19 @@ function ProducerOpportunitiesContent() {
                   onClick={() => void handleCloseOpportunity(opportunity.id)}
                 >
                   {closingId === opportunity.id
-                    ? "Cerrando..."
+                    ? t("producer.opportunities.closing")
                     : opportunity.status === "CLOSED"
-                    ? "Cerrada"
-                    : "Cerrar convocatoria"}
+                    ? t("producer.opportunities.closed")
+                    : t("producer.opportunities.close")}
                 </button>
               </div>
             </article>
           ))
         ) : (
           <article className="producer-card producer-empty">
-            <h2 className="producer-card__title">No hay convocatorias todavia</h2>
+            <h2 className="producer-card__title">{t("producer.opportunities.emptyTitle")}</h2>
             <p className="producer-card__text">
-              Crea una oportunidad real para comenzar a recibir postulaciones desde el backend.
+              {t("producer.opportunities.emptyText")}
             </p>
           </article>
         )}

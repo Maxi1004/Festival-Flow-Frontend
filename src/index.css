@@ -11,7 +11,7 @@ body,
 }
 
 body {
-  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  font-family: "Noto Sans", "Noto Sans KR", "Noto Sans JP", "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
   background: #f8fafc;
   color: #0f172a;
 }

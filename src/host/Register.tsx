@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { loginWithEmail, loginWithGoogle } from "../service/auth";
 import { registerUser, syncGoogleUser } from "../service/authApi";
 import { USER_ROLE_OPTIONS, type UserRole } from "../types/auth";
@@ -9,6 +10,7 @@ import "../styles/register.css";
 type StatusType = "idle" | "success" | "error";
 
 function Register() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const redirectTimeoutRef = useRef<number | null>(null);
 
@@ -35,7 +37,7 @@ function Register() {
 
     if (!role) {
       setStatus("error");
-      setMessage("Debes seleccionar un rol para crear tu cuenta.");
+      setMessage(t("auth.register.roleRequired"));
       return;
     }
 
@@ -54,16 +56,14 @@ function Register() {
       await loginWithEmail(email.trim(), password);
 
       setStatus("success");
-      setMessage("Cuenta creada correctamente. Redirigiendo al inicio...");
+      setMessage(t("auth.register.success"));
 
       redirectTimeoutRef.current = window.setTimeout(() => {
         navigate("/");
       }, 1000);
     } catch (error: unknown) {
       const errorMessage =
-        error instanceof Error
-          ? error.message
-          : "No pudimos crear la cuenta en este momento. Intenta nuevamente.";
+        error instanceof Error ? error.message : t("auth.register.error");
 
       setStatus("error");
       setMessage(errorMessage);
@@ -75,7 +75,7 @@ function Register() {
   const handleGoogleRegister = async (): Promise<void> => {
     if (!role) {
       setStatus("error");
-      setMessage("Debes seleccionar un rol antes de continuar con Google.");
+      setMessage(t("auth.register.googleRoleRequired"));
       return;
     }
 
@@ -85,13 +85,11 @@ function Register() {
 
     try {
       const credential = await loginWithGoogle();
-      const googleName = credential.user.displayName?.trim() || "Usuario";
+      const googleName = credential.user.displayName?.trim() || t("common.user");
       const googleEmail = credential.user.email?.trim();
 
       if (!googleEmail) {
-        throw new Error(
-          "No pudimos obtener el correo de tu cuenta de Google. Intenta con otro metodo."
-        );
+        throw new Error(t("auth.login.googleEmailError"));
       }
 
       await syncGoogleUser({
@@ -106,16 +104,14 @@ function Register() {
       await credential.user.getIdToken();
 
       setStatus("success");
-      setMessage("Cuenta creada correctamente. Redirigiendo al inicio...");
+      setMessage(t("auth.register.success"));
 
       redirectTimeoutRef.current = window.setTimeout(() => {
         navigate("/");
       }, 1000);
     } catch (error: unknown) {
       const errorMessage =
-        error instanceof Error
-          ? error.message
-          : "No pudimos completar el registro con Google. Intenta nuevamente.";
+        error instanceof Error ? error.message : t("auth.register.googleError");
 
       setStatus("error");
       setMessage(errorMessage);
@@ -126,22 +122,20 @@ function Register() {
 
   return (
     <main className="register-container">
-      <section className="register-card" aria-label="Formulario de registro">
+      <section className="register-card" aria-label={t("auth.register.aria")}>
         <div className="register-header">
-          <p className="register-eyebrow">Festival Flow</p>
-          <h1 className="register-title">Crear cuenta</h1>
-          <p className="register-subtitle">
-            Registrate para comenzar a gestionar tus proyectos y festivales.
-          </p>
+          <p className="register-eyebrow">{t("common.brand")}</p>
+          <h1 className="register-title">{t("auth.register.title")}</h1>
+          <p className="register-subtitle">{t("auth.register.subtitle")}</p>
         </div>
 
         <form className="register-form" onSubmit={handleRegister}>
           <label className="register-field">
-            <span className="register-label">Nombre completo</span>
+            <span className="register-label">{t("auth.register.name")}</span>
             <input
               className="register-input"
               type="text"
-              placeholder="Tu nombre completo"
+              placeholder={t("auth.register.namePlaceholder")}
               value={name}
               onChange={(event) => setName(event.target.value)}
               autoComplete="name"
@@ -151,11 +145,11 @@ function Register() {
           </label>
 
           <label className="register-field">
-            <span className="register-label">Correo electronico</span>
+            <span className="register-label">{t("auth.email")}</span>
             <input
               className="register-input"
               type="email"
-              placeholder="correo@ejemplo.com"
+              placeholder={t("auth.emailPlaceholder")}
               value={email}
               onChange={(event) => setEmail(event.target.value)}
               autoComplete="email"
@@ -165,11 +159,11 @@ function Register() {
           </label>
 
           <label className="register-field">
-            <span className="register-label">Contrasena</span>
+            <span className="register-label">{t("auth.password")}</span>
             <input
               className="register-input"
               type="password"
-              placeholder="Crea una contrasena segura"
+              placeholder={t("auth.newPasswordPlaceholder")}
               value={password}
               onChange={(event) => setPassword(event.target.value)}
               autoComplete="new-password"
@@ -179,11 +173,11 @@ function Register() {
           </label>
 
           <div className="register-role-group">
-            <span className="register-label">Selecciona tu rol</span>
+            <span className="register-label">{t("auth.register.role")}</span>
             <div
               className="register-role-options"
               role="radiogroup"
-              aria-label="Seleccion de rol"
+              aria-label={t("auth.register.roleAria")}
             >
               {USER_ROLE_OPTIONS.map((roleOption) => (
                 <label key={roleOption.value} className="register-role-option">
@@ -195,19 +189,19 @@ function Register() {
                     onChange={() => setRole(roleOption.value)}
                     disabled={loading}
                   />
-                  <span>{roleOption.label}</span>
+                  <span>{t(`roles.${roleOption.value}`)}</span>
                 </label>
               ))}
             </div>
           </div>
 
           <button className="register-button" type="submit" disabled={loading}>
-            {loading ? "Procesando..." : "Registrarse"}
+            {loading ? t("common.processing") : t("auth.register.button")}
           </button>
         </form>
 
         <div className="register-divider" aria-hidden="true">
-          <span>o</span>
+          <span>{t("auth.or")}</span>
         </div>
 
         <button
@@ -216,7 +210,7 @@ function Register() {
           onClick={handleGoogleRegister}
           disabled={loading}
         >
-          {loading ? "Procesando..." : "Continuar con Google"}
+          {loading ? t("common.processing") : t("auth.register.googleButton")}
         </button>
 
         {message ? (
@@ -236,7 +230,7 @@ function Register() {
           onClick={() => navigate("/login")}
           disabled={loading}
         >
-          Ya tienes cuenta? Inicia sesion
+          {t("auth.register.loginLink")}
         </button>
       </section>
     </main>

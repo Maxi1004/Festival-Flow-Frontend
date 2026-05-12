@@ -1,12 +1,15 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import ProducerGuard from "./ProducerGuard";
 import { getMyProjects } from "../../service/projectApi";
 import type { Project } from "../../types/producer";
 import { formatDisplayDate } from "./utils";
+import { translateStatus } from "../../utils/translateStatus";
 import "../../styles/producer.css";
 
 function ProducerProjectsContent() {
+  const { t, i18n } = useTranslation();
   const navigate = useNavigate();
   const [projects, setProjects] = useState<Project[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -29,7 +32,7 @@ function ProducerProjectsContent() {
           setError(
             loadError instanceof Error
               ? loadError.message
-              : "No se pudieron cargar tus proyectos."
+              : t("producer.errors.loadProjects")
           );
         }
       } finally {
@@ -44,21 +47,20 @@ function ProducerProjectsContent() {
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, [t]);
 
   return (
     <div className="producer-shell">
       <section className="producer-card producer-banner">
         <div>
-          <p className="producer-page__eyebrow">Mis proyectos</p>
-          <h1 className="producer-page__title">Gestiona tus producciones</h1>
+          <p className="producer-page__eyebrow">{t("producer.projects.eyebrow")}</p>
+          <h1 className="producer-page__title">{t("producer.projects.title")}</h1>
           <p className="producer-page__subtitle">
-            Consulta el estado de cada proyecto y crea convocatorias asociadas cuando lo
-            necesites.
+            {t("producer.projects.subtitle")}
           </p>
         </div>
         <Link className="producer-button producer-button--primary" to="/producer/projects/new">
-          Nuevo proyecto
+          {t("producer.projects.newProject")}
         </Link>
       </section>
 
@@ -71,7 +73,7 @@ function ProducerProjectsContent() {
       <section className="producer-grid producer-grid--single">
         {isLoading ? (
           <article className="producer-card producer-empty">
-            <p>Cargando proyectos...</p>
+            <p>{t("producer.projects.loading")}</p>
           </article>
         ) : projects.length > 0 ? (
           projects.map((project) => (
@@ -81,15 +83,17 @@ function ProducerProjectsContent() {
                   <p className="producer-record__eyebrow">{project.production_type}</p>
                   <h2 className="producer-record__title">{project.title}</h2>
                 </div>
-                <span className="producer-status">{project.status}</span>
+                <span className="producer-status">
+                  {translateStatus(t, project.status)}
+                </span>
               </div>
 
               <p className="producer-record__text">{project.description}</p>
 
               <div className="producer-meta-list">
                 <span>{project.location}</span>
-                <span>{formatDisplayDate(project.start_date)}</span>
-                <span>{formatDisplayDate(project.end_date)}</span>
+                <span>{formatDisplayDate(project.start_date, i18n.language, t("common.noDate"))}</span>
+                <span>{formatDisplayDate(project.end_date, i18n.language, t("common.noDate"))}</span>
               </div>
 
               <div className="producer-actions producer-actions--inline">
@@ -98,7 +102,7 @@ function ProducerProjectsContent() {
                   type="button"
                   onClick={() => navigate(`/producer/projects/${project.id}/edit`)}
                 >
-                  Editar
+                  {t("common.edit")}
                 </button>
                 <button
                   className="producer-button"
@@ -109,16 +113,16 @@ function ProducerProjectsContent() {
                     })
                   }
                 >
-                  Crear convocatoria
+                  {t("producer.projects.createOpportunity")}
                 </button>
               </div>
             </article>
           ))
         ) : (
           <article className="producer-card producer-empty">
-            <h2 className="producer-card__title">Aun no hay proyectos</h2>
+            <h2 className="producer-card__title">{t("producer.projects.emptyTitle")}</h2>
             <p className="producer-card__text">
-              Crea tu primer proyecto para empezar a publicar convocatorias reales.
+              {t("producer.projects.emptyText")}
             </p>
           </article>
         )}

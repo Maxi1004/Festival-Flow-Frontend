@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import ProducerGuard from "./ProducerGuard";
 import { getMyProjects } from "../../service/projectApi";
 import { createOpportunity } from "../../service/opportunityApi";
@@ -38,6 +39,7 @@ const initialFormState: OpportunityFormState = {
 };
 
 function ProducerCreateOpportunityContent() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const location = useLocation();
   const [projects, setProjects] = useState<Project[]>([]);
@@ -71,7 +73,7 @@ function ProducerCreateOpportunityContent() {
           setError(
             loadError instanceof Error
               ? loadError.message
-              : "No se pudieron cargar tus proyectos."
+              : t("producer.errors.loadProjects")
           );
         }
       } finally {
@@ -86,7 +88,7 @@ function ProducerCreateOpportunityContent() {
     return () => {
       isMounted = false;
     };
-  }, [location.state]);
+  }, [location.state, t]);
 
   const handleChange = (
     event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
@@ -107,7 +109,7 @@ function ProducerCreateOpportunityContent() {
       setError(
         submitError instanceof Error
           ? submitError.message
-          : "No se pudo crear la convocatoria."
+          : t("producer.errors.createOpportunity")
       );
     } finally {
       setIsSubmitting(false);
@@ -120,32 +122,32 @@ function ProducerCreateOpportunityContent() {
     <div className="producer-shell">
       <section className="producer-card producer-form-card">
         <div className="section-heading">
-          <p className="producer-page__eyebrow">Nueva convocatoria</p>
-          <h1 className="producer-page__title">Crear oportunidad</h1>
+          <p className="producer-page__eyebrow">{t("producer.opportunityForm.newEyebrow")}</p>
+          <h1 className="producer-page__title">{t("producer.opportunityForm.createTitle")}</h1>
           <p className="producer-page__subtitle">
-            Publica una convocatoria conectada a uno de tus proyectos reales.
+            {t("producer.opportunityForm.createSubtitle")}
           </p>
         </div>
 
         {isLoadingProjects ? (
-          <p className="producer-muted">Cargando proyectos...</p>
+          <p className="producer-muted">{t("producer.projects.loading")}</p>
         ) : !hasProjects ? (
           <div className="producer-empty">
             <p className="producer-card__text">
-              Necesitas al menos un proyecto para crear una convocatoria.
+              {t("producer.opportunityForm.needsProject")}
             </p>
             <button
               className="producer-button producer-button--primary"
               type="button"
               onClick={() => navigate("/producer/projects/new")}
             >
-              Crear proyecto primero
+              {t("producer.opportunityForm.createProjectFirst")}
             </button>
           </div>
         ) : (
           <form className="producer-form" onSubmit={handleSubmit}>
             <label className="producer-field">
-              <span>Proyecto</span>
+              <span>{t("producer.opportunityForm.project")}</span>
               <select
                 name="project_id"
                 value={formData.project_id}
@@ -161,61 +163,61 @@ function ProducerCreateOpportunityContent() {
             </label>
 
             <label className="producer-field">
-              <span>Titulo</span>
+              <span>{t("producer.opportunityForm.title")}</span>
               <input name="title" value={formData.title} onChange={handleChange} required />
             </label>
 
             <label className="producer-field">
-              <span>Rol requerido</span>
+              <span>{t("producer.opportunityForm.roleNeeded")}</span>
               <input
                 name="role_needed"
                 value={formData.role_needed}
                 onChange={handleChange}
-                placeholder="Director de fotografia"
+                placeholder={t("producer.opportunityForm.rolePlaceholder")}
                 required
               />
             </label>
 
             <label className="producer-field">
-              <span>Especialidad</span>
+              <span>{t("producer.opportunityForm.specialty")}</span>
               <input
                 name="specialty"
                 value={formData.specialty}
                 onChange={handleChange}
-                placeholder="Cine documental"
+                placeholder={t("producer.opportunityForm.specialtyPlaceholder")}
                 required
               />
             </label>
 
             <label className="producer-field">
-              <span>Ubicacion</span>
+              <span>{t("producer.opportunityForm.location")}</span>
               <input name="location" value={formData.location} onChange={handleChange} required />
             </label>
 
             <label className="producer-field">
-              <span>Modalidad</span>
+              <span>{t("producer.opportunityForm.modality")}</span>
               <select name="modality" value={formData.modality} onChange={handleChange}>
                 {OPPORTUNITY_MODALITY_OPTIONS.map((modality) => (
                   <option key={modality} value={modality}>
-                    {modality}
+                    {t(`options.opportunityModality.${modality}`)}
                   </option>
                 ))}
               </select>
             </label>
 
             <label className="producer-field">
-              <span>Estado</span>
+              <span>{t("producer.opportunityForm.status")}</span>
               <select name="status" value={formData.status} onChange={handleChange}>
                 {OPPORTUNITY_STATUS_OPTIONS.map((status) => (
                   <option key={status} value={status}>
-                    {status}
+                    {t(`options.opportunityStatus.${status}`)}
                   </option>
                 ))}
               </select>
             </label>
 
             <label className="producer-field">
-              <span>Deadline</span>
+              <span>{t("producer.opportunityForm.deadline")}</span>
               <input
                 type="date"
                 name="deadline"
@@ -225,7 +227,7 @@ function ProducerCreateOpportunityContent() {
             </label>
 
             <label className="producer-field producer-field--full">
-              <span>Descripcion</span>
+              <span>{t("producer.opportunityForm.description")}</span>
               <textarea
                 name="description"
                 value={formData.description}
@@ -236,13 +238,13 @@ function ProducerCreateOpportunityContent() {
             </label>
 
             <label className="producer-field producer-field--full">
-              <span>Requisitos</span>
+              <span>{t("producer.opportunityForm.requirements")}</span>
               <textarea
                 name="requirements"
                 value={formData.requirements}
                 onChange={handleChange}
                 rows={5}
-                placeholder="Uno por linea o separados por comas"
+                placeholder={t("producer.opportunityForm.requirementsPlaceholder")}
               />
             </label>
 
@@ -250,14 +252,14 @@ function ProducerCreateOpportunityContent() {
 
             <div className="producer-actions">
               <button className="producer-button" type="button" onClick={() => navigate(-1)}>
-                Cancelar
+                {t("common.cancel")}
               </button>
               <button
                 className="producer-button producer-button--primary"
                 type="submit"
                 disabled={isSubmitting}
               >
-                {isSubmitting ? "Creando..." : "Crear convocatoria"}
+                {isSubmitting ? t("common.creating") : t("producer.opportunityForm.createButton")}
               </button>
             </div>
           </form>

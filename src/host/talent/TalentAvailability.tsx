@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
   getMyTalentAvailability,
   updateMyTalentAvailability,
@@ -55,6 +56,7 @@ function normalizeAvailabilityPayload(
 }
 
 function TalentAvailability() {
+  const { t } = useTranslation();
   const [formData, setFormData] = useState<AvailabilityFormState>(initialFormState);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -80,7 +82,7 @@ function TalentAvailability() {
           setError(
             loadError instanceof Error
               ? loadError.message
-              : "No se pudo cargar tu disponibilidad."
+              : t("talent.errors.loadAvailability")
           );
         }
       } finally {
@@ -95,7 +97,7 @@ function TalentAvailability() {
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, [t]);
 
   const handleChange = (
     event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
@@ -115,12 +117,12 @@ function TalentAvailability() {
         normalizeAvailabilityPayload(formData)
       );
       setFormData(mapAvailabilityToFormState(savedAvailability));
-      setSuccessMessage("Disponibilidad guardada correctamente.");
+      setSuccessMessage(t("talent.availability.success"));
     } catch (submitError) {
       setError(
         submitError instanceof Error
           ? submitError.message
-          : "No se pudo guardar la disponibilidad."
+          : t("talent.errors.saveAvailability")
       );
     } finally {
       setIsSaving(false);
@@ -131,11 +133,10 @@ function TalentAvailability() {
     <div className="talent-page">
       <section className="talent-card talent-banner">
         <div>
-          <p className="talent-page__eyebrow">Disponibilidad</p>
-          <h1 className="talent-page__title">Estado profesional y disponibilidad</h1>
+          <p className="talent-page__eyebrow">{t("talent.availability.eyebrow")}</p>
+          <h1 className="talent-page__title">{t("talent.availability.title")}</h1>
           <p className="talent-page__subtitle">
-            Mantiene actualizados los datos reales que usan los productores para evaluar tiempos
-            y modalidad de trabajo.
+            {t("talent.availability.subtitle")}
           </p>
         </div>
 
@@ -145,21 +146,21 @@ function TalentAvailability() {
           form="talent-availability-form"
           disabled={isLoading || isSaving}
         >
-          {isSaving ? "Guardando..." : "Guardar disponibilidad"}
+          {isSaving ? t("common.saving") : t("talent.availability.save")}
         </button>
       </section>
 
       {isLoading ? (
         <section className="talent-card">
-          <p className="talent-feedback">Cargando disponibilidad...</p>
+          <p className="talent-feedback">{t("talent.availability.loading")}</p>
         </section>
       ) : (
         <form id="talent-availability-form" className="talent-grid talent-grid--sidebar" onSubmit={handleSubmit}>
           <article className="talent-card">
             <div className="section-heading">
-              <h2 className="section-heading__title">Resumen actual</h2>
+              <h2 className="section-heading__title">{t("talent.availability.summaryTitle")}</h2>
               <p className="section-heading__text">
-                Completa y guarda tu disponibilidad usando los campos reales del backend.
+                {t("talent.availability.summaryText")}
               </p>
             </div>
 
@@ -170,47 +171,47 @@ function TalentAvailability() {
 
             <div className="talent-form-grid">
               <label className="talent-input-group">
-                <span>Estado</span>
+                <span>{t("talent.availability.status")}</span>
                 <input
                   name="status"
                   value={formData.status}
                   onChange={handleChange}
-                  placeholder="Disponible"
+                  placeholder={t("talent.availability.statusPlaceholder")}
                 />
               </label>
 
               <label className="talent-input-group">
-                <span>Disponibilidad para viajar</span>
+                <span>{t("talent.availability.travel")}</span>
                 <input
                   name="travel_availability"
                   value={formData.travel_availability}
                   onChange={handleChange}
-                  placeholder="Disponible para viajar dentro y fuera del pais"
+                  placeholder={t("talent.availability.travelPlaceholder")}
                 />
               </label>
 
               <label className="talent-input-group">
-                <span>Modalidad de trabajo</span>
+                <span>{t("talent.availability.workModality")}</span>
                 <input
                   name="work_modality"
                   value={formData.work_modality}
                   onChange={handleChange}
-                  placeholder="Freelance, hibrido, remoto..."
+                  placeholder={t("talent.availability.workModalityPlaceholder")}
                 />
               </label>
 
               <label className="talent-input-group">
-                <span>Ubicacion de trabajo</span>
+                <span>{t("talent.availability.workLocation")}</span>
                 <input
                   name="work_location"
                   value={formData.work_location}
                   onChange={handleChange}
-                  placeholder="Santiago, Chile"
+                  placeholder={t("talent.availability.workLocationPlaceholder")}
                 />
               </label>
 
               <label className="talent-input-group">
-                <span>Disponible desde</span>
+                <span>{t("talent.availability.availableFrom")}</span>
                 <input
                   type="date"
                   name="available_from"
@@ -220,13 +221,13 @@ function TalentAvailability() {
               </label>
 
               <label className="talent-input-group talent-input-group--full">
-                <span>Notas</span>
+                <span>{t("talent.availability.notes")}</span>
                 <textarea
                   name="notes"
                   value={formData.notes}
                   onChange={handleChange}
                   rows={5}
-                  placeholder="Comparte restricciones, intereses o consideraciones logisticas."
+                  placeholder={t("talent.availability.notesPlaceholder")}
                 />
               </label>
             </div>
@@ -234,15 +235,22 @@ function TalentAvailability() {
 
           <aside className="talent-card talent-status-card">
             <span className="talent-status talent-status--available">
-              {formData.status.trim() || "Sin estado definido"}
+              {formData.status.trim() || t("talent.availability.undefinedStatus")}
             </span>
-            <h2 className="section-heading__title">Perfil listo para postular</h2>
+            <h2 className="section-heading__title">{t("talent.availability.readyTitle")}</h2>
             <p className="section-heading__text">
-              Modalidad principal: {formData.work_modality.trim() || "No informada"}.
-              Inicio estimado: {formData.available_from || "Sin fecha"}.
+              {t("talent.availability.mainModality", {
+                value: formData.work_modality.trim() || t("common.notProvided"),
+              })}
+              {" "}
+              {t("talent.availability.estimatedStart", {
+                value: formData.available_from || t("common.noDate"),
+              })}
             </p>
             <p className="section-heading__text">
-              Ubicacion: {formData.work_location.trim() || "No informada"}.
+              {t("talent.availability.location", {
+                value: formData.work_location.trim() || t("common.notProvided"),
+              })}
             </p>
           </aside>
         </form>

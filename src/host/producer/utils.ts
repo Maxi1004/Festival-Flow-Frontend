@@ -1,8 +1,12 @@
 import type { Opportunity, Project } from "../../types/producer";
 
-export function formatDisplayDate(value?: string | null): string {
+export function formatDisplayDate(
+  value?: string | null,
+  locale = "es-CL",
+  fallback = "Sin definir"
+): string {
   if (!value) {
-    return "Sin definir";
+    return fallback;
   }
 
   const normalized = value.includes("T") ? value : `${value}T00:00:00`;
@@ -12,7 +16,7 @@ export function formatDisplayDate(value?: string | null): string {
     return value;
   }
 
-  return new Intl.DateTimeFormat("es-CL", {
+  return new Intl.DateTimeFormat(locale, {
     day: "2-digit",
     month: "short",
     year: "numeric",
@@ -86,11 +90,12 @@ export function normalizeOpportunityFormData(formData: {
 
 export function getOpportunityProjectTitle(
   opportunity: Opportunity,
-  projects: Project[]
+  projects: Project[],
+  fallback = "Project"
 ): string {
   return (
     opportunity.project?.title ??
     projects.find((project) => project.id === opportunity.project_id)?.title ??
-    "Proyecto sin nombre"
+    fallback
   );
 }

@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import ProducerGuard from "./ProducerGuard";
 import { getMyProjects } from "../../service/projectApi";
 import { getOpportunityById, updateOpportunity } from "../../service/opportunityApi";
@@ -42,6 +43,7 @@ const initialFormState: OpportunityFormState = {
 };
 
 function ProducerEditOpportunityContent() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const { opportunityId } = useParams<{ opportunityId: string }>();
   const [projects, setProjects] = useState<Project[]>([]);
@@ -55,7 +57,7 @@ function ProducerEditOpportunityContent() {
 
     async function loadData() {
       if (!opportunityId) {
-        setError("No se encontro la convocatoria solicitada.");
+        setError(t("producer.errors.opportunityNotFound"));
         setIsLoading(false);
         return;
       }
@@ -89,7 +91,7 @@ function ProducerEditOpportunityContent() {
           setError(
             loadError instanceof Error
               ? loadError.message
-              : "No se pudo cargar la convocatoria."
+              : t("producer.errors.loadOpportunity")
           );
         }
       } finally {
@@ -104,7 +106,7 @@ function ProducerEditOpportunityContent() {
     return () => {
       isMounted = false;
     };
-  }, [opportunityId]);
+  }, [opportunityId, t]);
 
   const handleChange = (
     event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
@@ -117,7 +119,7 @@ function ProducerEditOpportunityContent() {
     event.preventDefault();
 
     if (!opportunityId) {
-      setError("No se encontro la convocatoria solicitada.");
+      setError(t("producer.errors.opportunityNotFound"));
       return;
     }
 
@@ -130,7 +132,7 @@ function ProducerEditOpportunityContent() {
       setError(
         submitError instanceof Error
           ? submitError.message
-          : "No se pudo actualizar la convocatoria."
+          : t("producer.errors.updateOpportunity")
       );
     } finally {
       setIsSubmitting(false);
@@ -141,7 +143,7 @@ function ProducerEditOpportunityContent() {
     return (
       <div className="producer-shell">
         <article className="producer-card producer-empty">
-          <p>Cargando convocatoria...</p>
+          <p>{t("producer.opportunityForm.loading")}</p>
         </article>
       </div>
     );
@@ -151,16 +153,16 @@ function ProducerEditOpportunityContent() {
     <div className="producer-shell">
       <section className="producer-card producer-form-card">
         <div className="section-heading">
-          <p className="producer-page__eyebrow">Editar convocatoria</p>
-          <h1 className="producer-page__title">Actualiza la oportunidad</h1>
+          <p className="producer-page__eyebrow">{t("producer.opportunityForm.editEyebrow")}</p>
+          <h1 className="producer-page__title">{t("producer.opportunityForm.editTitle")}</h1>
           <p className="producer-page__subtitle">
-            Ajusta los datos del rol requerido y el estado de la convocatoria.
+            {t("producer.opportunityForm.editSubtitle")}
           </p>
         </div>
 
         <form className="producer-form" onSubmit={handleSubmit}>
           <label className="producer-field">
-            <span>Proyecto</span>
+            <span>{t("producer.opportunityForm.project")}</span>
             <select
               name="project_id"
               value={formData.project_id}
@@ -176,12 +178,12 @@ function ProducerEditOpportunityContent() {
           </label>
 
           <label className="producer-field">
-            <span>Titulo</span>
+            <span>{t("producer.opportunityForm.title")}</span>
             <input name="title" value={formData.title} onChange={handleChange} required />
           </label>
 
           <label className="producer-field">
-            <span>Rol requerido</span>
+            <span>{t("producer.opportunityForm.roleNeeded")}</span>
             <input
               name="role_needed"
               value={formData.role_needed}
@@ -191,7 +193,7 @@ function ProducerEditOpportunityContent() {
           </label>
 
           <label className="producer-field">
-            <span>Especialidad</span>
+            <span>{t("producer.opportunityForm.specialty")}</span>
             <input
               name="specialty"
               value={formData.specialty}
@@ -201,34 +203,34 @@ function ProducerEditOpportunityContent() {
           </label>
 
           <label className="producer-field">
-            <span>Ubicacion</span>
+            <span>{t("producer.opportunityForm.location")}</span>
             <input name="location" value={formData.location} onChange={handleChange} required />
           </label>
 
           <label className="producer-field">
-            <span>Modalidad</span>
+            <span>{t("producer.opportunityForm.modality")}</span>
             <select name="modality" value={formData.modality} onChange={handleChange}>
               {OPPORTUNITY_MODALITY_OPTIONS.map((modality) => (
                 <option key={modality} value={modality}>
-                  {modality}
+                  {t(`options.opportunityModality.${modality}`)}
                 </option>
               ))}
             </select>
           </label>
 
           <label className="producer-field">
-            <span>Estado</span>
+            <span>{t("producer.opportunityForm.status")}</span>
             <select name="status" value={formData.status} onChange={handleChange}>
               {OPPORTUNITY_STATUS_OPTIONS.map((status) => (
                 <option key={status} value={status}>
-                  {status}
+                  {t(`options.opportunityStatus.${status}`)}
                 </option>
               ))}
             </select>
           </label>
 
           <label className="producer-field">
-            <span>Deadline</span>
+            <span>{t("producer.opportunityForm.deadline")}</span>
             <input
               type="date"
               name="deadline"
@@ -238,7 +240,7 @@ function ProducerEditOpportunityContent() {
           </label>
 
           <label className="producer-field producer-field--full">
-            <span>Descripcion</span>
+            <span>{t("producer.opportunityForm.description")}</span>
             <textarea
               name="description"
               value={formData.description}
@@ -249,7 +251,7 @@ function ProducerEditOpportunityContent() {
           </label>
 
           <label className="producer-field producer-field--full">
-            <span>Requisitos</span>
+            <span>{t("producer.opportunityForm.requirements")}</span>
             <textarea
               name="requirements"
               value={formData.requirements}
@@ -262,14 +264,14 @@ function ProducerEditOpportunityContent() {
 
           <div className="producer-actions">
             <button className="producer-button" type="button" onClick={() => navigate(-1)}>
-              Cancelar
+              {t("common.cancel")}
             </button>
             <button
               className="producer-button producer-button--primary"
               type="submit"
               disabled={isSubmitting}
             >
-              {isSubmitting ? "Guardando..." : "Guardar cambios"}
+              {isSubmitting ? t("common.saving") : t("common.saveChanges")}
             </button>
           </div>
         </form>
