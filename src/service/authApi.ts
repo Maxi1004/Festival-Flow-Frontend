@@ -1,4 +1,5 @@
 import type { GetProfileResponse, UserRole } from "../types/auth";
+import API_URL from "../config/api";
 import { getFirebaseToken } from "./auth";
 
 type ApiErrorDetailObject = {
@@ -29,8 +30,6 @@ type SyncGoogleUserPayload = {
   provider: "google";
   role: UserRole;
 };
-
-const API_URL = import.meta.env.VITE_API_URL;
 
 export async function getErrorMessage(response: Response): Promise<string> {
   try {
@@ -90,8 +89,6 @@ export async function getAuthenticatedHeaders(
     Authorization: `Bearer ${token}`,
   };
 }
-
-export { API_URL };
 
 export async function registerUser(payload: RegisterUserPayload): Promise<void> {
   const response = await fetch(`${API_URL}/auth/register`, {
