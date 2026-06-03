@@ -5,7 +5,12 @@ import {
   parseJsonResponse,
 } from "./authApi";
 import { getOpportunityById } from "./publicOpportunityApi";
-import type { CreateApplicationPayload, TalentApplication } from "../types/talent";
+import type {
+  CreateApplicationPayload,
+  TalentApplication,
+  TalentApplicationFeed,
+  TalentApplicationFeedSummary,
+} from "../types/talent";
 
 type ApplicationEnvelope = {
   application?: TalentApplication;
@@ -19,6 +24,27 @@ type ApplicationListEnvelope = {
   items?: TalentApplication[];
   records?: TalentApplication[];
   results?: TalentApplication[];
+};
+
+type ApplicationFeedEnvelope = {
+  items?: TalentApplication[];
+  next_cursor?: string | null;
+};
+
+type ApplicationSummaryEnvelope =
+  | Partial<TalentApplicationFeedSummary>
+  | { summary?: Partial<TalentApplicationFeedSummary> };
+
+const EMPTY_APPLICATION_SUMMARY: TalentApplicationFeedSummary = {
+  total: 0,
+  active: 0,
+  reviewing: 0,
+  accepted: 0,
+  rejected: 0,
+  cancelled: 0,
+  completed: 0,
+  closed: 0,
+  acceptance_rate: 0,
 };
 
 function unwrapApplication(payload: TalentApplication | ApplicationEnvelope): TalentApplication {
@@ -48,13 +74,17 @@ function unwrapApplications(
 }
 
 export async function createApplication(
-  payload: CreateApplicationPayload
+  payload: CreateApplicationPayload,
+  authenticatedToken?: string
 ): Promise<TalentApplication> {
   const response = await fetch(`${API_URL}/applications`, {
     method: "POST",
-    headers: await getAuthenticatedHeaders({
-      "Content-Type": "application/json",
-    }),
+    headers: await getAuthenticatedHeaders(
+      {
+        "Content-Type": "application/json",
+      },
+      authenticatedToken
+    ),
     body: JSON.stringify(payload),
   });
 
@@ -63,10 +93,10 @@ export async function createApplication(
   );
 }
 
-export async function getMyApplications(): Promise<TalentApplication[]> {
+export async function getMyApplications(authenticatedToken?: string): Promise<TalentApplication[]> {
   const response = await fetch(`${API_URL}/applications/me`, {
     method: "GET",
-    headers: await getAuthenticatedHeaders(),
+    headers: await getAuthenticatedHeaders(undefined, authenticatedToken),
   });
 
   const applications = unwrapApplications(
@@ -82,7 +112,7 @@ export async function getMyApplications(): Promise<TalentApplication[]> {
       try {
         return {
           ...application,
-          opportunity: await getOpportunityById(application.opportunity_id),
+          opportunity: await getOpportunityById(application.opportunity_id, authenticatedToken),
         };
       } catch {
         return application;
@@ -91,15 +121,58 @@ export async function getMyApplications(): Promise<TalentApplication[]> {
   );
 }
 
+export async function getMyApplicationsFeed(
+  limit = 10,
+  cursor?: string | null,
+  authenticatedToken?: string
+): Promise<TalentApplicationFeed> {
+  const searchParams = new URLSearchParams({
+    limit: String(limit),
+    summary: "false",
+  });
+
+  if (cursor) {
+    searchParams.set("cursor", cursor);
+  }
+
+  const response = await fetch(`${API_URL}/applications/me/feed?${searchParams.toString()}`, {
+    method: "GET",
+    headers: await getAuthenticatedHeaders(undefined, authenticatedToken),
+  });
+  const payload = await parseJsonResponse<ApplicationFeedEnvelope>(response);
+
+  return {
+    items: payload.items ?? [],
+    next_cursor: payload.next_cursor ?? null,
+  };
+}
+
+export async function getMyApplicationsSummary(
+  authenticatedToken?: string
+): Promise<TalentApplicationFeedSummary> {
+  const response = await fetch(`${API_URL}/applications/me/summary`, {
+    method: "GET",
+    headers: await getAuthenticatedHeaders(undefined, authenticatedToken),
+  });
+  const payload = await parseJsonResponse<ApplicationSummaryEnvelope>(response);
+  const summary = "summary" in payload ? payload.summary : payload;
+
+  return {
+    ...EMPTY_APPLICATION_SUMMARY,
+    ...summary,
+  };
+}
+
 export async function getOpportunityApplications(
-  opportunityId: string
+  opportunityId: string,
+  authenticatedToken?: string
 ): Promise<TalentApplication[]> {
   const candidatePaths = [
     `/opportunities/${opportunityId}/applications`,
     `/applications/opportunity/${opportunityId}`,
     `/producer/opportunities/${opportunityId}/applications`,
   ];
-  const headers = await getAuthenticatedHeaders();
+  const headers = await getAuthenticatedHeaders(undefined, authenticatedToken);
   const endpointMissStatuses = new Set([404, 405]);
   let lastErrorMessage = "No existe endpoint para listar postulantes de esta convocatoria.";
 
@@ -132,13 +205,15 @@ export async function getOpportunityApplications(
 
 export async function updateApplicationStatus(
   applicationId: string,
-  status: "ACCEPTED" | "REJECTED"
+  status: "ACCEPTED" | "REJECTED",
+  authenticatedToken?: string
 ): Promise<TalentApplication> {
   const response = await fetch(`${API_URL}/applications/${applicationId}/status`, {
     method: "PATCH",
-    headers: await getAuthenticatedHeaders({
-      "Content-Type": "application/json",
-    }),
+    headers: await getAuthenticatedHeaders(
+      { "Content-Type": "application/json" },
+      authenticatedToken
+    ),
     body: JSON.stringify({ status }),
   });
 

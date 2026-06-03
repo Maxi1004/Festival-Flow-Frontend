@@ -2,7 +2,7 @@ import {
   signInWithEmailAndPassword,
   signInWithPopup,
   signOut,
-  onAuthStateChanged,
+  onIdTokenChanged,
   type User,
 } from "firebase/auth";
 import { auth, googleProvider } from "../firebase/config";
@@ -21,13 +21,14 @@ export async function logoutUser() {
 }
 
 export function observeAuthState(callback: (user: User | null) => void) {
-  return onAuthStateChanged(auth, callback);
+  return onIdTokenChanged(auth, callback);
 }
 
 export async function getFirebaseToken(): Promise<string | null> {
+  await auth.authStateReady();
   const user = auth.currentUser;
 
   if (!user) return null;
 
-  return await user.getIdToken(true);
+  return await user.getIdToken();
 }

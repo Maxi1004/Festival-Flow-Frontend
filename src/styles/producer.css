@@ -198,6 +198,13 @@
   justify-content: flex-start;
 }
 
+.producer-placeholder-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 14px;
+}
+
 .producer-button,
 .producer-link-button {
   display: inline-flex;
@@ -262,6 +269,20 @@
   flex-direction: column;
   gap: 14px;
   align-items: flex-start;
+}
+
+.producer-flow-card__steps {
+  margin: 16px 0 0;
+  padding-left: 20px;
+  color: #475569;
+  line-height: 1.7;
+}
+
+.producer-flow-focus {
+  display: flex;
+  justify-content: space-between;
+  gap: 18px;
+  align-items: center;
 }
 
 .producer-form {
@@ -342,6 +363,59 @@
   box-shadow: 0 30px 90px -40px rgba(15, 23, 42, 0.65);
 }
 
+.producer-talent-filters {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.producer-talent-card {
+  cursor: pointer;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.producer-talent-card:hover,
+.producer-talent-card:focus-visible {
+  border-color: #bfdbfe;
+  box-shadow: 0 18px 42px -32px rgba(15, 23, 42, 0.35);
+  outline: none;
+}
+
+.producer-talent-detail__identity {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.producer-talent-avatar {
+  width: 64px;
+  height: 64px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  object-fit: cover;
+  background: #e0f2fe;
+  color: #075985;
+  font-size: 1.5rem;
+  font-weight: 700;
+}
+
+.producer-talent-avatar--large {
+  width: 104px;
+  height: 104px;
+  font-size: 2rem;
+}
+
+.producer-talent-detail__section {
+  margin-top: 20px;
+}
+
+.producer-talent-detail__section strong {
+  display: block;
+  margin-bottom: 10px;
+  color: #0f172a;
+}
+
 .producer-form--single {
   grid-template-columns: 1fr;
 }
@@ -351,6 +425,14 @@
   grid-template-columns: minmax(260px, 0.8fr) minmax(0, 1.6fr);
   gap: 20px;
   align-items: start;
+}
+
+.producer-crew-filters {
+  display: flex;
+}
+
+.producer-crew-filters .producer-field {
+  width: min(320px, 100%);
 }
 
 .producer-crew-projects {
@@ -445,7 +527,12 @@
     grid-template-columns: 1fr;
   }
 
+  .producer-talent-filters {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .producer-banner,
+  .producer-flow-focus,
   .producer-record__header,
   .producer-actions {
     flex-direction: column;
@@ -454,6 +541,10 @@
 }
 
 @media (max-width: 640px) {
+  .producer-talent-filters {
+    grid-template-columns: 1fr;
+  }
+
   .producer-record,
   .producer-form-card,
   .producer-card,

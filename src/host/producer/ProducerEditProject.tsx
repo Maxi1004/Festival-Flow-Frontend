@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import ProducerGuard from "./ProducerGuard";
 import { getProjectById, updateProject } from "../../service/projectApi";
+import { reusePendingRequest } from "../../service/pendingRequest";
+import { useCurrentProfile } from "../useCurrentProfile";
 import { PROJECT_STATUS_OPTIONS } from "../../types/producer";
 import { normalizeProjectFormData, toDateInputValue, toVisibleStatusAction } from "./utils";
 import "../../styles/producer.css";
@@ -29,6 +31,7 @@ const initialFormState: ProjectFormState = {
 function ProducerEditProjectContent() {
   const navigate = useNavigate();
   const { projectId } = useParams<{ projectId: string }>();
+  const { token } = useCurrentProfile();
   const [formData, setFormData] = useState<ProjectFormState>(initialFormState);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -46,7 +49,10 @@ function ProducerEditProjectContent() {
 
       try {
         setError("");
-        const project = await getProjectById(projectId);
+        const project = await reusePendingRequest(
+          `producer-edit-project:${projectId}:${token}`,
+          () => getProjectById(projectId, token ?? undefined)
+        );
 
         if (!isMounted) {
           return;
@@ -81,7 +87,7 @@ function ProducerEditProjectContent() {
     return () => {
       isMounted = false;
     };
-  }, [projectId]);
+  }, [projectId, token]);
 
   const handleChange = (
     event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
@@ -101,7 +107,7 @@ function ProducerEditProjectContent() {
     try {
       setIsSubmitting(true);
       setError("");
-      await updateProject(projectId, normalizeProjectFormData(formData));
+      await updateProject(projectId, normalizeProjectFormData(formData), token ?? undefined);
       navigate("/producer/projects");
     } catch (submitError) {
       setError(

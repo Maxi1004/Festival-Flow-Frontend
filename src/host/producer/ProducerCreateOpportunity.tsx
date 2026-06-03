@@ -3,6 +3,8 @@ import { useLocation, useNavigate } from "react-router-dom";
 import ProducerGuard from "./ProducerGuard";
 import { getMyProjects } from "../../service/projectApi";
 import { createOpportunity } from "../../service/opportunityApi";
+import { reusePendingRequest } from "../../service/pendingRequest";
+import { useCurrentProfile } from "../useCurrentProfile";
 import {
   OPPORTUNITY_MODALITY_OPTIONS,
   OPPORTUNITY_STATUS_OPTIONS,
@@ -40,6 +42,7 @@ const initialFormState: OpportunityFormState = {
 function ProducerCreateOpportunityContent() {
   const navigate = useNavigate();
   const location = useLocation();
+  const { token } = useCurrentProfile();
   const [projects, setProjects] = useState<Project[]>([]);
   const [formData, setFormData] = useState<OpportunityFormState>(initialFormState);
   const [isLoadingProjects, setIsLoadingProjects] = useState(true);
@@ -52,7 +55,10 @@ function ProducerCreateOpportunityContent() {
     async function loadProjects() {
       try {
         setError("");
-        const nextProjects = await getMyProjects();
+        const nextProjects = await reusePendingRequest(
+          `producer-create-opportunity-projects:${token}`,
+          () => getMyProjects(token ?? undefined)
+        );
 
         if (!isMounted) {
           return;
@@ -86,7 +92,7 @@ function ProducerCreateOpportunityContent() {
     return () => {
       isMounted = false;
     };
-  }, [location.state]);
+  }, [location.state, token]);
 
   const handleChange = (
     event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
@@ -101,7 +107,10 @@ function ProducerCreateOpportunityContent() {
     try {
       setIsSubmitting(true);
       setError("");
-      const createdOpportunity = await createOpportunity(normalizeOpportunityFormData(formData));
+      const createdOpportunity = await createOpportunity(
+        normalizeOpportunityFormData(formData),
+        token ?? undefined
+      );
       navigate("/producer/opportunities", {
         state: { createdOpportunity },
       });

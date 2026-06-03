@@ -1,9 +1,11 @@
-import { useEffect, useState, type ChangeEvent, type FormEvent } from "react";
+import { useEffect, useRef, useState, type ChangeEvent, type FormEvent, type KeyboardEvent } from "react";
 import { useTranslation } from "react-i18next";
 import ProducerGuard from "./ProducerGuard";
 import { getMyProjects } from "../../service/projectApi";
 import { createRecruitment } from "../../service/recruitmentApi";
-import { getAvailableTalents } from "../../service/talentApi";
+import { getAvailableTalents, type AvailableTalentFilters } from "../../service/talentApi";
+import { reusePendingRequest } from "../../service/pendingRequest";
+import { useCurrentProfile } from "../useCurrentProfile";
 import type { Project } from "../../types/producer";
 import type { AvailableTalent } from "../../types/talent";
 import { formatDisplayDate } from "./utils";
@@ -37,6 +39,29 @@ const ROLE_OPTIONS = [
   "Otro",
 ];
 
+const TALENT_CATEGORY_OPTIONS = [
+  "Actor",
+  "Actress",
+  "Camera",
+  "FX",
+  "Stunt",
+  "Maquillaje",
+  "Peluquería",
+  "Catering",
+  "Producción",
+  "Sonido",
+  "Dirección",
+  "Otro",
+];
+
+const initialFilters: AvailableTalentFilters = {
+  search: "",
+  category: "",
+  location: "",
+  language: "",
+  availability: "AVAILABLE",
+};
+
 function formatTalentName(talent: AvailableTalent, fallback: string): string {
   return (
     talent.display_name?.trim() ||
@@ -56,10 +81,45 @@ function getTalentSpecialties(talent: AvailableTalent): string[] {
     : talent.profile?.specialties ?? (talent.main_specialty ? [talent.main_specialty] : []);
 }
 
+function getTalentCategory(talent: AvailableTalent): string {
+  return talent.profile?.main_specialty?.trim() || getTalentSpecialties(talent)[0] || "Sin categoría";
+}
+
+function getTalentPhotoUrl(talent: AvailableTalent): string {
+  return talent.picture?.trim() || talent.profile?.photo_url?.trim() || "";
+}
+
+function TalentAvatar({
+  talent,
+  fallback,
+  large = false,
+}: {
+  talent: AvailableTalent;
+  fallback: string;
+  large?: boolean;
+}) {
+  const displayName = formatTalentName(talent, fallback);
+  const photoUrl = getTalentPhotoUrl(talent);
+  const className = `producer-talent-avatar${large ? " producer-talent-avatar--large" : ""}`;
+
+  return photoUrl ? (
+    <img className={className} src={photoUrl} alt={`Foto de perfil de ${displayName}`} />
+  ) : (
+    <span className={className} aria-hidden="true">
+      {displayName.charAt(0).toUpperCase()}
+    </span>
+  );
+}
+
 function ProducerTalentsContent() {
   const { t } = useTranslation();
+  const tRef = useRef(t);
+  tRef.current = t;
+  const { token } = useCurrentProfile();
   const [talents, setTalents] = useState<AvailableTalent[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
+  const [filters, setFilters] = useState<AvailableTalentFilters>(initialFilters);
+  const [detailTalent, setDetailTalent] = useState<AvailableTalent | null>(null);
   const [selectedTalent, setSelectedTalent] = useState<AvailableTalent | null>(null);
   const [formData, setFormData] = useState<RecruitmentFormState>(initialRecruitmentForm);
   const [isLoading, setIsLoading] = useState(true);
@@ -70,27 +130,59 @@ function ProducerTalentsContent() {
   useEffect(() => {
     let isMounted = true;
 
-    async function loadData() {
+    async function loadProjects() {
       try {
-        setIsLoading(true);
-        setError("");
-        const [nextTalents, nextProjects] = await Promise.all([
-          getAvailableTalents(),
-          getMyProjects(),
-        ]);
+        const nextProjects = await reusePendingRequest(
+          `producer-talents-projects:${token}`,
+          () => getMyProjects(token ?? undefined)
+        );
 
         if (!isMounted) {
           return;
         }
 
-        setTalents(nextTalents);
         setProjects(nextProjects);
       } catch (loadError) {
         if (isMounted) {
           setError(
             loadError instanceof Error
               ? loadError.message
-              : t("producer.talents.errors.load")
+            : tRef.current("producer.talents.errors.load")
+          );
+        }
+      }
+    }
+
+    void loadProjects();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [token]);
+
+  useEffect(() => {
+    let isMounted = true;
+    const timeoutId = window.setTimeout(async () => {
+      try {
+        setIsLoading(true);
+        setError("");
+        const filterKey = new URLSearchParams(
+          Object.entries(filters).filter((entry): entry is [string, string] => Boolean(entry[1]))
+        ).toString();
+        const nextTalents = await reusePendingRequest(
+          `producer-talents:${token}:${filterKey}`,
+          () => getAvailableTalents(filters, token ?? undefined)
+        );
+
+        if (isMounted) {
+          setTalents(nextTalents);
+        }
+      } catch (loadError) {
+        if (isMounted) {
+          setError(
+            loadError instanceof Error
+              ? loadError.message
+              : tRef.current("producer.talents.errors.load")
           );
         }
       } finally {
@@ -98,19 +190,42 @@ function ProducerTalentsContent() {
           setIsLoading(false);
         }
       }
-    }
-
-    void loadData();
+    }, 300);
 
     return () => {
       isMounted = false;
+      window.clearTimeout(timeoutId);
     };
-  }, [t]);
+  }, [filters, token]);
+
+  const handleFilterChange = (event: ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    const { name, value } = event.target;
+    setFilters((current) => ({ ...current, [name]: value }));
+  };
+
+  const openTalentDetail = (talent: AvailableTalent) => {
+    setDetailTalent(talent);
+  };
+
+  const closeTalentDetail = () => {
+    setDetailTalent(null);
+  };
+
+  const handleTalentCardKeyDown = (
+    event: KeyboardEvent<HTMLElement>,
+    talent: AvailableTalent
+  ) => {
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      openTalentDetail(talent);
+    }
+  };
 
   const openRecruitmentModal = (talent: AvailableTalent) => {
     const projectId = projects[0]?.id ?? "";
 
     setSelectedTalent(talent);
+    setDetailTalent(null);
     setSuccessMessage("");
     setError("");
     setFormData({
@@ -150,13 +265,16 @@ function ProducerTalentsContent() {
       setError("");
       setSuccessMessage("");
 
-      await createRecruitment({
-        talent_user_id: formData.talent_user_id,
-        project_id: formData.project_id,
-        opportunity_id: null,
-        role: formData.role,
-        message: formData.message.trim(),
-      });
+      await createRecruitment(
+        {
+          talent_user_id: formData.talent_user_id,
+          project_id: formData.project_id,
+          opportunity_id: null,
+          role: formData.role,
+          message: formData.message.trim(),
+        },
+        token ?? undefined
+      );
       setSuccessMessage(t("producer.talents.invitationSent"));
       closeRecruitmentModal();
     } catch (submitError) {
@@ -193,6 +311,53 @@ function ProducerTalentsContent() {
         </section>
       ) : null}
 
+      <section className="producer-card producer-talent-filters">
+        <label className="producer-field">
+          <span>Buscar por nombre</span>
+          <input
+            name="search"
+            value={filters.search}
+            onChange={handleFilterChange}
+            placeholder="Nombre del talento"
+          />
+        </label>
+        <label className="producer-field">
+          <span>Categoría o tarea</span>
+          <select name="category" value={filters.category} onChange={handleFilterChange}>
+            <option value="">Todas</option>
+            {TALENT_CATEGORY_OPTIONS.map((category) => (
+              <option key={category} value={category}>{category}</option>
+            ))}
+          </select>
+        </label>
+        <label className="producer-field">
+          <span>Ubicación</span>
+          <input
+            name="location"
+            value={filters.location}
+            onChange={handleFilterChange}
+            placeholder="Ciudad o región"
+          />
+        </label>
+        <label className="producer-field">
+          <span>Idioma</span>
+          <input
+            name="language"
+            value={filters.language}
+            onChange={handleFilterChange}
+            placeholder="Ej. Español"
+          />
+        </label>
+        <label className="producer-field">
+          <span>Disponibilidad</span>
+          <select name="availability" value={filters.availability} onChange={handleFilterChange}>
+            <option value="AVAILABLE">Disponible</option>
+            <option value="UNAVAILABLE">No disponible</option>
+            <option value="ALL">Todas</option>
+          </select>
+        </label>
+      </section>
+
       {isLoading ? (
         <article className="producer-card producer-empty">
           <p>{t("producer.talents.loading")}</p>
@@ -209,14 +374,21 @@ function ProducerTalentsContent() {
             return (
               <article
                 key={talentId || formatTalentName(talent, t("producer.talents.unnamed"))}
-                className="producer-card producer-record"
+                className="producer-card producer-record producer-talent-card"
+                role="button"
+                tabIndex={0}
+                onClick={() => openTalentDetail(talent)}
+                onKeyDown={(event) => handleTalentCardKeyDown(event, talent)}
               >
                 <div className="producer-record__header">
-                  <div>
-                    <p className="producer-record__eyebrow">{talent.email ?? t("common.noEmail")}</p>
-                    <h2 className="producer-record__title">
-                      {formatTalentName(talent, t("producer.talents.unnamed"))}
-                    </h2>
+                  <div className="producer-talent-detail__identity">
+                    <TalentAvatar talent={talent} fallback={t("producer.talents.unnamed")} />
+                    <div>
+                      <p className="producer-record__eyebrow">{talent.email ?? t("common.noEmail")}</p>
+                      <h2 className="producer-record__title">
+                        {formatTalentName(talent, t("producer.talents.unnamed"))}
+                      </h2>
+                    </div>
                   </div>
                   <span className="producer-status">
                     {translateStatus(t, talent.status)}
@@ -256,8 +428,11 @@ function ProducerTalentsContent() {
                   <button
                     className="producer-button producer-button--primary"
                     type="button"
-                    disabled={!talentId}
-                    onClick={() => openRecruitmentModal(talent)}
+                     disabled={!talentId}
+                     onClick={(event) => {
+                       event.stopPropagation();
+                       openRecruitmentModal(talent);
+                     }}
                   >
                     {t("producer.talents.recruit")}
                   </button>
@@ -267,6 +442,85 @@ function ProducerTalentsContent() {
           })}
         </section>
       )}
+
+      {detailTalent ? (
+        <div className="producer-modal" role="dialog" aria-modal="true">
+          <div className="producer-modal__panel">
+            <div className="producer-record__header">
+              <div className="producer-talent-detail__identity">
+                <TalentAvatar talent={detailTalent} fallback="T" large />
+                <div>
+                  <p className="producer-record__eyebrow">Ficha de talento</p>
+                  <h2 className="producer-record__title">
+                    {formatTalentName(detailTalent, t("producer.talents.unnamed"))}
+                  </h2>
+                </div>
+              </div>
+              <button className="producer-button" type="button" onClick={closeTalentDetail}>
+                {t("common.close")}
+              </button>
+            </div>
+
+            <div className="producer-meta-list">
+              <span>{getTalentCategory(detailTalent)}</span>
+              <span>{detailTalent.location ?? detailTalent.work_location ?? "Ubicación no informada"}</span>
+              <span>{translateStatus(t, detailTalent.status)}</span>
+              <span>{formatDisplayDate(detailTalent.available_from)}</span>
+            </div>
+
+            <p className="producer-record__text">
+              {detailTalent.profile?.bio?.trim() || detailTalent.notes?.trim() || "Sin resumen disponible."}
+            </p>
+
+            <div className="producer-talent-detail__section">
+              <strong>Idiomas</strong>
+              <div className="producer-chip-list">
+                {detailTalent.profile?.languages?.length
+                  ? detailTalent.profile.languages.map((language) => (
+                      <span key={language} className="producer-chip">{language}</span>
+                    ))
+                  : <span className="producer-muted">Sin idiomas informados.</span>}
+              </div>
+            </div>
+
+            <div className="producer-talent-detail__section">
+              <strong>Experiencia</strong>
+              <p className="producer-record__text">
+                {detailTalent.profile?.experience_years !== undefined
+                  ? `${detailTalent.profile.experience_years} años`
+                  : "Sin experiencia informada."}
+              </p>
+            </div>
+
+            <div className="producer-actions">
+              <button
+                className="producer-button"
+                type="button"
+                disabled
+                title="Disponible en una fase posterior"
+              >
+                Ver postulaciones | Próximamente
+              </button>
+              <button
+                className="producer-button"
+                type="button"
+                disabled
+                title="Pendiente de integración"
+              >
+                Historial del postulante | Próximamente
+              </button>
+              <button
+                className="producer-button producer-button--primary"
+                type="button"
+                disabled={!getTalentId(detailTalent)}
+                onClick={() => openRecruitmentModal(detailTalent)}
+              >
+                Invitar a proyecto
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       {selectedTalent ? (
         <div className="producer-modal" role="dialog" aria-modal="true">

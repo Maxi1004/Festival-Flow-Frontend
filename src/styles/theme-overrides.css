@@ -1,0 +1,614 @@
+body.dark-theme .home__hero,
+body.dark-theme .home__section,
+body.dark-theme .panel,
+body.dark-theme .producer-card,
+body.dark-theme .producer-banner,
+body.dark-theme .producer-record,
+body.dark-theme .producer-metric,
+body.dark-theme .producer-form-card,
+body.dark-theme .talent-card,
+body.dark-theme .messages-card,
+body.dark-theme .messages-workspace,
+body.dark-theme .login-card,
+body.dark-theme .register-card,
+body.dark-theme .summary-detail-modal__panel,
+body.dark-theme .producer-modal__panel,
+body.dark-theme .talent-modal__panel,
+body.dark-theme .talent-collaboration-modal__panel,
+body.dark-theme .messages-info-modal__panel {
+  background: var(--bg-card);
+  border-color: var(--border-color);
+  box-shadow: var(--shadow-soft);
+}
+
+body.dark-theme .login-container,
+body.dark-theme .register-container {
+  background:
+    radial-gradient(circle at top left, rgba(96, 165, 250, 0.14), transparent 32%),
+    radial-gradient(circle at bottom right, rgba(51, 65, 85, 0.4), transparent 28%),
+    var(--bg-primary);
+}
+
+body.dark-theme .producer-hero__panel,
+body.dark-theme .talent-hero__badge,
+body.dark-theme .talent-status-card,
+body.dark-theme .summary-card {
+  background: linear-gradient(180deg, #1e293b 0%, #111827 100%);
+  border-color: var(--border-color);
+}
+
+body.dark-theme .producer-list-card,
+body.dark-theme .producer-meta-list span,
+body.dark-theme .producer-chip,
+body.dark-theme .producer-crew-project,
+body.dark-theme .producer-message-history,
+body.dark-theme .talent-field,
+body.dark-theme .talent-list__item,
+body.dark-theme .talent-timeline__item,
+body.dark-theme .talent-application-card,
+body.dark-theme .talent-opportunity-card,
+body.dark-theme .talent-availability-choice,
+body.dark-theme .talent-availability-summary__status,
+body.dark-theme .talent-commitment,
+body.dark-theme .talent-portfolio-item,
+body.dark-theme .talent-portfolio-pdf__selection,
+body.dark-theme .talent-portfolio-pdf__saved,
+body.dark-theme .talent-feedback,
+body.dark-theme .talent-application-detail div,
+body.dark-theme .talent-collaboration-member,
+body.dark-theme .talent-collaboration-message,
+body.dark-theme .talent-portfolio-modal__details,
+body.dark-theme .summary-detail-list__item,
+body.dark-theme .activity-list__item,
+body.dark-theme .messages-feedback,
+body.dark-theme .messages-info-member,
+body.dark-theme .messages-info-form {
+  background: var(--bg-secondary);
+  border-color: var(--border-color);
+  color: var(--text-secondary);
+}
+
+body.dark-theme .producer-page__title,
+body.dark-theme .producer-card__title,
+body.dark-theme .producer-record__title,
+body.dark-theme .producer-applicants__title,
+body.dark-theme .producer-list-card__title,
+body.dark-theme .producer-metric__value,
+body.dark-theme .producer-message-history h4,
+body.dark-theme .producer-talent-detail__section strong,
+body.dark-theme .talent-page__title,
+body.dark-theme .talent-list__title,
+body.dark-theme .talent-metric__value,
+body.dark-theme .talent-application-kpi span,
+body.dark-theme .talent-application-chart h2,
+body.dark-theme .talent-application-crm h2,
+body.dark-theme .talent-application-detail dd,
+body.dark-theme .talent-commitment__details dd,
+body.dark-theme .talent-availability-summary__list dd,
+body.dark-theme .talent-timeline__year,
+body.dark-theme .talent-portfolio-item__summary h3,
+body.dark-theme .talent-collaboration-modal__header h2,
+body.dark-theme .talent-collaboration-member h3,
+body.dark-theme .home__title,
+body.dark-theme .section-heading__title,
+body.dark-theme .summary-card__value,
+body.dark-theme .messages-page__title,
+body.dark-theme .messages-sidebar h2,
+body.dark-theme .messages-chat__info-trigger h2,
+body.dark-theme .messages-chat__welcome h2,
+body.dark-theme .messages-bubble strong,
+body.dark-theme .messages-info-modal__header h2,
+body.dark-theme .messages-info-profile h3,
+body.dark-theme .messages-info-section h3,
+body.dark-theme .messages-info-member h4,
+body.dark-theme .login-title,
+body.dark-theme .register-title,
+body.dark-theme .summary-detail-modal__header h2,
+body.dark-theme .summary-detail-list__item h3 {
+  color: var(--text-primary);
+}
+
+body.dark-theme .producer-page__subtitle,
+body.dark-theme .producer-card__text,
+body.dark-theme .producer-record__text,
+body.dark-theme .producer-muted,
+body.dark-theme .producer-list-card__text,
+body.dark-theme .producer-flow-card__steps,
+body.dark-theme .producer-message-history p,
+body.dark-theme .talent-page__subtitle,
+body.dark-theme .talent-hero__badge p,
+body.dark-theme .talent-status-card p,
+body.dark-theme .talent-field__text,
+body.dark-theme .talent-list__text,
+body.dark-theme .talent-list__meta,
+body.dark-theme .talent-profile-requirements,
+body.dark-theme .talent-portfolio-item__summary p,
+body.dark-theme .talent-collaboration-message p,
+body.dark-theme .talent-portfolio-modal__details,
+body.dark-theme .home__subtitle,
+body.dark-theme .summary-card__label,
+body.dark-theme .section-heading__text,
+body.dark-theme .messages-page__subtitle,
+body.dark-theme .messages-bubble p,
+body.dark-theme .messages-chat__welcome,
+body.dark-theme .messages-chat__welcome p,
+body.dark-theme .messages-info-profile p,
+body.dark-theme .messages-info-profile span,
+body.dark-theme .messages-info-member p,
+body.dark-theme .messages-info-member span,
+body.dark-theme .messages-info-member small,
+body.dark-theme .login-subtitle,
+body.dark-theme .register-subtitle,
+body.dark-theme .summary-detail-modal__header p,
+body.dark-theme .summary-detail-list__item p {
+  color: var(--text-secondary);
+}
+
+body.dark-theme .producer-page__eyebrow,
+body.dark-theme .producer-record__eyebrow,
+body.dark-theme .producer-list-card__meta,
+body.dark-theme .producer-message-history span,
+body.dark-theme .talent-page__eyebrow,
+body.dark-theme .talent-field__label,
+body.dark-theme .talent-application-kpi p,
+body.dark-theme .talent-application-chart__loading,
+body.dark-theme .talent-application-crm__heading > span,
+body.dark-theme .talent-application-detail dt,
+body.dark-theme .talent-availability-updated span,
+body.dark-theme .talent-availability-summary__status small,
+body.dark-theme .talent-availability-summary__list dt,
+body.dark-theme .talent-commitment__details dt,
+body.dark-theme .talent-selection-empty,
+body.dark-theme .talent-portfolio-pdf__selection span,
+body.dark-theme .talent-portfolio-pdf__saved span,
+body.dark-theme .talent-portfolio-pdf__empty,
+body.dark-theme .talent-collaboration-modal__header p,
+body.dark-theme .talent-collaboration-member p,
+body.dark-theme .talent-collaboration-member dt,
+body.dark-theme .talent-collaboration-member dd,
+body.dark-theme .talent-collaboration-message small,
+body.dark-theme .talent-collaboration-empty,
+body.dark-theme .talent-collaboration-compose small,
+body.dark-theme .home__subtitle--meta,
+body.dark-theme .messages-page__eyebrow,
+body.dark-theme .messages-thread__heading small,
+body.dark-theme .messages-thread__meta,
+body.dark-theme .messages-thread__context,
+body.dark-theme .messages-thread__footer,
+body.dark-theme .messages-chat__info-trigger small,
+body.dark-theme .messages-bubble small,
+body.dark-theme .messages-bubble time,
+body.dark-theme .messages-history__empty,
+body.dark-theme .messages-empty,
+body.dark-theme .messages-compose small,
+body.dark-theme .messages-info-modal__header p,
+body.dark-theme .messages-info-photo-actions span,
+body.dark-theme .summary-detail-empty,
+body.dark-theme .login-divider,
+body.dark-theme .register-divider {
+  color: var(--text-muted);
+}
+
+body.dark-theme .producer-field span,
+body.dark-theme .talent-filter,
+body.dark-theme .talent-input-group,
+body.dark-theme .talent-collaboration-compose label,
+body.dark-theme .messages-info-form label,
+body.dark-theme .login-label,
+body.dark-theme .register-label {
+  color: var(--text-secondary);
+}
+
+body.dark-theme input,
+body.dark-theme textarea,
+body.dark-theme select,
+body.dark-theme .producer-field input,
+body.dark-theme .producer-field textarea,
+body.dark-theme .producer-field select,
+body.dark-theme .talent-filter input,
+body.dark-theme .talent-filter select,
+body.dark-theme .talent-input-group input,
+body.dark-theme .talent-input-group select,
+body.dark-theme .talent-input-group textarea,
+body.dark-theme .talent-collaboration-compose textarea,
+body.dark-theme .messages-search input,
+body.dark-theme .messages-compose textarea,
+body.dark-theme .messages-info-form input,
+body.dark-theme .login-input,
+body.dark-theme .register-input {
+  background: var(--input-bg);
+  border-color: var(--border-strong);
+  color: var(--text-primary);
+}
+
+body.dark-theme input::placeholder,
+body.dark-theme textarea::placeholder {
+  color: var(--text-muted);
+}
+
+body.dark-theme input:hover,
+body.dark-theme input:focus,
+body.dark-theme textarea:hover,
+body.dark-theme textarea:focus,
+body.dark-theme select:hover,
+body.dark-theme select:focus,
+body.dark-theme .producer-field input:focus,
+body.dark-theme .producer-field textarea:focus,
+body.dark-theme .producer-field select:focus,
+body.dark-theme .talent-filter input:hover,
+body.dark-theme .talent-filter select:hover,
+body.dark-theme .talent-filter input:focus,
+body.dark-theme .talent-filter select:focus,
+body.dark-theme .talent-input-group input:hover,
+body.dark-theme .talent-input-group select:hover,
+body.dark-theme .talent-input-group textarea:hover,
+body.dark-theme .talent-input-group input:focus,
+body.dark-theme .talent-input-group select:focus,
+body.dark-theme .talent-input-group textarea:focus,
+body.dark-theme .messages-search input:focus,
+body.dark-theme .messages-compose textarea:focus,
+body.dark-theme .talent-collaboration-compose textarea:focus,
+body.dark-theme .login-input:focus,
+body.dark-theme .register-input:focus {
+  background: #111827;
+  border-color: var(--accent-border);
+  outline: none;
+}
+
+body.dark-theme .producer-button,
+body.dark-theme .producer-link-button,
+body.dark-theme .talent-button,
+body.dark-theme .actions__button,
+body.dark-theme .messages-button,
+body.dark-theme .messages-chat__back,
+body.dark-theme .login-google,
+body.dark-theme .login-role-option,
+body.dark-theme .register-google,
+body.dark-theme .register-role-option,
+body.dark-theme .summary-detail-modal__close {
+  background: var(--input-bg);
+  border-color: var(--border-strong);
+  color: var(--text-primary);
+}
+
+body.dark-theme .producer-button:hover,
+body.dark-theme .producer-link-button:hover,
+body.dark-theme .talent-button:hover,
+body.dark-theme .actions__button:hover,
+body.dark-theme .messages-button:hover,
+body.dark-theme .messages-chat__back:hover,
+body.dark-theme .login-google:hover:not(:disabled),
+body.dark-theme .register-google:hover:not(:disabled),
+body.dark-theme .summary-detail-modal__close:hover {
+  background: var(--hover-bg);
+  border-color: var(--hover-border);
+}
+
+body.dark-theme .producer-button--primary,
+body.dark-theme .talent-button--primary,
+body.dark-theme .messages-button--primary,
+body.dark-theme .login-button,
+body.dark-theme .register-button {
+  background: #2563eb;
+  border-color: #2563eb;
+  color: #ffffff;
+}
+
+body.dark-theme .producer-button--primary:hover,
+body.dark-theme .talent-button--primary:hover,
+body.dark-theme .messages-button--primary:hover,
+body.dark-theme .login-button:hover:not(:disabled),
+body.dark-theme .register-button:hover:not(:disabled) {
+  background: #1d4ed8;
+  border-color: #1d4ed8;
+}
+
+body.dark-theme .producer-badge,
+body.dark-theme .producer-status,
+body.dark-theme .producer-chip,
+body.dark-theme .talent-meta-list span,
+body.dark-theme .talent-badge,
+body.dark-theme .talent-status,
+body.dark-theme .talent-application-status,
+body.dark-theme .messages-type {
+  background: var(--badge-bg);
+  color: var(--text-primary);
+}
+
+body.dark-theme .talent-status--available,
+body.dark-theme .talent-availability-status--available,
+body.dark-theme .talent-application-status--accepted,
+body.dark-theme .messages-thread__meta b,
+body.dark-theme .messages-info-status {
+  background: rgba(34, 197, 94, 0.16);
+  color: #86efac !important;
+}
+
+body.dark-theme .talent-availability-status--pending,
+body.dark-theme .talent-application-status--reviewing,
+body.dark-theme .talent-application-status--pending,
+body.dark-theme .talent-application-status--submitted {
+  background: rgba(245, 158, 11, 0.16);
+  color: #fcd34d;
+}
+
+body.dark-theme .talent-availability-status--busy,
+body.dark-theme .talent-application-status--rejected,
+body.dark-theme .talent-application-status--cancelled {
+  background: rgba(239, 68, 68, 0.16);
+  color: #fca5a5;
+}
+
+body.dark-theme .talent-button--danger {
+  border-color: rgba(248, 113, 113, 0.45);
+  color: #fca5a5;
+}
+
+body.dark-theme .talent-button--danger:hover {
+  background: rgba(127, 29, 29, 0.35);
+  border-color: rgba(248, 113, 113, 0.65);
+}
+
+body.dark-theme .producer-crew-project:hover,
+body.dark-theme .producer-crew-project--active,
+body.dark-theme .talent-crew-project:hover,
+body.dark-theme .talent-crew-project--active,
+body.dark-theme .talent-availability-choice:has(input:checked),
+body.dark-theme .login-role-option:has(input:checked),
+body.dark-theme .register-role-option:has(input:checked) {
+  background: var(--hover-bg);
+  border-color: var(--accent-border);
+}
+
+body.dark-theme .talent-searchable-select__options {
+  background: var(--bg-card);
+  border-color: var(--border-color);
+  box-shadow: var(--shadow-panel);
+}
+
+body.dark-theme .talent-searchable-select__options button {
+  color: var(--text-secondary);
+}
+
+body.dark-theme .talent-searchable-select__options button:hover {
+  background: var(--hover-bg);
+  color: var(--text-primary);
+}
+
+body.dark-theme .talent-selection-chip,
+body.dark-theme .talent-chip-list__item {
+  background: rgba(37, 99, 235, 0.18);
+  color: #bfdbfe;
+}
+
+body.dark-theme .talent-selection-chip button {
+  background: rgba(59, 130, 246, 0.22);
+  color: #dbeafe;
+}
+
+body.dark-theme .talent-avatar__edit-icon {
+  background: var(--bg-card);
+  color: var(--text-primary);
+}
+
+body.dark-theme .talent-progress__track,
+body.dark-theme .talent-application-chart__track {
+  background: #334155;
+}
+
+body.dark-theme .talent-application-table-wrap,
+body.dark-theme .overflow-x-auto {
+  background: var(--table-bg);
+}
+
+body.dark-theme .talent-application-table,
+body.dark-theme table {
+  background: var(--table-bg);
+  color: var(--text-secondary);
+}
+
+body.dark-theme .talent-application-table th,
+body.dark-theme .talent-application-table td,
+body.dark-theme table th,
+body.dark-theme table td {
+  border-color: var(--border-color);
+  color: var(--text-secondary);
+}
+
+body.dark-theme .talent-application-table th,
+body.dark-theme table thead,
+body.dark-theme table th {
+  background: #111827;
+  color: var(--text-muted);
+}
+
+body.dark-theme .talent-application-table tbody tr:hover,
+body.dark-theme table tbody tr:hover {
+  background: var(--hover-bg);
+}
+
+body.dark-theme .messages-workspace {
+  background: #111827;
+}
+
+body.dark-theme .messages-sidebar,
+body.dark-theme .messages-sidebar__header,
+body.dark-theme .messages-chat__header,
+body.dark-theme .messages-compose {
+  background: #111827;
+  border-color: var(--border-color);
+}
+
+body.dark-theme .messages-chat,
+body.dark-theme .messages-history {
+  background: #0f172a;
+}
+
+body.dark-theme .messages-thread {
+  background: #111827;
+  border-color: var(--border-color);
+  color: var(--text-secondary);
+}
+
+body.dark-theme .messages-thread:hover,
+body.dark-theme .messages-thread--active {
+  background: #1e293b;
+}
+
+body.dark-theme .messages-thread__heading strong {
+  color: var(--text-primary);
+}
+
+body.dark-theme .messages-bubble {
+  background: #1e293b;
+  border-color: var(--border-color);
+  box-shadow: 0 10px 24px -18px rgba(2, 6, 23, 0.9);
+}
+
+body.dark-theme .messages-bubble--own,
+body.dark-theme .talent-collaboration-message--own {
+  background: #1d4ed8;
+  border-color: #3b82f6;
+}
+
+body.dark-theme .messages-bubble--own strong,
+body.dark-theme .messages-bubble--own p,
+body.dark-theme .messages-bubble--own small,
+body.dark-theme .messages-bubble--own time,
+body.dark-theme .talent-collaboration-message--own,
+body.dark-theme .talent-collaboration-message--own p,
+body.dark-theme .talent-collaboration-message--own small {
+  color: #ffffff;
+}
+
+body.dark-theme .messages-info-profile {
+  background: #1e293b;
+  border-color: var(--border-color);
+}
+
+body.dark-theme .producer-feedback--error,
+body.dark-theme .talent-feedback--error,
+body.dark-theme .messages-feedback--error,
+body.dark-theme .login-message.is-error,
+body.dark-theme .register-message.is-error {
+  background: rgba(127, 29, 29, 0.36);
+  border-color: rgba(248, 113, 113, 0.42);
+  color: #fecaca;
+}
+
+body.dark-theme .producer-feedback--success,
+body.dark-theme .talent-feedback--success,
+body.dark-theme .login-message.is-success,
+body.dark-theme .register-message.is-success {
+  background: rgba(20, 83, 45, 0.36);
+  border-color: rgba(74, 222, 128, 0.38);
+  color: #bbf7d0;
+}
+
+body.dark-theme .login-divider::before,
+body.dark-theme .login-divider::after,
+body.dark-theme .register-divider::before,
+body.dark-theme .register-divider::after,
+body.dark-theme .talent-legacy-links,
+body.dark-theme .talent-availability-summary__list div,
+body.dark-theme .producer-applicants {
+  border-color: var(--border-color);
+}
+
+body.dark-theme .talent-application-kpi__skeleton,
+body.dark-theme .messages-info-skeleton span,
+body.dark-theme .messages-info-skeleton strong,
+body.dark-theme .messages-info-skeleton small,
+body.dark-theme .messages-thread-skeleton > span,
+body.dark-theme .messages-thread-skeleton strong,
+body.dark-theme .messages-thread-skeleton small,
+body.dark-theme .messages-bubble-skeleton strong,
+body.dark-theme .messages-bubble-skeleton span,
+body.dark-theme .messages-bubble-skeleton small {
+  background: linear-gradient(90deg, #334155 25%, #475569 50%, #334155 75%);
+  background-size: 200% 100%;
+}
+
+body.dark-theme .messages-thread-skeleton {
+  border-color: var(--border-color);
+}
+
+body.dark-theme .messages-bubble-skeleton {
+  background: #1e293b;
+}
+
+body.dark-theme ::-webkit-scrollbar {
+  width: 12px;
+  height: 12px;
+}
+
+body.dark-theme ::-webkit-scrollbar-track {
+  background: #0f172a;
+}
+
+body.dark-theme ::-webkit-scrollbar-thumb {
+  background: #475569;
+  border: 3px solid #0f172a;
+  border-radius: 999px;
+}
+
+body.dark-theme .bg-white,
+body.dark-theme .bg-slate-50,
+body.dark-theme .hover\:bg-slate-50:hover,
+body.dark-theme .focus\:bg-blue-50:focus,
+body.dark-theme .hover\:bg-blue-50:hover {
+  background-color: var(--bg-card) !important;
+}
+
+body.dark-theme .bg-slate-950\/55 {
+  background-color: rgba(2, 6, 23, 0.72) !important;
+}
+
+body.dark-theme .border-slate-200,
+body.dark-theme .divide-slate-200 > :not([hidden]) ~ :not([hidden]) {
+  border-color: var(--border-color) !important;
+}
+
+body.dark-theme .border-slate-900 {
+  border-color: #2563eb !important;
+}
+
+body.dark-theme .bg-slate-900 {
+  background-color: #2563eb !important;
+}
+
+body.dark-theme .hover\:bg-slate-700:hover {
+  background-color: #1d4ed8 !important;
+}
+
+body.dark-theme .text-slate-900,
+body.dark-theme .text-slate-800,
+body.dark-theme .text-white {
+  color: var(--text-primary) !important;
+}
+
+body.dark-theme .bg-slate-900.text-white,
+body.dark-theme .bg-slate-900 .text-white,
+body.dark-theme .bg-slate-900 {
+  color: #ffffff !important;
+}
+
+body.dark-theme .text-slate-700,
+body.dark-theme .text-slate-600 {
+  color: var(--text-secondary) !important;
+}
+
+body.dark-theme .text-slate-500 {
+  color: var(--text-muted) !important;
+}
+
+body.dark-theme .shadow-2xl,
+body.dark-theme [class*="shadow-"] {
+  box-shadow: var(--shadow-panel) !important;
+}
+
+body.dark-theme .rounded-3xl.border,
+body.dark-theme .rounded-2xl.border {
+  background-color: var(--bg-card);
+  border-color: var(--border-color);
+}

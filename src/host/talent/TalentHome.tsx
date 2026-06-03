@@ -1,10 +1,17 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
+import {
+  ClickableSummaryCard,
+  SummaryDetailModal,
+} from "../../components/SummaryDetailModal";
 import { useCurrentProfile } from "../useCurrentProfile";
-import { getMyApplications } from "../../service/applicationApi";
-import { getPublicOpportunities } from "../../service/publicOpportunityApi";
-import { getMyTalentProfile } from "../../service/talentApi";
+import { getTalentDashboard } from "../../service/dashboardApi";
+import { reusePendingRequest } from "../../service/pendingRequest";
+import type {
+  DashboardApplicationSummary,
+  DashboardOpportunitySummary,
+} from "../../types/dashboard";
 import "../../styles/home.css";
 import "../../styles/talent.css";
 
@@ -17,13 +24,18 @@ const talentQuickActions = [
 
 function TalentHome() {
   const { t } = useTranslation();
+  const tRef = useRef(t);
+  tRef.current = t;
   const navigate = useNavigate();
-  const { user, profile } = useCurrentProfile();
+  const { user, token, profile, isProfileLoading } = useCurrentProfile();
   const [profileCompletion, setProfileCompletion] = useState(0);
   const [mainSpecialty, setMainSpecialty] = useState("");
   const [location, setLocation] = useState("");
   const [applicationsCount, setApplicationsCount] = useState(0);
   const [opportunitiesCount, setOpportunitiesCount] = useState(0);
+  const [availableOpportunities, setAvailableOpportunities] = useState<DashboardOpportunitySummary[]>([]);
+  const [applications, setApplications] = useState<DashboardApplicationSummary[]>([]);
+  const [detailModal, setDetailModal] = useState<"opportunities" | "applications" | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -31,32 +43,46 @@ function TalentHome() {
   const email = profile?.email ?? user?.email ?? t("common.noEmail");
 
   useEffect(() => {
+    if (isProfileLoading) {
+      setIsLoading(true);
+      return;
+    }
+
+    if (!user || !profile || !token) {
+      setError("");
+      setIsLoading(false);
+      return;
+    }
+
+    const dashboardToken = token;
     let isMounted = true;
 
     async function loadDashboard() {
       try {
+        setIsLoading(true);
         setError("");
-        const [talentProfile, myApplications, opportunities] = await Promise.all([
-          getMyTalentProfile(),
-          getMyApplications(),
-          getPublicOpportunities(),
-        ]);
+        const dashboard = await reusePendingRequest(
+          `talent-dashboard:${dashboardToken}`,
+          () => getTalentDashboard(dashboardToken)
+        );
 
         if (!isMounted) {
           return;
         }
 
-        setProfileCompletion(talentProfile?.profile_completion ?? 0);
-        setMainSpecialty(talentProfile?.main_specialty ?? "");
-        setLocation(talentProfile?.location ?? "");
-        setApplicationsCount(myApplications.length);
-        setOpportunitiesCount(opportunities.length);
+        setProfileCompletion(dashboard.profile_completion);
+        setMainSpecialty(dashboard.main_specialty);
+        setLocation(dashboard.location);
+        setApplicationsCount(dashboard.applications_count);
+        setOpportunitiesCount(dashboard.opportunities_count);
+        setAvailableOpportunities(dashboard.available_opportunities);
+        setApplications(dashboard.applications);
       } catch (loadError) {
         if (isMounted) {
           setError(
             loadError instanceof Error
               ? loadError.message
-              : t("talent.errors.loadDashboard")
+              : tRef.current("talent.errors.loadDashboard")
           );
         }
       } finally {
@@ -71,13 +97,13 @@ function TalentHome() {
     return () => {
       isMounted = false;
     };
-  }, [t]);
+  }, [isProfileLoading, profile, token, user]);
 
   const summaryCards = useMemo(
     () => [
-      { value: `${profileCompletion}%`, label: t("talent.home.profileCompleted") },
-      { value: String(opportunitiesCount), label: t("talent.home.availableOpportunities") },
-      { value: String(applicationsCount), label: t("talent.home.registeredApplications") },
+      { value: `${profileCompletion}%`, label: t("talent.home.profileCompleted"), action: "profile" as const },
+      { value: String(opportunitiesCount), label: t("talent.home.availableOpportunities"), action: "opportunities" as const },
+      { value: String(applicationsCount), label: t("talent.home.registeredApplications"), action: "applications" as const },
     ],
     [applicationsCount, opportunitiesCount, profileCompletion, t]
   );
@@ -128,10 +154,21 @@ function TalentHome() {
 
         <div className="summary-grid">
           {summaryCards.map((card) => (
-            <article key={card.label} className="summary-card">
+            <ClickableSummaryCard
+              key={card.label}
+              className="summary-card"
+              onClick={() => {
+                if (card.action === "profile") {
+                  navigate("/talent/profile");
+                  return;
+                }
+
+                setDetailModal(card.action);
+              }}
+            >
               <span className="summary-card__value">{isLoading ? "..." : card.value}</span>
               <p className="summary-card__label">{card.label}</p>
-            </article>
+            </ClickableSummaryCard>
           ))}
         </div>
       </section>
@@ -176,6 +213,40 @@ function TalentHome() {
           </div>
         </article>
       </section>
+
+      {detailModal === "opportunities" ? (
+        <SummaryDetailModal
+          title={t("talent.home.availableOpportunities")}
+          description="Mostrando hasta 5 convocatorias disponibles."
+          onClose={() => setDetailModal(null)}
+        >
+          <div className="summary-detail-list">
+            {availableOpportunities.length ? availableOpportunities.map((opportunity) => (
+              <article key={opportunity.id} className="summary-detail-list__item">
+                <h3>{opportunity.title}</h3>
+                <p>{opportunity.role_needed || opportunity.specialty} | {opportunity.location}</p>
+              </article>
+            )) : <p className="summary-detail-empty">No hay convocatorias disponibles.</p>}
+          </div>
+        </SummaryDetailModal>
+      ) : null}
+
+      {detailModal === "applications" ? (
+        <SummaryDetailModal
+          title={t("talent.home.registeredApplications")}
+          description="Mostrando hasta 5 postulaciones."
+          onClose={() => setDetailModal(null)}
+        >
+          <div className="summary-detail-list">
+            {applications.length ? applications.map((application) => (
+              <article key={application.id} className="summary-detail-list__item">
+                <h3>{application.opportunity_title || "Convocatoria sin titulo"}</h3>
+                <p>{application.status} | {application.message || "Sin mensaje."}</p>
+              </article>
+            )) : <p className="summary-detail-empty">No tienes postulaciones registradas.</p>}
+          </div>
+        </SummaryDetailModal>
+      ) : null}
     </div>
   );
 }

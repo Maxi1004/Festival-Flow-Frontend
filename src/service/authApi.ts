@@ -76,9 +76,10 @@ export async function parseJsonResponse<T>(response: Response): Promise<T> {
 }
 
 export async function getAuthenticatedHeaders(
-  init?: HeadersInit
+  init?: HeadersInit,
+  authenticatedToken?: string
 ): Promise<Record<string, string>> {
-  const token = await getFirebaseToken();
+  const token = authenticatedToken ?? await getFirebaseToken();
 
   if (!token) {
     throw new Error("No hay usuario autenticado");
@@ -116,10 +117,10 @@ export async function syncGoogleUser(payload: SyncGoogleUserPayload) {
   return await parseJsonResponse(response);
 }
 
-export async function getProfile(): Promise<GetProfileResponse> {
+export async function getProfile(token?: string): Promise<GetProfileResponse> {
   const response = await fetch(`${API_URL}/auth/me`, {
     method: "GET",
-    headers: await getAuthenticatedHeaders(),
+    headers: token ? { Authorization: `Bearer ${token}` } : await getAuthenticatedHeaders(),
   });
 
   return await parseJsonResponse(response);

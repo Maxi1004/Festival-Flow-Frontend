@@ -4,6 +4,7 @@ export type AuthProfile = {
   uid: string;
   email: string;
   name: string;
+  photo_url?: string | null;
   picture: string | null;
   role: UserRole;
   provider: string;

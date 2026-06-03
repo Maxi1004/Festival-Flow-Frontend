@@ -2,12 +2,15 @@ import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import ProducerGuard from "./ProducerGuard";
 import { getMyProjects } from "../../service/projectApi";
+import { reusePendingRequest } from "../../service/pendingRequest";
+import { useCurrentProfile } from "../useCurrentProfile";
 import type { Project } from "../../types/producer";
 import { formatDisplayDate, formatStatusLabel } from "./utils";
 import "../../styles/producer.css";
 
 function ProducerProjectsContent() {
   const navigate = useNavigate();
+  const { token } = useCurrentProfile();
   const [projects, setProjects] = useState<Project[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
@@ -19,7 +22,10 @@ function ProducerProjectsContent() {
       try {
         setIsLoading(true);
         setError("");
-        const nextProjects = await getMyProjects();
+        const nextProjects = await reusePendingRequest(
+          `producer-projects:${token}`,
+          () => getMyProjects(token ?? undefined)
+        );
 
         if (isMounted) {
           setProjects(nextProjects);
@@ -44,7 +50,7 @@ function ProducerProjectsContent() {
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, [token]);
 
   return (
     <div className="producer-shell">
@@ -67,6 +73,18 @@ function ProducerProjectsContent() {
           <p>{error}</p>
         </section>
       ) : null}
+
+      <section className="producer-card producer-flow-card">
+        <p className="producer-page__eyebrow">¿Cómo funciona?</p>
+        <h2 className="producer-record__title">Del proyecto al crew</h2>
+        <ol className="producer-flow-card__steps">
+          <li>Primero crea un proyecto.</li>
+          <li>Luego crea una convocatoria asociada al proyecto.</li>
+          <li>Los talentos postulan a esa convocatoria.</li>
+          <li>Revisa postulantes y acepta o rechaza.</li>
+          <li>Al aceptar un talento, pasa al crew del proyecto.</li>
+        </ol>
+      </section>
 
       <section className="producer-grid producer-grid--single">
         {isLoading ? (
@@ -110,6 +128,17 @@ function ProducerProjectsContent() {
                   }
                 >
                   Crear convocatoria
+                </button>
+                <button
+                  className="producer-button"
+                  type="button"
+                  onClick={() =>
+                    navigate("/producer/opportunities", {
+                      state: { projectId: project.id },
+                    })
+                  }
+                >
+                  Ver postulaciones del proyecto
                 </button>
               </div>
             </article>

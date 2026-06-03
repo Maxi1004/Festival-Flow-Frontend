@@ -4,7 +4,7 @@ import ProducerGuard from "./ProducerGuard";
 function ProducerMessages() {
   return (
     <ProducerGuard>
-      <CrewMessages mode="PRODUCER" />
+      <CrewMessages />
     </ProducerGuard>
   );
 }

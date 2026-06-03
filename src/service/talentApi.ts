@@ -7,8 +7,11 @@ import {
 import type {
   TalentAvailability,
   TalentAvailabilityUpdatePayload,
+  TalentCommitment,
   AvailableTalent,
   TalentProfile,
+  TalentProfilePhotoResponse,
+  TalentProfilePortfolioPdfResponse,
   TalentProfileUpdatePayload,
 } from "../types/talent";
 
@@ -26,7 +29,20 @@ type AvailableTalentListEnvelope = {
   results?: AvailableTalent[];
 };
 
+type TalentCommitmentListEnvelope = {
+  data?: TalentCommitment[];
+  commitments?: TalentCommitment[];
+};
+
 export const AVAILABLE_TALENTS_ENDPOINT = "/talent/availability";
+
+export type AvailableTalentFilters = {
+  search?: string;
+  category?: string;
+  location?: string;
+  language?: string;
+  availability?: string;
+};
 
 function unwrapSingleResource<T extends object>(payload: T | SingleResourceEnvelope<T>): T {
   if ("data" in payload || "profile" in payload || "availability" in payload) {
@@ -48,10 +64,22 @@ function unwrapAvailableTalents(
   return payload.talents ?? payload.data ?? payload.items ?? payload.records ?? payload.results ?? [];
 }
 
-export async function getAvailableTalents(): Promise<AvailableTalent[]> {
-  const response = await fetch(`${API_URL}${AVAILABLE_TALENTS_ENDPOINT}`, {
+export async function getAvailableTalents(
+  filters: AvailableTalentFilters = {},
+  authenticatedToken?: string
+): Promise<AvailableTalent[]> {
+  const params = new URLSearchParams();
+
+  Object.entries(filters).forEach(([key, value]) => {
+    if (value?.trim()) {
+      params.set(key, value.trim());
+    }
+  });
+
+  const query = params.size ? `?${params.toString()}` : "";
+  const response = await fetch(`${API_URL}${AVAILABLE_TALENTS_ENDPOINT}${query}`, {
     method: "GET",
-    headers: await getAuthenticatedHeaders(),
+    headers: await getAuthenticatedHeaders(undefined, authenticatedToken),
   });
 
   if (response.status === 403) {
@@ -63,10 +91,14 @@ export async function getAvailableTalents(): Promise<AvailableTalent[]> {
   );
 }
 
-export async function getMyTalentProfile(): Promise<TalentProfile | null> {
+export async function getMyTalentProfile(
+  authenticatedToken?: string,
+  component = "unknown"
+): Promise<TalentProfile | null> {
+  console.log("[PROFILE LOAD]", component, window.location.pathname);
   const response = await fetch(`${API_URL}/talent/profile/me`, {
     method: "GET",
-    headers: await getAuthenticatedHeaders(),
+    headers: await getAuthenticatedHeaders(undefined, authenticatedToken),
   });
 
   if (response.status === 404) {
@@ -79,13 +111,15 @@ export async function getMyTalentProfile(): Promise<TalentProfile | null> {
 }
 
 export async function updateMyTalentProfile(
-  payload: TalentProfileUpdatePayload
+  payload: TalentProfileUpdatePayload,
+  authenticatedToken?: string
 ): Promise<TalentProfile> {
   const response = await fetch(`${API_URL}/talent/profile/me`, {
     method: "PUT",
-    headers: await getAuthenticatedHeaders({
-      "Content-Type": "application/json",
-    }),
+    headers: await getAuthenticatedHeaders(
+      { "Content-Type": "application/json" },
+      authenticatedToken
+    ),
     body: JSON.stringify(payload),
   });
 
@@ -94,7 +128,10 @@ export async function updateMyTalentProfile(
   }
 
   if (response.status === 204) {
-    const profile = await getMyTalentProfile();
+    const profile = await getMyTalentProfile(
+      authenticatedToken,
+      "talentApi.updateMyTalentProfile:204-refresh"
+    );
 
     if (!profile) {
       throw new Error("El perfil fue guardado, pero no se pudo refrescar la informacion.");
@@ -108,10 +145,42 @@ export async function updateMyTalentProfile(
   );
 }
 
-export async function getMyTalentAvailability(): Promise<TalentAvailability | null> {
+export async function uploadMyTalentProfilePhoto(
+  photo: File,
+  authenticatedToken?: string
+): Promise<TalentProfilePhotoResponse> {
+  const formData = new FormData();
+  formData.append("photo", photo);
+
+  const response = await fetch(`${API_URL}/talent/profile/photo`, {
+    method: "POST",
+    headers: await getAuthenticatedHeaders(undefined, authenticatedToken),
+    body: formData,
+  });
+
+  return await parseJsonResponse<TalentProfilePhotoResponse>(response);
+}
+
+export async function uploadMyTalentPortfolioPdf(
+  portfolioPdf: File,
+  authenticatedToken?: string
+): Promise<TalentProfilePortfolioPdfResponse> {
+  const formData = new FormData();
+  formData.append("portfolio_pdf", portfolioPdf);
+
+  const response = await fetch(`${API_URL}/talent/profile/portfolio-pdf`, {
+    method: "POST",
+    headers: await getAuthenticatedHeaders(undefined, authenticatedToken),
+    body: formData,
+  });
+
+  return await parseJsonResponse<TalentProfilePortfolioPdfResponse>(response);
+}
+
+export async function getMyTalentAvailability(authenticatedToken?: string): Promise<TalentAvailability | null> {
   const response = await fetch(`${API_URL}/talent/availability/me`, {
     method: "GET",
-    headers: await getAuthenticatedHeaders(),
+    headers: await getAuthenticatedHeaders(undefined, authenticatedToken),
   });
 
   if (response.status === 404) {
@@ -125,8 +194,21 @@ export async function getMyTalentAvailability(): Promise<TalentAvailability | nu
   );
 }
 
+export async function getMyTalentCommitments(authenticatedToken?: string): Promise<TalentCommitment[]> {
+  const response = await fetch(`${API_URL}/talent/availability/commitments`, {
+    method: "GET",
+    headers: await getAuthenticatedHeaders(undefined, authenticatedToken),
+  });
+  const payload = await parseJsonResponse<TalentCommitment[] | TalentCommitmentListEnvelope>(
+    response
+  );
+
+  return Array.isArray(payload) ? payload : payload.commitments ?? payload.data ?? [];
+}
+
 export async function updateMyTalentAvailability(
-  payload: TalentAvailabilityUpdatePayload
+  payload: TalentAvailabilityUpdatePayload,
+  authenticatedToken?: string
 ): Promise<TalentAvailability> {
   const requestBody: TalentAvailabilityUpdatePayload = {
     status: payload.status,
@@ -139,9 +221,10 @@ export async function updateMyTalentAvailability(
 
   const response = await fetch(`${API_URL}/talent/availability/me`, {
     method: "PUT",
-    headers: await getAuthenticatedHeaders({
-      "Content-Type": "application/json",
-    }),
+    headers: await getAuthenticatedHeaders(
+      { "Content-Type": "application/json" },
+      authenticatedToken
+    ),
     body: JSON.stringify(requestBody),
   });
 
@@ -150,7 +233,7 @@ export async function updateMyTalentAvailability(
   }
 
   if (response.status === 204) {
-    const availability = await getMyTalentAvailability();
+    const availability = await getMyTalentAvailability(authenticatedToken);
 
     if (!availability) {
       throw new Error(

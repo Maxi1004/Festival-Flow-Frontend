@@ -2,10 +2,15 @@ import { useEffect, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import ProducerGuard from "./ProducerGuard";
 import {
+  ClickableSummaryCard,
+  SummaryDetailModal,
+} from "../../components/SummaryDetailModal";
+import {
   getOpportunityApplications,
   updateApplicationStatus,
 } from "../../service/applicationApi";
 import { getMyProjects } from "../../service/projectApi";
+import { reusePendingRequest } from "../../service/pendingRequest";
 import {
   getMyOpportunities,
   updateOpportunityStatus,
@@ -20,6 +25,7 @@ import {
   isCancelledStatus,
 } from "./utils";
 import "../../styles/producer.css";
+import { useCurrentProfile } from "../useCurrentProfile";
 
 function formatApplicationStatus(value?: string | null): string {
   const labels: Record<string, string> = {
@@ -88,6 +94,7 @@ function getApplicantSpecialties(application: TalentApplication): string[] {
 function ProducerOpportunitiesContent() {
   const navigate = useNavigate();
   const location = useLocation();
+  const { token } = useCurrentProfile();
   const [projects, setProjects] = useState<Project[]>([]);
   const [opportunities, setOpportunities] = useState<Opportunity[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -105,6 +112,9 @@ function ProducerOpportunitiesContent() {
     Record<string, string>
   >({});
   const [error, setError] = useState("");
+  const [summaryModal, setSummaryModal] = useState<"all" | "active" | null>(null);
+  const focusedProjectId =
+    (location.state as { projectId?: string } | null)?.projectId ?? "";
 
   useEffect(() => {
     let isMounted = true;
@@ -114,10 +124,13 @@ function ProducerOpportunitiesContent() {
         setIsLoading(true);
         setError("");
 
-        const [nextProjects, nextOpportunities] = await Promise.all([
-          getMyProjects(),
-          getMyOpportunities(),
-        ]);
+        const [nextProjects, nextOpportunities] = await reusePendingRequest(
+          `producer-opportunities:${token}`,
+          () => Promise.all([
+            getMyProjects(token ?? undefined),
+            getMyOpportunities(token ?? undefined),
+          ])
+        );
 
         if (!isMounted) {
           return;
@@ -154,15 +167,23 @@ function ProducerOpportunitiesContent() {
     return () => {
       isMounted = false;
     };
-  }, [location.state]);
+  }, [location.state, token]);
 
   const activeCount = opportunities.filter((item) => isActiveStatus(item.status)).length;
+  const focusedProject = projects.find((project) => project.id === focusedProjectId) ?? null;
+  const displayedOpportunities = focusedProjectId
+    ? opportunities.filter((opportunity) => opportunity.project_id === focusedProjectId)
+    : opportunities;
+  const summaryOpportunities =
+    summaryModal === "active"
+      ? opportunities.filter((item) => isActiveStatus(item.status))
+      : opportunities;
 
   const handleCloseOpportunity = async (opportunityId: string) => {
     try {
       setClosingId(opportunityId);
       setError("");
-      const updated = await updateOpportunityStatus(opportunityId, { status: "CANCELLED" });
+      const updated = await updateOpportunityStatus(opportunityId, { status: "CANCELLED" }, token ?? undefined);
       setOpportunities((current) =>
         current.map((item) => (item.id === updated.id ? updated : item))
       );
@@ -196,7 +217,7 @@ function ProducerOpportunitiesContent() {
         delete nextValue[opportunityId];
         return nextValue;
       });
-      const applicants = await getOpportunityApplications(opportunityId);
+      const applicants = await getOpportunityApplications(opportunityId, token ?? undefined);
       setApplicantsByOpportunity((current) => ({
         ...current,
         [opportunityId]: applicants,
@@ -226,7 +247,7 @@ function ProducerOpportunitiesContent() {
         delete nextValue[opportunityId];
         return nextValue;
       });
-      const updatedApplication = await updateApplicationStatus(applicationId, status);
+      const updatedApplication = await updateApplicationStatus(applicationId, status, token ?? undefined);
       setApplicantsByOpportunity((current) => ({
         ...current,
         [opportunityId]: (current[opportunityId] ?? []).map((application) =>
@@ -280,14 +301,20 @@ function ProducerOpportunitiesContent() {
       </section>
 
       <section className="producer-metrics">
-        <article className="producer-card producer-metric">
+        <ClickableSummaryCard
+          className="producer-card producer-metric"
+          onClick={() => setSummaryModal("all")}
+        >
           <span className="producer-metric__value">{isLoading ? "..." : opportunities.length}</span>
           <p className="producer-metric__label">Total convocatorias</p>
-        </article>
-        <article className="producer-card producer-metric">
+        </ClickableSummaryCard>
+        <ClickableSummaryCard
+          className="producer-card producer-metric"
+          onClick={() => setSummaryModal("active")}
+        >
           <span className="producer-metric__value">{isLoading ? "..." : activeCount}</span>
           <p className="producer-metric__label">Activas</p>
-        </article>
+        </ClickableSummaryCard>
       </section>
 
       {error ? (
@@ -296,13 +323,34 @@ function ProducerOpportunitiesContent() {
         </section>
       ) : null}
 
+      {focusedProjectId ? (
+        <section className="producer-card producer-flow-focus">
+          <div>
+            <p className="producer-page__eyebrow">Postulantes por proyecto</p>
+            <h2 className="producer-record__title">
+              {focusedProject?.title ?? "Proyecto seleccionado"}
+            </h2>
+            <p className="producer-record__text">
+              Revisa las convocatorias asociadas y abre sus postulantes para aceptar o rechazar.
+            </p>
+          </div>
+          <button
+            className="producer-button"
+            type="button"
+            onClick={() => navigate("/producer/opportunities", { replace: true })}
+          >
+            Ver todas las convocatorias
+          </button>
+        </section>
+      ) : null}
+
       <section className="producer-grid producer-grid--single">
         {isLoading ? (
           <article className="producer-card producer-empty">
             <p>Cargando convocatorias...</p>
           </article>
-        ) : opportunities.length > 0 ? (
-          opportunities.map((opportunity) => (
+        ) : displayedOpportunities.length > 0 ? (
+          displayedOpportunities.map((opportunity) => (
             <article key={opportunity.id} className="producer-card producer-record">
               <div className="producer-record__header">
                 <div>
@@ -403,10 +451,19 @@ function ProducerOpportunitiesContent() {
                             </div>
 
                             <p className="producer-list-card__text">
-                              Fecha: {formatApplicationDate(application.applied_at || application.created_at)}
+                              Proyecto asociado: {getOpportunityProjectTitle(opportunity, projects)}
                             </p>
                             <p className="producer-list-card__text">
-                              Mensaje: {application.message?.trim() || "Sin mensaje."}
+                              Convocatoria asociada: {opportunity.title}
+                            </p>
+                            <p className="producer-list-card__text">
+                              Estado de postulación: {formatApplicationStatus(application.status)}
+                            </p>
+                            <p className="producer-list-card__text">
+                              Fecha de postulación: {formatApplicationDate(application.applied_at || application.created_at)}
+                            </p>
+                            <p className="producer-list-card__text">
+                              Mensaje: {application.message?.trim() || "No disponible todavía."}
                             </p>
 
                             {getApplicantSpecialties(application).length ? (
@@ -449,6 +506,23 @@ function ProducerOpportunitiesContent() {
                                 Rechazar
                               </button>
                             </div>
+                            <div className="producer-placeholder-actions" aria-label="Acciones futuras de postulación">
+                              <button className="producer-button" type="button" disabled>
+                                Ver detalle postulación | Próximamente
+                              </button>
+                              <button className="producer-button" type="button" disabled>
+                                Evaluar postulante | Próximamente
+                              </button>
+                              <button className="producer-button" type="button" disabled>
+                                Historial del postulante | Próximamente
+                              </button>
+                              <button className="producer-button" type="button" disabled>
+                                Documentos adjuntos | No disponible todavía
+                              </button>
+                              <button className="producer-button" type="button" disabled>
+                                Mensajes asociados | Próximamente
+                              </button>
+                            </div>
                           </article>
                         ))}
                       </div>
@@ -462,13 +536,33 @@ function ProducerOpportunitiesContent() {
           ))
         ) : (
           <article className="producer-card producer-empty">
-            <h2 className="producer-card__title">No hay convocatorias todavia</h2>
+            <h2 className="producer-card__title">
+              {focusedProjectId
+                ? "Este proyecto todavia no tiene convocatorias"
+                : "No hay convocatorias todavia"}
+            </h2>
             <p className="producer-card__text">
               Crea una oportunidad real para comenzar a recibir postulaciones desde el backend.
             </p>
           </article>
         )}
       </section>
+
+      {summaryModal ? (
+        <SummaryDetailModal
+          title={summaryModal === "active" ? "Convocatorias activas" : "Total convocatorias"}
+          onClose={() => setSummaryModal(null)}
+        >
+          <div className="summary-detail-list">
+            {summaryOpportunities.length ? summaryOpportunities.map((opportunity) => (
+              <article key={opportunity.id} className="summary-detail-list__item">
+                <h3>{opportunity.title}</h3>
+                <p>{getOpportunityProjectTitle(opportunity, projects)} | {formatStatusLabel(opportunity.status)}</p>
+              </article>
+            )) : <p className="summary-detail-empty">No hay convocatorias para mostrar.</p>}
+          </div>
+        </SummaryDetailModal>
+      ) : null}
     </div>
   );
 }

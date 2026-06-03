@@ -1,8 +1,5 @@
 import API_URL from "../config/api";
-import {
-  getAuthenticatedHeaders,
-  parseJsonResponse,
-} from "./authApi";
+import { getAuthenticatedHeaders, parseJsonResponse } from "./authApi";
 import type { PublicOpportunity } from "../types/talent";
 
 type OpportunityEnvelope = {
@@ -10,46 +7,54 @@ type OpportunityEnvelope = {
   data?: PublicOpportunity;
 };
 
-type OpportunityListEnvelope = {
-  opportunities?: PublicOpportunity[];
-  data?: PublicOpportunity[];
+export type OpportunitiesPage = {
+  items: PublicOpportunity[];
+  next_cursor: string | null;
 };
 
 function unwrapOpportunity(
   payload: PublicOpportunity | OpportunityEnvelope
 ): PublicOpportunity {
-  if ("id" in payload) {
-    return payload;
-  }
-
-  return payload.opportunity ?? payload.data ?? (payload as unknown as PublicOpportunity);
+  if ("id" in payload) return payload;
+  return payload.opportunity ?? payload.data ?? (payload as PublicOpportunity);
 }
 
-function unwrapOpportunities(
-  payload: PublicOpportunity[] | OpportunityListEnvelope
-): PublicOpportunity[] {
-  if (Array.isArray(payload)) {
-    return payload;
+export async function getPublicOpportunitiesPage(
+  cursor?: string | null,
+  authenticatedToken?: string
+): Promise<OpportunitiesPage> {
+  const params = new URLSearchParams();
+  params.set("limit", "10");
+
+  if (cursor) {
+    params.set("cursor", cursor);
   }
 
-  return payload.opportunities ?? payload.data ?? [];
+  const response = await fetch(`${API_URL}/opportunities?${params.toString()}`, {
+    method: "GET",
+    headers: await getAuthenticatedHeaders(undefined, authenticatedToken),
+  });
+
+  const payload = await parseJsonResponse<OpportunitiesPage>(response);
+
+  return {
+    items: payload.items ?? [],
+    next_cursor: payload.next_cursor ?? null,
+  };
 }
 
 export async function getPublicOpportunities(): Promise<PublicOpportunity[]> {
-  const response = await fetch(`${API_URL}/opportunities`, {
-    method: "GET",
-    headers: await getAuthenticatedHeaders(),
-  });
-
-  return unwrapOpportunities(
-    await parseJsonResponse<PublicOpportunity[] | OpportunityListEnvelope>(response)
-  );
+  const page = await getPublicOpportunitiesPage(null);
+  return page.items;
 }
 
-export async function getOpportunityById(opportunityId: string): Promise<PublicOpportunity> {
+export async function getOpportunityById(
+  opportunityId: string,
+  authenticatedToken?: string
+): Promise<PublicOpportunity> {
   const response = await fetch(`${API_URL}/opportunities/${opportunityId}`, {
     method: "GET",
-    headers: await getAuthenticatedHeaders(),
+    headers: await getAuthenticatedHeaders(undefined, authenticatedToken),
   });
 
   return unwrapOpportunity(

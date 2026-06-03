@@ -1,8 +1,21 @@
+import { useEffect, useState } from "react";
+import { FiMoon, FiSun } from "react-icons/fi";
 import { Outlet, useLocation, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import LanguageSelector from "./LanguageSelector";
-import { logoutUser } from "../service/auth";
+import { useAuth } from "../context/useAuth";
 import { useCurrentProfile } from "../host/useCurrentProfile";
+import {
+  getCachedSidebarPhoto,
+  getLastCachedSidebarPhoto,
+} from "../service/sidebarPhotoCache";
+import {
+  FESTIVAL_FLOW_THEME_KEY,
+  applyFestivalFlowTheme,
+  getStoredTheme,
+  persistFestivalFlowTheme,
+  type FestivalFlowTheme,
+} from "../theme";
 import "../styles/layout.css";
 
 type NavigationItem = {
@@ -56,12 +69,23 @@ function Layout() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const location = useLocation();
+  const { logout } = useAuth();
   const { user, profile, isProfileLoading } = useCurrentProfile();
+  const [theme, setTheme] = useState<FestivalFlowTheme>(() => getStoredTheme());
 
   const isProducer = profile?.role === "PRODUCER";
   const isTalent = profile?.role === "TALENT";
   const navItems = isProducer ? producerNav : talentNav;
+  const userId = profile?.uid ?? user?.uid ?? "";
   const userName = profile?.name?.trim() || user?.displayName?.trim() || t("common.user");
+  const userInitial = userName.charAt(0).toUpperCase() || "T";
+  const authPhotoUrl = profile?.photo_url?.trim() || profile?.picture?.trim() || "";
+  const sidebarPhotoUrl =
+    authPhotoUrl ||
+    user?.photoURL?.trim() ||
+    getCachedSidebarPhoto(userId) ||
+    (!userId && isProfileLoading ? getLastCachedSidebarPhoto() : "") ||
+    "";
   const roleLabel = profile?.role
     ? t(`roles.${profile.role}`, { defaultValue: profile.role })
     : t("common.noRole");
@@ -77,11 +101,35 @@ function Layout() {
 
   const handleLogout = async () => {
     try {
-      await logoutUser();
+      await logout();
       navigate("/");
     } catch (error) {
       console.error("Error signing out:", error);
     }
+  };
+
+  useEffect(() => {
+    applyFestivalFlowTheme(theme);
+    persistFestivalFlowTheme(theme);
+  }, [theme]);
+
+  useEffect(() => {
+    const handleThemeStorage = (event: StorageEvent) => {
+      if (event.key === FESTIVAL_FLOW_THEME_KEY && event.newValue === "light") {
+        setTheme("light");
+      }
+
+      if (event.key === FESTIVAL_FLOW_THEME_KEY && event.newValue === "dark") {
+        setTheme("dark");
+      }
+    };
+
+    window.addEventListener("storage", handleThemeStorage);
+    return () => window.removeEventListener("storage", handleThemeStorage);
+  }, []);
+
+  const handleThemeToggle = () => {
+    setTheme((currentTheme) => (currentTheme === "dark" ? "light" : "dark"));
   };
 
   const handlePrimaryAction = () => {
@@ -98,7 +146,13 @@ function Layout() {
       <aside className="sidebar">
         <div className="sidebar__top">
           <div className="sidebar__brand">
-            <span className="sidebar__brand-mark">T</span>
+            <span className="sidebar__brand-mark">
+              {sidebarPhotoUrl ? (
+                <img src={sidebarPhotoUrl} alt={`Foto de perfil de ${userName}`} />
+              ) : (
+                <span aria-hidden="true">{userInitial}</span>
+              )}
+            </span>
             <div>
               <p className="sidebar__eyebrow">
                 {isProfileLoading
@@ -185,8 +239,14 @@ function Layout() {
           <div className="topbar__actions">
             <LanguageSelector />
 
-            <button className="topbar__icon" type="button" aria-label={t("layout.notifications")}>
-              N
+            <button
+              className="topbar__icon"
+              type="button"
+              aria-label={theme === "dark" ? "Activar modo claro" : "Activar modo oscuro"}
+              title={theme === "dark" ? "Modo claro" : "Modo oscuro"}
+              onClick={handleThemeToggle}
+            >
+              {theme === "dark" ? <FiSun aria-hidden="true" /> : <FiMoon aria-hidden="true" />}
             </button>
 
             {user ? (

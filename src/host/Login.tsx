@@ -2,7 +2,7 @@ import { useState } from "react";
 import type { FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import { loginWithEmail, loginWithGoogle } from "../service/auth";
+import { useAuth } from "../context/useAuth";
 import { syncGoogleUser } from "../service/authApi";
 import { USER_ROLE_OPTIONS, type UserRole } from "../types/auth";
 import "../styles/login.css";
@@ -12,6 +12,7 @@ type StatusType = "idle" | "success" | "error";
 function Login() {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const { loginWithEmail, loginWithGoogle, refreshProfile } = useAuth();
 
   const [email, setEmail] = useState<string>("");
   const [password, setPassword] = useState<string>("");
@@ -77,6 +78,7 @@ function Login() {
       });
 
       await credential.user.getIdToken();
+      await refreshProfile();
 
       setStatus("success");
       setMessage(t("auth.login.googleSuccess"));

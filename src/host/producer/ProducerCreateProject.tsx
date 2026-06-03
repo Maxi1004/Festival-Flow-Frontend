@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import ProducerGuard from "./ProducerGuard";
 import { createProject } from "../../service/projectApi";
+import { useCurrentProfile } from "../useCurrentProfile";
 import { PROJECT_STATUS_OPTIONS } from "../../types/producer";
 import { normalizeProjectFormData } from "./utils";
 import "../../styles/producer.css";
@@ -28,6 +29,7 @@ const initialFormState: ProjectFormState = {
 
 function ProducerCreateProjectContent() {
   const navigate = useNavigate();
+  const { token } = useCurrentProfile();
   const [formData, setFormData] = useState<ProjectFormState>(initialFormState);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState("");
@@ -45,7 +47,7 @@ function ProducerCreateProjectContent() {
     try {
       setIsSubmitting(true);
       setError("");
-      await createProject(normalizeProjectFormData(formData));
+      await createProject(normalizeProjectFormData(formData), token ?? undefined);
       navigate("/producer/projects");
     } catch (submitError) {
       setError(

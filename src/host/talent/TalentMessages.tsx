@@ -1,7 +1,7 @@
 import CrewMessages from "../messages/CrewMessages";
 
 function TalentMessages() {
-  return <CrewMessages mode="TALENT" />;
+  return <CrewMessages />;
 }
 
 export default TalentMessages;

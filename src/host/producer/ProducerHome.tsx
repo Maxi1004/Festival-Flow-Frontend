@@ -1,17 +1,19 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import ProducerGuard from "./ProducerGuard";
-import { useCurrentProfile } from "../useCurrentProfile";
-import { getMyProjects } from "../../service/projectApi";
-import { getMyOpportunities } from "../../service/opportunityApi";
-import { getAvailableTalents } from "../../service/talentApi";
-import type { Opportunity, Project } from "../../types/producer";
-import type { AvailableTalent } from "../../types/talent";
 import {
-  formatDisplayDate,
-  isActiveStatus,
-  isCancelledStatus,
-} from "./utils";
+  ClickableSummaryCard,
+  SummaryDetailModal,
+} from "../../components/SummaryDetailModal";
+import { useCurrentProfile } from "../useCurrentProfile";
+import { getProducerDashboard } from "../../service/dashboardApi";
+import { reusePendingRequest } from "../../service/pendingRequest";
+import type {
+  DashboardOpportunitySummary,
+  DashboardProjectSummary,
+} from "../../types/dashboard";
+import type { AvailableTalent } from "../../types/talent";
+import { formatDisplayDate } from "./utils";
 import "../../styles/home.css";
 import "../../styles/producer.css";
 
@@ -54,14 +56,18 @@ function getTalentSpecialties(talent: AvailableTalent): string[] {
 }
 
 function ProducerHomeContent() {
-  const { user, profile } = useCurrentProfile();
-  const [projects, setProjects] = useState<Project[]>([]);
-  const [opportunities, setOpportunities] = useState<Opportunity[]>([]);
+  const { user, token, profile } = useCurrentProfile();
+  const [projectsCount, setProjectsCount] = useState(0);
+  const [opportunitiesCount, setOpportunitiesCount] = useState(0);
+  const [activeOpportunities, setActiveOpportunities] = useState(0);
+  const [closedOpportunities, setClosedOpportunities] = useState(0);
+  const [latestProjects, setLatestProjects] = useState<DashboardProjectSummary[]>([]);
+  const [activeOpportunityDetails, setActiveOpportunityDetails] = useState<DashboardOpportunitySummary[]>([]);
+  const [closedOpportunityDetails, setClosedOpportunityDetails] = useState<DashboardOpportunitySummary[]>([]);
   const [availableTalents, setAvailableTalents] = useState<AvailableTalent[]>([]);
+  const [detailModal, setDetailModal] = useState<"projects" | "active" | "closed" | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [isLoadingTalents, setIsLoadingTalents] = useState(true);
   const [error, setError] = useState("");
-  const [talentsError, setTalentsError] = useState("");
 
   useEffect(() => {
     let isMounted = true;
@@ -71,17 +77,23 @@ function ProducerHomeContent() {
         setIsLoading(true);
         setError("");
 
-        const [nextProjects, nextOpportunities] = await Promise.all([
-          getMyProjects(),
-          getMyOpportunities(),
-        ]);
+        const dashboard = await reusePendingRequest(
+          `producer-dashboard:${token}`,
+          () => getProducerDashboard(token ?? undefined)
+        );
 
         if (!isMounted) {
           return;
         }
 
-        setProjects(nextProjects);
-        setOpportunities(nextOpportunities);
+        setProjectsCount(dashboard.projects_count);
+        setOpportunitiesCount(dashboard.opportunities_count);
+        setActiveOpportunities(dashboard.active_opportunities_count);
+        setClosedOpportunities(dashboard.closed_opportunities_count);
+        setLatestProjects(dashboard.latest_projects);
+        setActiveOpportunityDetails(dashboard.active_opportunities);
+        setClosedOpportunityDetails(dashboard.closed_opportunities);
+        setAvailableTalents(dashboard.available_talents);
       } catch (loadError) {
         if (!isMounted) {
           return;
@@ -104,49 +116,9 @@ function ProducerHomeContent() {
     return () => {
       isMounted = false;
     };
-  }, []);
-
-  useEffect(() => {
-    let isMounted = true;
-
-    async function loadAvailableTalents() {
-      try {
-        setIsLoadingTalents(true);
-        setTalentsError("");
-        const nextTalents = await getAvailableTalents();
-
-        if (isMounted) {
-          setAvailableTalents(nextTalents);
-        }
-      } catch (loadError) {
-        if (isMounted) {
-          setTalentsError(
-            loadError instanceof Error
-              ? loadError.message
-              : "No se pudieron cargar los talentos disponibles."
-          );
-          setAvailableTalents([]);
-        }
-      } finally {
-        if (isMounted) {
-          setIsLoadingTalents(false);
-        }
-      }
-    }
-
-    void loadAvailableTalents();
-
-    return () => {
-      isMounted = false;
-    };
-  }, []);
+  }, [token]);
 
   const displayName = profile?.name?.trim() || user?.displayName?.trim() || "Productor";
-  const activeOpportunities = opportunities.filter((item) => isActiveStatus(item.status)).length;
-  const closedOpportunities = opportunities.filter((item) => isCancelledStatus(item.status)).length;
-  const latestProjects = [...projects]
-    .sort((a, b) => (b.created_at ?? "").localeCompare(a.created_at ?? ""))
-    .slice(0, 3);
 
   return (
     <div className="home producer-page">
@@ -165,8 +137,8 @@ function ProducerHomeContent() {
 
         <div className="producer-hero__panel">
           <span className="producer-badge">Cuenta productora activa</span>
-          <strong>{projects.length} proyectos registrados</strong>
-          <p>{opportunities.length} convocatorias creadas en total.</p>
+          <strong>{projectsCount} proyectos registrados</strong>
+          <p>{opportunitiesCount} convocatorias creadas en total.</p>
         </div>
       </section>
 
@@ -185,18 +157,18 @@ function ProducerHomeContent() {
         </div>
 
         <div className="summary-grid">
-          <article className="summary-card">
-            <span className="summary-card__value">{isLoading ? "..." : projects.length}</span>
+          <ClickableSummaryCard className="summary-card" onClick={() => setDetailModal("projects")}>
+            <span className="summary-card__value">{isLoading ? "..." : projectsCount}</span>
             <p className="summary-card__label">Proyectos creados</p>
-          </article>
-          <article className="summary-card">
+          </ClickableSummaryCard>
+          <ClickableSummaryCard className="summary-card" onClick={() => setDetailModal("active")}>
             <span className="summary-card__value">{isLoading ? "..." : activeOpportunities}</span>
             <p className="summary-card__label">Convocatorias activas</p>
-          </article>
-          <article className="summary-card">
+          </ClickableSummaryCard>
+          <ClickableSummaryCard className="summary-card" onClick={() => setDetailModal("closed")}>
             <span className="summary-card__value">{isLoading ? "..." : closedOpportunities}</span>
             <p className="summary-card__label">Convocatorias cerradas</p>
-          </article>
+          </ClickableSummaryCard>
         </div>
       </section>
 
@@ -263,11 +235,7 @@ function ProducerHomeContent() {
           </p>
         </div>
 
-        {talentsError ? (
-          <article className="panel">
-            <p className="producer-muted">{talentsError}</p>
-          </article>
-        ) : isLoadingTalents ? (
+        {isLoading ? (
           <article className="panel">
             <p className="producer-muted">Cargando talentos disponibles...</p>
           </article>
@@ -317,6 +285,42 @@ function ProducerHomeContent() {
           </article>
         )}
       </section>
+
+      {detailModal === "projects" ? (
+        <SummaryDetailModal
+          title="Proyectos creados"
+          description="Mostrando hasta 3 proyectos recientes."
+          onClose={() => setDetailModal(null)}
+        >
+          <div className="summary-detail-list">
+            {latestProjects.length ? latestProjects.map((project) => (
+              <article key={project.id} className="summary-detail-list__item">
+                <h3>{project.title}</h3>
+                <p>{project.production_type} | {project.location} | {formatDisplayDate(project.start_date)}</p>
+              </article>
+            )) : <p className="summary-detail-empty">Todavia no tienes proyectos creados.</p>}
+          </div>
+        </SummaryDetailModal>
+      ) : null}
+
+      {detailModal === "active" || detailModal === "closed" ? (
+        <SummaryDetailModal
+          title={detailModal === "active" ? "Convocatorias activas" : "Convocatorias cerradas"}
+          description="Mostrando hasta 5 convocatorias."
+          onClose={() => setDetailModal(null)}
+        >
+          <div className="summary-detail-list">
+            {(detailModal === "active" ? activeOpportunityDetails : closedOpportunityDetails).length
+              ? (detailModal === "active" ? activeOpportunityDetails : closedOpportunityDetails).map((opportunity) => (
+                <article key={opportunity.id} className="summary-detail-list__item">
+                  <h3>{opportunity.title}</h3>
+                  <p>{opportunity.role_needed || opportunity.specialty} | {opportunity.location} | {opportunity.status}</p>
+                </article>
+              ))
+              : <p className="summary-detail-empty">No hay convocatorias para mostrar.</p>}
+          </div>
+        </SummaryDetailModal>
+      ) : null}
     </div>
   );
 }

@@ -9,9 +9,9 @@ type ProducerGuardProps = {
 
 function ProducerGuard({ children }: ProducerGuardProps) {
   const { t } = useTranslation();
-  const { user, profile, isProfileLoading } = useCurrentProfile();
+  const { user, token, profile, isProfileLoading } = useCurrentProfile();
 
-  if (isProfileLoading) {
+  if (isProfileLoading || (user && !token)) {
     return (
       <section className="producer-shell">
         <article className="producer-card producer-empty">
@@ -22,7 +22,7 @@ function ProducerGuard({ children }: ProducerGuardProps) {
     );
   }
 
-  if (!user || profile?.role !== "PRODUCER") {
+  if (!user || !token || profile?.role !== "PRODUCER") {
     return <Navigate to="/" replace />;
   }
 

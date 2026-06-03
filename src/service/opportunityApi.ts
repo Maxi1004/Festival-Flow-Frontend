@@ -43,13 +43,12 @@ function unwrapOpportunityListResponse(
 }
 
 export async function createOpportunity(
-  payload: OpportunityCreatePayload
+  payload: OpportunityCreatePayload,
+  authenticatedToken?: string
 ): Promise<Opportunity> {
   const response = await fetch(`${API_URL}/opportunities`, {
     method: "POST",
-    headers: await getAuthenticatedHeaders({
-      "Content-Type": "application/json",
-    }),
+    headers: await getAuthenticatedHeaders({ "Content-Type": "application/json" }, authenticatedToken),
     body: JSON.stringify(payload),
   });
 
@@ -58,10 +57,10 @@ export async function createOpportunity(
   );
 }
 
-export async function getMyOpportunities(): Promise<Opportunity[]> {
+export async function getMyOpportunities(authenticatedToken?: string): Promise<Opportunity[]> {
   const response = await fetch(`${API_URL}/opportunities/me`, {
     method: "GET",
-    headers: await getAuthenticatedHeaders(),
+    headers: await getAuthenticatedHeaders(undefined, authenticatedToken),
   });
 
   return unwrapOpportunityListResponse(
@@ -69,10 +68,10 @@ export async function getMyOpportunities(): Promise<Opportunity[]> {
   );
 }
 
-export async function getOpportunityById(opportunityId: string): Promise<Opportunity> {
+export async function getOpportunityById(opportunityId: string, authenticatedToken?: string): Promise<Opportunity> {
   const response = await fetch(`${API_URL}/opportunities/${opportunityId}`, {
     method: "GET",
-    headers: await getAuthenticatedHeaders(),
+    headers: await getAuthenticatedHeaders(undefined, authenticatedToken),
   });
 
   return unwrapOpportunityResponse(
@@ -82,13 +81,12 @@ export async function getOpportunityById(opportunityId: string): Promise<Opportu
 
 export async function updateOpportunity(
   opportunityId: string,
-  payload: OpportunityUpdatePayload
+  payload: OpportunityUpdatePayload,
+  authenticatedToken?: string
 ): Promise<Opportunity> {
   const response = await fetch(`${API_URL}/opportunities/${opportunityId}`, {
     method: "PUT",
-    headers: await getAuthenticatedHeaders({
-      "Content-Type": "application/json",
-    }),
+    headers: await getAuthenticatedHeaders({ "Content-Type": "application/json" }, authenticatedToken),
     body: JSON.stringify(payload),
   });
 
@@ -97,7 +95,7 @@ export async function updateOpportunity(
   }
 
   if (response.status === 204) {
-    return await getOpportunityById(opportunityId);
+    return await getOpportunityById(opportunityId, authenticatedToken);
   }
 
   return unwrapOpportunityResponse(
@@ -107,13 +105,12 @@ export async function updateOpportunity(
 
 export async function updateOpportunityStatus(
   opportunityId: string,
-  payload: OpportunityStatusPayload
+  payload: OpportunityStatusPayload,
+  authenticatedToken?: string
 ): Promise<Opportunity> {
   const response = await fetch(`${API_URL}/opportunities/${opportunityId}/status`, {
     method: "PATCH",
-    headers: await getAuthenticatedHeaders({
-      "Content-Type": "application/json",
-    }),
+    headers: await getAuthenticatedHeaders({ "Content-Type": "application/json" }, authenticatedToken),
     body: JSON.stringify(payload),
   });
 
@@ -122,7 +119,7 @@ export async function updateOpportunityStatus(
   }
 
   if (response.status === 204) {
-    return await getOpportunityById(opportunityId);
+    return await getOpportunityById(opportunityId, authenticatedToken);
   }
 
   return unwrapOpportunityResponse(

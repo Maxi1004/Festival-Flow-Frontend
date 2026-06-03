@@ -4,6 +4,19 @@ export type AvailabilityStatus = "AVAILABLE" | "UNAVAILABLE";
 
 export type WorkModality = "FREELANCE" | "REMOTE" | "HYBRID" | "ONSITE";
 
+export type PortfolioLink = {
+  label: string;
+  url: string;
+};
+
+export type PortfolioItem = {
+  title: string;
+  project_type?: string;
+  role: string;
+  year: number | null;
+  url: string;
+};
+
 export type TalentProfile = {
   id?: string;
   user_id?: string;
@@ -15,9 +28,12 @@ export type TalentProfile = {
   experience_years: number;
   languages: string[];
   skills: string[];
+  photo_url?: string | null;
+  portfolio_pdf_url?: string | null;
   profile_completion: number;
   is_public: boolean;
-  portfolio_links: string[];
+  portfolio_links: Array<string | PortfolioLink>;
+  portfolio_items?: PortfolioItem[];
   created_at?: string;
   updated_at?: string;
 };
@@ -33,7 +49,16 @@ export type TalentProfileUpdatePayload = {
   skills: string[];
   profile_completion: number;
   is_public: boolean;
-  portfolio_links: string[];
+  portfolio_links: PortfolioLink[];
+  portfolio_items: PortfolioItem[];
+};
+
+export type TalentProfilePhotoResponse = {
+  photo_url: string;
+};
+
+export type TalentProfilePortfolioPdfResponse = {
+  portfolio_pdf_url: string;
 };
 
 export type TalentAvailability = {
@@ -57,6 +82,17 @@ export type TalentAvailabilityUpdatePayload = {
   location: string;
   available_from: string | null;
   notes: string;
+};
+
+export type TalentCommitment = {
+  project_id: string;
+  project_title: string;
+  opportunity_id: string | null;
+  opportunity_title: string | null;
+  start_date: string | null;
+  end_date: string | null;
+  available_again_from: string | null;
+  status: "OCCUPIED" | string;
 };
 
 export const AVAILABILITY_STATUS_OPTIONS: Array<{
@@ -118,6 +154,24 @@ export type TalentApplication = {
   opportunity?: PublicOpportunity | null;
   opportunity_title?: string | null;
   project_title?: string | null;
+  result?: string | null;
+};
+
+export type TalentApplicationFeedSummary = {
+  total: number;
+  active: number;
+  reviewing: number;
+  accepted: number;
+  rejected: number;
+  cancelled: number;
+  completed: number;
+  closed: number;
+  acceptance_rate: number;
+};
+
+export type TalentApplicationFeed = {
+  items: TalentApplication[];
+  next_cursor: string | null;
 };
 
 export type AvailableTalent = {
@@ -128,6 +182,7 @@ export type AvailableTalent = {
   name?: string | null;
   display_name?: string | null;
   email?: string | null;
+  picture?: string | null;
   work_modality?: WorkModality | string | null;
   travel_availability?: boolean | null;
   location?: string | null;
@@ -165,6 +220,8 @@ export type CrewMember = {
     email?: string | null;
   } | null;
   role?: string | null;
+  category?: string | null;
+  task_category?: string | null;
   role_needed?: string | null;
   specialty?: string | null;
   opportunity_id?: string | null;
@@ -200,4 +257,42 @@ export type CrewMemberUpdatePayload = {
 
 export type CrewMessagePayload = {
   message: string;
+};
+
+export type CrewProjectMember = {
+  id: string;
+  project_id: string;
+  user_uid: string;
+  name: string;
+  email: string | null;
+  photo_url: string | null;
+  role: string;
+  task_description: string | null;
+  status: string;
+  joined_at: string | null;
+};
+
+export type CrewProjectMessage = {
+  id: string;
+  project_id: string;
+  sender_uid: string;
+  sender_name: string;
+  sender_role: string;
+  sender_photo_url: string | null;
+  message: string;
+  created_at: string;
+};
+
+export type CrewDirectMessage = {
+  id: string;
+  project_id: string;
+  conversation_key: string;
+  sender_uid: string;
+  receiver_uid: string;
+  sender_name: string;
+  receiver_name: string;
+  sender_photo_url: string | null;
+  receiver_photo_url: string | null;
+  message: string;
+  created_at: string;
 };

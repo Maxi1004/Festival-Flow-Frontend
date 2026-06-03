@@ -3,6 +3,8 @@ import { useNavigate, useParams } from "react-router-dom";
 import ProducerGuard from "./ProducerGuard";
 import { getMyProjects } from "../../service/projectApi";
 import { getOpportunityById, updateOpportunity } from "../../service/opportunityApi";
+import { reusePendingRequest } from "../../service/pendingRequest";
+import { useCurrentProfile } from "../useCurrentProfile";
 import {
   OPPORTUNITY_MODALITY_OPTIONS,
   OPPORTUNITY_STATUS_OPTIONS,
@@ -45,6 +47,7 @@ const initialFormState: OpportunityFormState = {
 function ProducerEditOpportunityContent() {
   const navigate = useNavigate();
   const { opportunityId } = useParams<{ opportunityId: string }>();
+  const { token } = useCurrentProfile();
   const [projects, setProjects] = useState<Project[]>([]);
   const [formData, setFormData] = useState<OpportunityFormState>(initialFormState);
   const [isLoading, setIsLoading] = useState(true);
@@ -63,10 +66,13 @@ function ProducerEditOpportunityContent() {
 
       try {
         setError("");
-        const [nextProjects, opportunity] = await Promise.all([
-          getMyProjects(),
-          getOpportunityById(opportunityId),
-        ]);
+        const [nextProjects, opportunity] = await reusePendingRequest(
+          `producer-edit-opportunity:${opportunityId}:${token}`,
+          () => Promise.all([
+            getMyProjects(token ?? undefined),
+            getOpportunityById(opportunityId, token ?? undefined),
+          ])
+        );
 
         if (!isMounted) {
           return;
@@ -105,7 +111,7 @@ function ProducerEditOpportunityContent() {
     return () => {
       isMounted = false;
     };
-  }, [opportunityId]);
+  }, [opportunityId, token]);
 
   const handleChange = (
     event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
@@ -125,7 +131,7 @@ function ProducerEditOpportunityContent() {
     try {
       setIsSubmitting(true);
       setError("");
-      await updateOpportunity(opportunityId, normalizeOpportunityFormData(formData));
+      await updateOpportunity(opportunityId, normalizeOpportunityFormData(formData), token ?? undefined);
       navigate("/producer/opportunities");
     } catch (submitError) {
       setError(

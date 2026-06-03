@@ -1,3 +1,54 @@
+@layer theme, base, components, utilities;
+@import "tailwindcss/theme.css" layer(theme);
+@import "tailwindcss/utilities.css" layer(utilities) source("./host/talent");
+
+:root,
+body.light-theme {
+  --bg-primary: #f8fafc;
+  --bg-secondary: #f1f5f9;
+  --bg-card: #ffffff;
+  --text-primary: #0f172a;
+  --text-secondary: #475569;
+  --text-muted: #64748b;
+  --border-color: #e2e8f0;
+  --border-strong: #dbe4ee;
+  --sidebar-bg: #ffffff;
+  --topbar-bg: rgba(248, 250, 252, 0.92);
+  --input-bg: #ffffff;
+  --table-bg: #ffffff;
+  --hover-bg: #eff6ff;
+  --hover-border: #bfdbfe;
+  --accent: #2563eb;
+  --accent-bg: #eff6ff;
+  --accent-border: #bfdbfe;
+  --badge-bg: #f1f5f9;
+  --shadow-soft: 0 24px 50px -40px rgba(15, 23, 42, 0.35);
+  --shadow-panel: 0 30px 90px -40px rgba(15, 23, 42, 0.65);
+}
+
+body.dark-theme {
+  --bg-primary: #0f172a;
+  --bg-secondary: #111827;
+  --bg-card: #1e293b;
+  --text-primary: #f8fafc;
+  --text-secondary: #cbd5e1;
+  --text-muted: #94a3b8;
+  --border-color: #334155;
+  --border-strong: #475569;
+  --sidebar-bg: #111827;
+  --topbar-bg: rgba(15, 23, 42, 0.94);
+  --input-bg: #0f172a;
+  --table-bg: #1e293b;
+  --hover-bg: #334155;
+  --hover-border: #64748b;
+  --accent: #60a5fa;
+  --accent-bg: #1d4ed8;
+  --accent-border: #3b82f6;
+  --badge-bg: #334155;
+  --shadow-soft: 0 24px 50px -36px rgba(2, 6, 23, 0.78);
+  --shadow-panel: 0 30px 90px -34px rgba(2, 6, 23, 0.86);
+}
+
 html,
 body,
 #root {
@@ -12,8 +63,9 @@ body,
 
 body {
   font-family: "Noto Sans", "Noto Sans KR", "Noto Sans JP", "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
-  background: #f8fafc;
-  color: #0f172a;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  transition: background-color 0.2s ease, color 0.2s ease;
 }
 
 button,
@@ -21,4 +73,16 @@ input,
 textarea,
 select {
   font: inherit;
+}
+
+input,
+textarea,
+select {
+  color-scheme: light;
+}
+
+body.dark-theme input,
+body.dark-theme textarea,
+body.dark-theme select {
+  color-scheme: dark;
 }
