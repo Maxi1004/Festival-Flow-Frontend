@@ -11,7 +11,8 @@ import {
 import { reusePendingRequest } from "../../service/pendingRequest";
 import { useCurrentProfile } from "../useCurrentProfile";
 import type { CrewMember, CrewMemberUpdatePayload } from "../../types/talent";
-import { translateStatus } from "../../utils/translateStatus";
+import { useAutoTranslate, useFestivalFlowLanguage } from "../../hooks/useAutoTranslate";
+import { combineTranslationTexts } from "../../utils/translationTexts";
 import "../../styles/producer.css";
 
 type CrewProjectGroup = {
@@ -53,6 +54,109 @@ const emptyEditForm: CrewMemberUpdatePayload = {
   task_description: "",
   producer_note: "",
 };
+
+const producerCrewBaseTexts = [
+  "Proyecto sin informar",
+  "integrante",
+  "integrantes",
+  "No se pudo identificar el integrante o proyecto.",
+  "Integrante actualizado correctamente.",
+  "No se pudo actualizar el integrante.",
+  "¿Seguro que deseas sacar a este integrante del proyecto?",
+  "Integrante removido del proyecto.",
+  "No se pudo sacar al integrante del proyecto.",
+  "No se pudieron cargar los integrantes del proyecto.",
+  "Crew",
+  "Equipo por proyecto",
+  "Gestiona integrantes, roles y tareas por proyecto.",
+  "Integrantes",
+  "Proyectos con equipo",
+  "Equipos activos",
+  "Equipos por proyecto",
+  "Cargando registros...",
+  "proyectos",
+  "Buscar proyecto",
+  "Nombre del proyecto",
+  "Estado",
+  "Todos",
+  "Cantidad de integrantes",
+  "1 integrante",
+  "2 a 5 integrantes",
+  "6 o mas integrantes",
+  "No hay proyectos que coincidan con los filtros.",
+  "Proyecto",
+  "Ultima actividad",
+  "Acciones",
+  "Equipo del proyecto",
+  "Ver integrantes",
+  "Editar equipo / roles",
+  "Chat del equipo",
+  "Integrantes del proyecto",
+  "Cerrar",
+  "Integrante",
+  "Email",
+  "Rol",
+  "Tarea",
+  "Fecha ingreso",
+  "Editar rol/tarea",
+  "Sacando...",
+  "Sacar del proyecto",
+  "Este proyecto no tiene integrantes.",
+  "Detalle de integrante",
+  "Categoria",
+  "Tarea / instrucciones",
+  "Ej. Actor secundario",
+  "Sin categoria",
+  "Sin estado",
+  "Activo",
+  "Completado",
+  "Cancelar",
+  "Guardar cambios",
+  "Guardando...",
+  "Activa",
+  "Activo",
+  "Abierta",
+  "Aceptada",
+  "Pendiente",
+  "Finalizada",
+  "Completada",
+  "Cancelada",
+  "Rechazada",
+  "En revisión",
+  "Borrador",
+  "Pausada",
+  "Actor",
+  "Actress",
+  "Camera",
+  "FX",
+  "Stunt",
+  "Maquillaje",
+  "Peluqueria",
+  "Catering",
+  "Produccion",
+  "Sonido",
+  "Direccion",
+  "Otro",
+];
+
+function formatCrewStatusLabel(value?: string | null): string {
+  const normalizedValue = normalizeStatus(value);
+  const labels: Record<string, string> = {
+    ACTIVE: "Activo",
+    OPEN: "Abierta",
+    ACCEPTED: "Aceptada",
+    PENDING: "Pendiente",
+    COMPLETED: "Completada",
+    CLOSED: "Finalizada",
+    CANCELLED: "Cancelada",
+    REJECTED: "Rechazada",
+    IN_REVIEW: "En revisión",
+    DRAFT: "Borrador",
+    PAUSED: "Pausada",
+  };
+
+  return labels[normalizedValue] ?? value?.trim() ?? "Sin estado";
+}
 
 function formatDate(value: string | null | undefined, locale: string, fallback: string): string {
   if (!value) {
@@ -110,7 +214,7 @@ function getTalentPhotoUrl(member: CrewMember): string {
   );
 }
 
-function getMemberRole(member: CrewMember, fallback: string): string {
+function getMemberRole(member: CrewMember, fallback = "Rol no informado"): string {
   return member.role?.trim() || member.role_needed?.trim() || member.specialty?.trim() || fallback;
 }
 
@@ -175,11 +279,11 @@ function getProjectId(member: CrewMember): string {
   return member.project_id?.trim() || member.project?.id?.trim() || "";
 }
 
-function getProjectTitle(member: CrewMember, fallback: string): string {
+function getProjectTitle(member: CrewMember, fallback = "Proyecto sin informar"): string {
   return member.project_title?.trim() || member.project?.title?.trim() || member.project?.name?.trim() || fallback;
 }
 
-function getMemberTask(member: CrewMember, fallback: string): string {
+function getMemberTask(member: CrewMember, fallback = "Sin tarea asignada"): string {
   return member.task_description?.trim() || member.notes?.trim() || fallback;
 }
 
@@ -306,10 +410,6 @@ function isCrewCrmProject(item: CrewCrmProject | CrewMember): item is CrewCrmPro
   );
 }
 
-function formatMemberCount(count: number): string {
-  return count === 1 ? "1 integrante" : `${count} integrantes`;
-}
-
 function matchesMemberCountFilter(group: CrewProjectGroup, filter: string): boolean {
   const count = group.members.length;
 
@@ -366,6 +466,7 @@ function ProducerCrewContent() {
   const tRef = useRef(t);
   tRef.current = t;
   const { token } = useCurrentProfile();
+  const language = useFestivalFlowLanguage();
   const navigate = useNavigate();
   const [projectGroups, setProjectGroups] = useState<CrewProjectGroup[]>([]);
   const [membersByProject, setMembersByProject] = useState<Record<string, CrewMember[]>>({});
@@ -384,6 +485,38 @@ function ProducerCrewContent() {
   const [error, setError] = useState("");
   const [modalError, setModalError] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
+  const translationTexts = useMemo(
+    () =>
+      combineTranslationTexts(
+        producerCrewBaseTexts,
+        projectGroups.flatMap((group) => [
+          group.title,
+          formatCrewStatusLabel(getProjectGroupStatus(group)),
+          ...group.members.flatMap((member) => [
+            getProjectTitle(member),
+            getMemberRole(member),
+            getMemberTask(member),
+            inferCrewCategory(member),
+            member.producer_note,
+            formatCrewStatusLabel(member.status),
+          ]),
+        ]),
+        Object.values(membersByProject).flatMap((members) =>
+          members.flatMap((member) => [
+            getProjectTitle(member),
+            getMemberRole(member),
+            getMemberTask(member),
+            inferCrewCategory(member),
+            member.producer_note,
+            formatCrewStatusLabel(member.status),
+          ])
+        )
+      ),
+    [membersByProject, projectGroups]
+  );
+  const { tAuto } = useAutoTranslate(translationTexts, language, token);
+  const getVisibleProjectTitle = (title: string) =>
+    title === "Proyecto sin informar" ? tAuto("Proyecto sin informar") : tAuto(title);
 
   useEffect(() => {
     let isMounted = true;
@@ -520,7 +653,7 @@ function ProducerCrewContent() {
     const projectId = editingMember ? getProjectId(editingMember) : "";
 
     if (!memberId || !projectId) {
-      setModalError("No se pudo identificar el integrante o proyecto.");
+      setModalError(tAuto("No se pudo identificar el integrante o proyecto."));
       return;
     }
 
@@ -530,13 +663,13 @@ function ProducerCrewContent() {
       const updatedMember = await updateCrewProjectMember(projectId, memberId, editForm, token ?? undefined);
 
       mergeUpdatedMember(memberId, projectId, updatedMember);
-      setSuccessMessage("Integrante actualizado correctamente.");
+      setSuccessMessage(tAuto("Integrante actualizado correctamente."));
       closeEditModal();
     } catch (updateError) {
       setModalError(
         updateError instanceof Error
           ? updateError.message
-          : "No se pudo actualizar el integrante."
+          : tAuto("No se pudo actualizar el integrante.")
       );
     } finally {
       setIsSaving(false);
@@ -548,11 +681,11 @@ function ProducerCrewContent() {
     const projectId = getProjectId(member);
 
     if (!memberId || !projectId) {
-      setError("No se pudo identificar el integrante o proyecto.");
+      setError(tAuto("No se pudo identificar el integrante o proyecto."));
       return;
     }
 
-    const confirmed = window.confirm("¿Seguro que deseas sacar a este integrante del proyecto?");
+    const confirmed = window.confirm(tAuto("¿Seguro que deseas sacar a este integrante del proyecto?"));
 
     if (!confirmed) {
       return;
@@ -586,9 +719,9 @@ function ProducerCrewContent() {
       if (detailMember?.id === memberId) {
         setDetailMember(null);
       }
-      setSuccessMessage("Integrante removido del proyecto.");
+      setSuccessMessage(tAuto("Integrante removido del proyecto."));
     } catch (removeError) {
-      const message = removeError instanceof Error ? removeError.message : "No se pudo sacar al integrante del proyecto.";
+      const message = removeError instanceof Error ? removeError.message : tAuto("No se pudo sacar al integrante del proyecto.");
       if (projectMembersModal) {
         setModalError(message);
       } else {
@@ -631,7 +764,7 @@ function ProducerCrewContent() {
       setModalError(
         loadError instanceof Error
           ? loadError.message
-          : "No se pudieron cargar los integrantes del proyecto."
+          : tAuto("No se pudieron cargar los integrantes del proyecto.")
       );
       setProjectMembersModal(group);
     }
@@ -641,10 +774,10 @@ function ProducerCrewContent() {
     <div className="producer-shell">
       <section className="producer-card producer-banner producer-banner--compact">
         <div>
-          <p className="producer-page__eyebrow">{t("crew.eyebrow")}</p>
-          <h1 className="producer-page__title">Equipo por proyecto</h1>
+          <p className="producer-page__eyebrow">{tAuto("Crew")}</p>
+          <h1 className="producer-page__title">{tAuto("Equipo por proyecto")}</h1>
           <p className="producer-page__subtitle">
-            Gestiona integrantes, roles y tareas por proyecto desde una vista CRM.
+            {tAuto("Gestiona integrantes, roles y tareas por proyecto.")}
           </p>
         </div>
       </section>
@@ -652,15 +785,15 @@ function ProducerCrewContent() {
       <section className="producer-metrics">
         <article className="producer-card producer-metric">
           <span className="producer-metric__value">{isLoading ? "..." : totalMembersCount}</span>
-          <p className="producer-metric__label">Integrantes</p>
+          <p className="producer-metric__label">{tAuto("Integrantes")}</p>
         </article>
         <article className="producer-card producer-metric">
           <span className="producer-metric__value">{isLoading ? "..." : projectGroups.length}</span>
-          <p className="producer-metric__label">Proyectos con equipo</p>
+          <p className="producer-metric__label">{tAuto("Proyectos con equipo")}</p>
         </article>
         <article className="producer-card producer-metric">
           <span className="producer-metric__value">{isLoading ? "..." : activeProjectCount}</span>
-          <p className="producer-metric__label">Equipos activos</p>
+          <p className="producer-metric__label">{tAuto("Equipos activos")}</p>
         </article>
       </section>
 
@@ -678,39 +811,41 @@ function ProducerCrewContent() {
       <section className="producer-card producer-project-crm producer-crew-crm">
         <div className="producer-project-crm__heading">
           <div>
-            <h2>Equipos por proyecto</h2>
+            <h2>{tAuto("Equipos por proyecto")}</h2>
             <span>
-              {isLoading ? "Cargando registros..." : `${filteredProjectGroups.length} de ${projectGroups.length} proyectos`}
+              {isLoading
+                ? tAuto("Cargando registros...")
+                : `${filteredProjectGroups.length} de ${projectGroups.length} ${tAuto("proyectos")}`}
             </span>
           </div>
         </div>
 
         <div className="producer-project-filters producer-crew-filters">
           <label className="producer-field">
-            <span>Buscar proyecto</span>
+            <span>{tAuto("Buscar proyecto")}</span>
             <input
               name="search"
               value={filters.search}
               onChange={handleFilterChange}
-              placeholder="Nombre del proyecto"
+              placeholder={tAuto("Nombre del proyecto")}
             />
           </label>
           <label className="producer-field">
-            <span>Estado</span>
+            <span>{tAuto("Estado")}</span>
             <select name="status" value={filters.status} onChange={handleFilterChange}>
-              <option value="">Todos</option>
+              <option value="">{tAuto("Todos")}</option>
               {statusOptions.map((status) => (
-                <option key={status} value={status}>{translateStatus(t, status)}</option>
+                <option key={status} value={status}>{tAuto(formatCrewStatusLabel(status))}</option>
               ))}
             </select>
           </label>
           <label className="producer-field">
-            <span>Cantidad de integrantes</span>
+            <span>{tAuto("Cantidad de integrantes")}</span>
             <select name="memberCount" value={filters.memberCount} onChange={handleFilterChange}>
-              <option value="">Todos</option>
-              <option value="1">1 integrante</option>
-              <option value="2-5">2 a 5 integrantes</option>
-              <option value="6+">6 o mas integrantes</option>
+              <option value="">{tAuto("Todos")}</option>
+              <option value="1">{tAuto("1 integrante")}</option>
+              <option value="2-5">{tAuto("2 a 5 integrantes")}</option>
+              <option value="6+">{tAuto("6 o mas integrantes")}</option>
             </select>
           </label>
         </div>
@@ -723,18 +858,18 @@ function ProducerCrewContent() {
           </article>
         ) : filteredProjectGroups.length === 0 ? (
           <article className="producer-empty producer-project-crm__empty">
-            <p>No hay proyectos que coincidan con los filtros.</p>
+            <p>{tAuto("No hay proyectos que coincidan con los filtros.")}</p>
           </article>
         ) : (
           <div className="producer-project-table-wrap">
             <table className="producer-project-table producer-crew-table">
               <thead>
                 <tr>
-                  <th>Proyecto</th>
-                  <th>Integrantes</th>
-                  <th>Estado</th>
-                  <th>Ultima actividad</th>
-                  <th>Acciones</th>
+                  <th>{tAuto("Proyecto")}</th>
+                  <th>{tAuto("Integrantes")}</th>
+                  <th>{tAuto("Estado")}</th>
+                  <th>{tAuto("Ultima actividad")}</th>
+                  <th>{tAuto("Acciones")}</th>
                 </tr>
               </thead>
               <tbody>
@@ -742,30 +877,33 @@ function ProducerCrewContent() {
                   <tr key={group.id}>
                     <td>
                       <div className="producer-project-table__title">
-                        <strong>{group.title}</strong>
-                        <span>Equipo del proyecto</span>
+                        <strong>{getVisibleProjectTitle(group.title)}</strong>
+                        <span>{tAuto("Equipo del proyecto")}</span>
                       </div>
                     </td>
                     <td>
-                      <span className="producer-count-badge">{formatMemberCount(group.membersCount)}</span>
+                      <span className="producer-count-badge">
+                        {group.membersCount}{" "}
+                        {group.membersCount === 1 ? tAuto("integrante") : tAuto("integrantes")}
+                      </span>
                     </td>
                     <td>
                       <span className={`producer-status producer-status--${normalizeStatus(getProjectGroupStatus(group)).toLowerCase() || "default"}`}>
-                        {translateStatus(t, getProjectGroupStatus(group))}
+                        {tAuto(formatCrewStatusLabel(getProjectGroupStatus(group)))}
                       </span>
                     </td>
                     <td>{getProjectGroupLastActivity(group, i18n.language, t("common.noDate"))}</td>
                     <td>
                       <div className="producer-table-actions producer-crew-table__actions">
                         <button className="producer-button" type="button" onClick={() => void openProjectMembersModal(group)}>
-                          Ver integrantes
+                          {tAuto("Ver integrantes")}
                         </button>
                         <button
                           className="producer-button"
                           type="button"
                           onClick={() => void openProjectMembersModal(group)}
                         >
-                          Editar equipo / roles
+                          {tAuto("Editar equipo / roles")}
                         </button>
                         <button
                           className="producer-button"
@@ -773,7 +911,7 @@ function ProducerCrewContent() {
                           disabled={!group.id}
                           onClick={() => navigate(`/producer/messages?projectId=${encodeURIComponent(group.id)}`)}
                         >
-                          Chat del equipo
+                          {tAuto("Chat del equipo")}
                         </button>
                       </div>
                     </td>
@@ -790,11 +928,11 @@ function ProducerCrewContent() {
           <article className="producer-modal__panel producer-project-detail-modal producer-crew-members-modal" role="dialog" aria-modal="true">
             <div className="producer-project-detail-modal__header">
               <div>
-                <p className="producer-page__eyebrow">Integrantes del proyecto</p>
-                <h2>{projectMembersModal.title}</h2>
+                <p className="producer-page__eyebrow">{tAuto("Integrantes del proyecto")}</p>
+                <h2>{getVisibleProjectTitle(projectMembersModal.title)}</h2>
               </div>
               <button className="producer-button producer-button--primary" type="button" onClick={() => setProjectMembersModal(null)}>
-                Cerrar
+                {tAuto("Cerrar")}
               </button>
             </div>
 
@@ -805,13 +943,13 @@ function ProducerCrewContent() {
                 <table className="producer-project-table producer-crew-members-table">
                   <thead>
                     <tr>
-                      <th>Integrante</th>
-                      <th>Email</th>
-                      <th>Rol</th>
-                      <th>Tarea</th>
-                      <th>Estado</th>
-                      <th>Fecha ingreso</th>
-                      <th>Acciones</th>
+                      <th>{tAuto("Integrante")}</th>
+                      <th>{tAuto("Email")}</th>
+                      <th>{tAuto("Rol")}</th>
+                      <th>{tAuto("Tarea")}</th>
+                      <th>{tAuto("Estado")}</th>
+                      <th>{tAuto("Fecha ingreso")}</th>
+                      <th>{tAuto("Acciones")}</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -822,23 +960,23 @@ function ProducerCrewContent() {
                             <CrewAvatar member={member} />
                             <div className="producer-project-table__title">
                               <strong>{getTalentName(member, t("producer.talents.unnamed"))}</strong>
-                              <span>{inferCrewCategory(member)}</span>
+                              <span>{tAuto(inferCrewCategory(member))}</span>
                             </div>
                           </div>
                         </td>
                         <td>{getTalentEmail(member, t("common.noEmail"))}</td>
-                        <td>{getMemberRole(member, t("crew.roleMissing"))}</td>
-                        <td>{getMemberTask(member, t("crew.taskMissing"))}</td>
+                        <td>{tAuto(getMemberRole(member))}</td>
+                        <td>{tAuto(getMemberTask(member))}</td>
                         <td>
                           <span className={`producer-status producer-status--${normalizeStatus(member.status).toLowerCase() || "default"}`}>
-                            {translateStatus(t, member.status)}
+                            {tAuto(formatCrewStatusLabel(member.status))}
                           </span>
                         </td>
                         <td>{getMemberDate(member, i18n.language, t("common.noDate"))}</td>
                         <td>
                           <div className="producer-table-actions producer-crew-table__actions">
                             <button className="producer-button" type="button" onClick={() => openEditModal(member)}>
-                              Editar rol/tarea
+                              {tAuto("Editar rol/tarea")}
                             </button>
                             <button
                               className="producer-button producer-button--danger"
@@ -846,7 +984,9 @@ function ProducerCrewContent() {
                               disabled={!member.id || removingMemberId === member.id}
                               onClick={() => void handleRemoveMember(member)}
                             >
-                              {removingMemberId === member.id ? "Sacando..." : "Sacar del proyecto"}
+                              {removingMemberId === member.id
+                                ? tAuto("Sacando...")
+                                : tAuto("Sacar del proyecto")}
                             </button>
                           </div>
                         </td>
@@ -856,7 +996,7 @@ function ProducerCrewContent() {
                 </table>
               </div>
             ) : (
-              <p className="producer-muted">Este proyecto no tiene integrantes.</p>
+              <p className="producer-muted">{tAuto("Este proyecto no tiene integrantes.")}</p>
             )}
           </article>
         </div>
@@ -869,47 +1009,47 @@ function ProducerCrewContent() {
               <div className="producer-talent-detail__identity">
                 <CrewAvatar member={detailMember} />
                 <div>
-                  <p className="producer-page__eyebrow">Detalle de integrante</p>
+                  <p className="producer-page__eyebrow">{tAuto("Detalle de integrante")}</p>
                   <h2>{getTalentName(detailMember, t("producer.talents.unnamed"))}</h2>
                   <p className="producer-record__eyebrow">{getTalentEmail(detailMember, t("common.noEmail"))}</p>
                 </div>
               </div>
               <button className="producer-button producer-button--primary" type="button" onClick={() => setDetailMember(null)}>
-                Cerrar
+                {tAuto("Cerrar")}
               </button>
             </div>
             <div className="producer-project-detail-grid">
               <div>
-                <span>Proyecto</span>
-                <strong>{getProjectTitle(detailMember, t("crew.projectMissing"))}</strong>
+                <span>{tAuto("Proyecto")}</span>
+                <strong>{tAuto(getProjectTitle(detailMember))}</strong>
               </div>
               <div>
-                <span>Rol</span>
-                <strong>{getMemberRole(detailMember, t("crew.roleMissing"))}</strong>
+                <span>{tAuto("Rol")}</span>
+                <strong>{tAuto(getMemberRole(detailMember))}</strong>
               </div>
               <div>
-                <span>Categoria</span>
-                <strong>{inferCrewCategory(detailMember)}</strong>
+                <span>{tAuto("Categoria")}</span>
+                <strong>{tAuto(inferCrewCategory(detailMember))}</strong>
               </div>
               <div>
-                <span>Estado</span>
-                <strong>{translateStatus(t, detailMember.status)}</strong>
+                <span>{tAuto("Estado")}</span>
+                <strong>{tAuto(formatCrewStatusLabel(detailMember.status))}</strong>
               </div>
               <div>
-                <span>Fecha ingreso</span>
+                <span>{tAuto("Fecha ingreso")}</span>
                 <strong>{getMemberDate(detailMember, i18n.language, t("common.noDate"))}</strong>
               </div>
               <div>
-                <span>Tarea</span>
-                <strong>{getMemberTask(detailMember, t("crew.taskMissing"))}</strong>
+                <span>{tAuto("Tarea")}</span>
+                <strong>{tAuto(getMemberTask(detailMember))}</strong>
               </div>
             </div>
             <div className="producer-actions">
               <button className="producer-button" type="button" onClick={() => openEditModal(detailMember)}>
-                Editar rol/tarea
+                {tAuto("Editar rol/tarea")}
               </button>
               <button className="producer-button producer-button--danger" type="button" onClick={() => void handleRemoveMember(detailMember)}>
-                Sacar del proyecto
+                {tAuto("Sacar del proyecto")}
               </button>
             </div>
           </article>
@@ -921,7 +1061,7 @@ function ProducerCrewContent() {
           <article className="producer-modal__panel producer-project-detail-modal" role="dialog" aria-modal="true">
             <div className="producer-project-detail-modal__header">
               <div>
-                <p className="producer-record__eyebrow">Editar rol/tarea</p>
+                <p className="producer-record__eyebrow">{tAuto("Editar rol/tarea")}</p>
                 <h2>{getTalentName(editingMember, t("producer.talents.unnamed"))}</h2>
               </div>
               <button className="producer-button" type="button" onClick={closeEditModal}>
@@ -935,39 +1075,39 @@ function ProducerCrewContent() {
 
             <form className="producer-form producer-form--single" onSubmit={handleSubmitEdit}>
               <label className="producer-field">
-                <span>Rol</span>
+                <span>{tAuto("Rol")}</span>
                 <input
                   name="role"
                   value={editForm.role}
                   onChange={handleEditChange}
-                  placeholder="Ej. Actor secundario"
+                  placeholder={tAuto("Ej. Actor secundario")}
                 />
               </label>
 
               <label className="producer-field">
-                <span>Categoria</span>
+                <span>{tAuto("Categoria")}</span>
                 <select name="category" value={editForm.category ?? ""} onChange={handleEditChange}>
-                  <option value="">Sin categoria</option>
+                  <option value="">{tAuto("Sin categoria")}</option>
                   {CREW_CATEGORY_OPTIONS.map((category) => (
-                    <option key={category} value={category}>{category}</option>
+                    <option key={category} value={category}>{tAuto(category)}</option>
                   ))}
                 </select>
               </label>
 
               <label className="producer-field">
-                <span>Estado</span>
+                <span>{tAuto("Estado")}</span>
                 <select name="status" value={editForm.status ?? ""} onChange={handleEditChange}>
-                  <option value="">Sin estado</option>
+                  <option value="">{tAuto("Sin estado")}</option>
                   {statusOptions.map((status) => (
-                    <option key={status} value={status}>{translateStatus(t, status)}</option>
+                    <option key={status} value={status}>{tAuto(formatCrewStatusLabel(status))}</option>
                   ))}
-                  {!statusOptions.includes("ACTIVE") ? <option value="ACTIVE">Activo</option> : null}
-                  {!statusOptions.includes("COMPLETED") ? <option value="COMPLETED">Completado</option> : null}
+                  {!statusOptions.includes("ACTIVE") ? <option value="ACTIVE">{tAuto("Activo")}</option> : null}
+                  {!statusOptions.includes("COMPLETED") ? <option value="COMPLETED">{tAuto("Completado")}</option> : null}
                 </select>
               </label>
 
               <label className="producer-field producer-field--full">
-                <span>Tarea / instrucciones</span>
+                <span>{tAuto("Tarea / instrucciones")}</span>
                 <textarea
                   name="task_description"
                   value={editForm.task_description}
@@ -979,14 +1119,14 @@ function ProducerCrewContent() {
 
               <div className="producer-actions">
                 <button className="producer-button" type="button" onClick={closeEditModal}>
-                  {t("common.cancel")}
+                  {tAuto("Cancelar")}
                 </button>
                 <button
                   className="producer-button producer-button--primary"
                   type="submit"
                   disabled={isSaving}
                 >
-                  {isSaving ? t("common.saving") : t("common.saveChanges")}
+                  {isSaving ? tAuto("Guardando...") : tAuto("Guardar cambios")}
                 </button>
               </div>
             </form>

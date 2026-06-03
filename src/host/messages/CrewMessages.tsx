@@ -17,13 +17,77 @@ import type {
   ConversationMessage,
   ConversationParticipant,
 } from "../../types/messages";
-import { translateStatus } from "../../utils/translateStatus";
 import { useCurrentProfile } from "../useCurrentProfile";
+import { useAutoTranslate, useFestivalFlowLanguage } from "../../hooks/useAutoTranslate";
+import { combineTranslationTexts } from "../../utils/translationTexts";
 import "../../styles/messages.css";
 
 const MAX_MESSAGE_LENGTH = 1000;
 const MAX_TEAM_PHOTO_SIZE = 5 * 1024 * 1024;
 const TEAM_PHOTO_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
+
+const crewMessagesBaseTexts = [
+  "Chat del equipo",
+  "Proyecto",
+  "No se pudo cargar la información.",
+  "La foto debe ser JPG, PNG o WebP.",
+  "La foto no puede superar 5 MB.",
+  "No se pudo subir la foto del grupo.",
+  "No tienes permisos para cambiar la foto del grupo.",
+  "Ingresa un nombre para el grupo.",
+  "No se pudo actualizar el grupo.",
+  "No tienes permisos para cambiar el nombre del grupo.",
+  "Escribe un mensaje de hasta 1000 caracteres.",
+  "Usuario",
+  "Mensajes",
+  "Conversaciones directas y chats de equipo en un solo lugar.",
+  "Conversaciones",
+  "Buscar conversaciones",
+  "No hay resultados para tu busqueda.",
+  "No tienes conversaciones todavia.",
+  "Equipo",
+  "Directo",
+  "integrante",
+  "integrantes",
+  "Proyecto sin informar",
+  "Todavia no hay mensajes.",
+  "Cargando...",
+  "Cargar mas conversaciones",
+  "Volver",
+  "Ver información",
+  "sin informar",
+  "Todavia no hay mensajes en esta conversacion.",
+  "Nuevo mensaje",
+  "Escribe un mensaje",
+  "Enviando...",
+  "Enviar",
+  "Selecciona una conversacion",
+  "Elige un chat directo o de equipo para revisar sus mensajes.",
+  "Información del grupo",
+  "Información del contacto",
+  "Cerrar",
+  "Cambiar foto",
+  "Subiendo...",
+  "Subiendo foto...",
+  "Nombre del grupo",
+  "Cancelar",
+  "Guardando...",
+  "Guardar",
+  "Editar nombre",
+  "Integrantes",
+  "Rol no informado",
+  "Sin tarea asignada",
+  "Activo",
+  "Abierta",
+  "Aceptada",
+  "Pendiente",
+  "Completada",
+  "Finalizada",
+  "Cancelada",
+  "Rechazada",
+  "Sin estado",
+  "En revisión",
+];
 
 function formatDate(value: string | null | undefined, locale: string, fallback: string): string {
   if (!value) {
@@ -62,19 +126,11 @@ function appendUniqueConversations(
   return Array.from(byId.values());
 }
 
-function getTeamTitle(conversation: Pick<Conversation, "title" | "project_title">): string {
-  return conversation.title?.trim() || `Chat del equipo - ${conversation.project_title || "Proyecto"}`;
-}
-
 function getOtherParticipant(
   participants: ConversationParticipant[],
   currentUserUid?: string
 ): ConversationParticipant | null {
   return participants.find(({ user_uid }) => user_uid !== currentUserUid) ?? participants[0] ?? null;
-}
-
-function getConversationTitle(conversation: Conversation): string {
-  return conversation.type === "TEAM" ? getTeamTitle(conversation) : conversation.title;
 }
 
 function getParticipantsCount(
@@ -88,6 +144,37 @@ function getDirectSummary(conversation: Conversation, currentUserUid?: string): 
   const project = conversation.project_title?.trim();
 
   return [role, project].filter(Boolean).join(" • ") || conversation.subtitle || "Conversacion directa";
+}
+
+function formatParticipantStatusLabel(value?: string | null): string {
+  const normalized = (value ?? "").trim().toUpperCase();
+
+  switch (normalized) {
+    case "ACTIVE":
+    case "ACTIVO":
+      return "Activo";
+    case "OPEN":
+    case "ABIERTA":
+      return "Abierta";
+    case "ACCEPTED":
+    case "ACEPTADA":
+      return "Aceptada";
+    case "PENDING":
+    case "PENDIENTE":
+      return "Pendiente";
+    case "COMPLETED":
+    case "FINALIZADA":
+      return "Finalizada";
+    case "CANCELLED":
+    case "CANCELED":
+    case "CANCELADA":
+      return "Cancelada";
+    case "REJECTED":
+    case "RECHAZADA":
+      return "Rechazada";
+    default:
+      return value?.trim() || "Sin estado";
+  }
 }
 
 function ConversationAvatar({
@@ -107,6 +194,7 @@ function ConversationAvatar({
 function CrewMessages() {
   const { t, i18n } = useTranslation();
   const { user, token, profile, isProfileLoading } = useCurrentProfile();
+  const language = useFestivalFlowLanguage();
   const tRef = useRef(t);
   tRef.current = t;
   const teamPhotoInputRef = useRef<HTMLInputElement>(null);
@@ -140,6 +228,34 @@ function CrewMessages() {
   const [isTeamNameForbidden, setIsTeamNameForbidden] = useState(false);
   const [teamNameError, setTeamNameError] = useState("");
   const [teamPhotoError, setTeamPhotoError] = useState("");
+  const translationTexts = useMemo(
+    () =>
+      combineTranslationTexts(
+        crewMessagesBaseTexts,
+        conversations.flatMap((conversation) => [
+          conversation.title,
+          conversation.subtitle,
+          conversation.project_title,
+          conversation.last_message,
+          getDirectSummary(conversation, profile?.uid),
+        ]),
+        Object.values(messagesByConversation).flatMap((messages) =>
+          messages.flatMap((message) => [message.message, message.sender_role])
+        ),
+        Object.values(infoByConversation).flatMap((info) => [
+          info.title,
+          info.subtitle,
+          info.project_title,
+          ...info.participants.flatMap((participant) => [
+            participant.role,
+            participant.task_description,
+            formatParticipantStatusLabel(participant.status),
+          ]),
+        ])
+      ),
+    [conversations, infoByConversation, messagesByConversation, profile?.uid]
+  );
+  const { tAuto } = useAutoTranslate(translationTexts, language, token);
 
   useEffect(() => {
     return () => {
@@ -396,7 +512,7 @@ function CrewMessages() {
       setInfoByConversation((current) => ({ ...current, [conversation.id]: info }));
       setTeamName(info.title);
     } catch {
-      setInfoError("No se pudo cargar la información.");
+      setInfoError(tAuto("No se pudo cargar la información."));
     } finally {
       setIsInfoLoading(false);
     }
@@ -410,19 +526,19 @@ function CrewMessages() {
     }
 
     if (!TEAM_PHOTO_TYPES.has(nextPhoto.type)) {
-      setTeamPhotoError("La foto debe ser JPG, PNG o WebP.");
+      setTeamPhotoError(tAuto("La foto debe ser JPG, PNG o WebP."));
       resetTeamPhotoSelection();
       return;
     }
 
     if (nextPhoto.size > MAX_TEAM_PHOTO_SIZE) {
-      setTeamPhotoError("La foto no puede superar 5 MB.");
+      setTeamPhotoError(tAuto("La foto no puede superar 5 MB."));
       resetTeamPhotoSelection();
       return;
     }
 
     if (!infoConversationId || !token) {
-      setTeamPhotoError("No se pudo subir la foto del grupo.");
+      setTeamPhotoError(tAuto("No se pudo subir la foto del grupo."));
       resetTeamPhotoSelection();
       return;
     }
@@ -443,10 +559,10 @@ function CrewMessages() {
       resetTeamPhotoSelection();
     } catch (uploadError) {
       if (uploadError instanceof ConversationPermissionError) {
-        setTeamPhotoError("No tienes permisos para cambiar la foto del grupo.");
+        setTeamPhotoError(tAuto("No tienes permisos para cambiar la foto del grupo."));
       } else {
         setTeamPhotoError(
-          uploadError instanceof Error ? uploadError.message : "No se pudo subir la foto del grupo."
+          uploadError instanceof Error ? uploadError.message : tAuto("No se pudo subir la foto del grupo.")
         );
       }
       resetTeamPhotoSelection();
@@ -461,7 +577,7 @@ function CrewMessages() {
     const currentInfo = infoByConversation[infoConversationId];
 
     if (!infoConversationId || !token || !name || !currentInfo) {
-      setInfoError("Ingresa un nombre para el grupo.");
+      setInfoError(tAuto("Ingresa un nombre para el grupo."));
       return;
     }
 
@@ -507,12 +623,12 @@ function CrewMessages() {
     } catch (saveError) {
       const message = saveError instanceof Error
         ? saveError.message
-        : "No se pudo actualizar el grupo.";
+        : tAuto("No se pudo actualizar el grupo.");
 
       if (saveError instanceof ConversationPermissionError) {
         setIsTeamNameForbidden(true);
         setIsEditingTeam(false);
-        setTeamNameError("No tienes permisos para cambiar el nombre del grupo.");
+        setTeamNameError(tAuto("No tienes permisos para cambiar el nombre del grupo."));
       } else {
         setTeamNameError(message);
       }
@@ -526,7 +642,7 @@ function CrewMessages() {
     const message = draftMessage.trim();
 
     if (!selectedConversationId || !token || !message || message.length > MAX_MESSAGE_LENGTH) {
-      setMessageError("Escribe un mensaje de hasta 1000 caracteres.");
+      setMessageError(tAuto("Escribe un mensaje de hasta 1000 caracteres."));
       return;
     }
 
@@ -537,7 +653,7 @@ function CrewMessages() {
       conversation_id: selectedConversationId,
       project_id: selectedConversation?.project_id ?? null,
       sender_uid: profile?.uid ?? "",
-      sender_name: profile?.name ?? "Usuario",
+      sender_name: profile?.name ?? tAuto("Usuario"),
       sender_role: profile?.role ?? "",
       sender_photo_url: profile?.photo_url ?? profile?.picture ?? null,
       message,
@@ -624,15 +740,26 @@ function CrewMessages() {
     conversationInfo?.type === "TEAM" &&
     conversationInfo.can_edit_team_settings !== false &&
     !isTeamNameForbidden;
+  const getVisibleConversationTitle = (conversation: Conversation | ConversationInfo): string => {
+    if (conversation.type === "TEAM" && !conversation.title?.trim()) {
+      return `${tAuto("Chat del equipo")} - ${
+        conversation.project_title ? tAuto(conversation.project_title) : tAuto("Proyecto")
+      }`;
+    }
+
+    return conversation.type === "TEAM"
+      ? tAuto(conversation.title?.trim() || `${tAuto("Chat del equipo")} - ${conversation.project_title ? tAuto(conversation.project_title) : tAuto("Proyecto")}`)
+      : tAuto(conversation.title);
+  };
 
   return (
     <div className="messages-page">
       <section className="messages-card messages-banner">
         <div>
-          <p className="messages-page__eyebrow">{t("messages.eyebrow")}</p>
-          <h1 className="messages-page__title">Mensajes</h1>
+          <p className="messages-page__eyebrow">{tAuto("Mensajes")}</p>
+          <h1 className="messages-page__title">{tAuto("Mensajes")}</h1>
           <p className="messages-page__subtitle">
-            Conversaciones directas y chats de equipo en un solo lugar.
+            {tAuto("Conversaciones directas y chats de equipo en un solo lugar.")}
           </p>
         </div>
       </section>
@@ -644,19 +771,19 @@ function CrewMessages() {
       >
         <aside className="messages-sidebar">
           <header className="messages-sidebar__header">
-            <h2>Conversaciones</h2>
+            <h2>{tAuto("Conversaciones")}</h2>
             <label className="messages-search">
-              <span className="sr-only">Buscar conversaciones</span>
+              <span className="sr-only">{tAuto("Buscar conversaciones")}</span>
               <input
                 type="search"
-                placeholder="Buscar conversaciones"
+                placeholder={tAuto("Buscar conversaciones")}
                 value={search}
                 onChange={(event) => setSearch(event.target.value)}
               />
             </label>
           </header>
 
-          <div className="messages-thread-list" aria-label="Conversaciones">
+          <div className="messages-thread-list" aria-label={tAuto("Conversaciones")}>
             {isLoadingConversations ? (
               Array.from({ length: 5 }, (_, index) => (
                 <div className="messages-thread-skeleton" key={index}>
@@ -666,7 +793,9 @@ function CrewMessages() {
               ))
             ) : filteredConversations.length === 0 ? (
               <p className="messages-empty">
-                {conversations.length ? "No hay resultados para tu busqueda." : "No tienes conversaciones todavia."}
+                {conversations.length
+                  ? tAuto("No hay resultados para tu busqueda.")
+                  : tAuto("No tienes conversaciones todavia.")}
               </p>
             ) : (
               filteredConversations.map((conversation) => (
@@ -679,31 +808,36 @@ function CrewMessages() {
                   onClick={() => handleSelectConversation(conversation.id)}
                 >
                   <ConversationAvatar
-                    name={getConversationTitle(conversation)}
+                    name={getVisibleConversationTitle(conversation)}
                     photoUrl={conversation.avatar_url}
                   />
                   <span className="messages-thread__body">
                     <span className="messages-thread__heading">
-                      <strong>{getConversationTitle(conversation)}</strong>
+                      <strong>{getVisibleConversationTitle(conversation)}</strong>
                       <small>{formatDate(conversation.last_message_at, i18n.language, "")}</small>
                     </span>
                     {conversation.type === "TEAM" ? (
                       <>
                         <span className="messages-thread__meta">
-                          <b>TEAM</b>
-                          <span>🟢 {getParticipantsCount(conversation)} integrantes</span>
+                          <b>{tAuto("Equipo")}</b>
+                          <span>
+                            🟢 {getParticipantsCount(conversation)}{" "}
+                            {getParticipantsCount(conversation) === 1
+                              ? tAuto("integrante")
+                              : tAuto("integrantes")}
+                          </span>
                         </span>
                         <span className="messages-thread__context">
-                          🎬 {conversation.project_title || "Proyecto sin informar"}
+                          🎬 {conversation.project_title ? tAuto(conversation.project_title) : tAuto("Proyecto sin informar")}
                         </span>
                       </>
                     ) : (
                       <span className="messages-thread__context">
-                        {getDirectSummary(conversation, profile?.uid)}
+                        {tAuto(getDirectSummary(conversation, profile?.uid))}
                       </span>
                     )}
                     <span className="messages-thread__footer">
-                      <span>{conversation.last_message || "Todavia no hay mensajes."}</span>
+                      <span>{conversation.last_message ? tAuto(conversation.last_message) : tAuto("Todavia no hay mensajes.")}</span>
                       {conversation.unread_count > 0 ? <b>{conversation.unread_count}</b> : null}
                     </span>
                   </span>
@@ -719,7 +853,7 @@ function CrewMessages() {
               disabled={isLoadingMore}
               onClick={() => void handleLoadMore()}
             >
-              {isLoadingMore ? "Cargando..." : "Cargar mas conversaciones"}
+              {isLoadingMore ? tAuto("Cargando...") : tAuto("Cargar mas conversaciones")}
             </button>
           ) : null}
         </aside>
@@ -736,29 +870,29 @@ function CrewMessages() {
                     setSearchParams({});
                   }}
                 >
-                  Volver
+                  {tAuto("Volver")}
                 </button>
                 <button
                   className="messages-chat__info-trigger"
                   type="button"
-                  title="Ver información"
+                  title={tAuto("Ver información")}
                   onClick={() => void handleOpenInfo(selectedConversation)}
                 >
                   <ConversationAvatar
-                    name={getConversationTitle(selectedConversation)}
+                    name={getVisibleConversationTitle(selectedConversation)}
                     photoUrl={selectedConversation.avatar_url}
                   />
                   <span>
-                    <h2>{getConversationTitle(selectedConversation)}</h2>
+                    <h2>{getVisibleConversationTitle(selectedConversation)}</h2>
                     <small>
                       {selectedConversation.type === "TEAM"
-                        ? `Proyecto ${selectedConversation.project_title || "sin informar"}`
-                        : getDirectSummary(selectedConversation, profile?.uid)}
+                        ? `${tAuto("Proyecto")} ${selectedConversation.project_title ? tAuto(selectedConversation.project_title) : tAuto("sin informar")}`
+                        : tAuto(getDirectSummary(selectedConversation, profile?.uid))}
                     </small>
                   </span>
                 </button>
                 <b className={`messages-type messages-type--${selectedConversation.type.toLowerCase()}`}>
-                  {selectedConversation.type}
+                  {selectedConversation.type === "TEAM" ? tAuto("Equipo") : tAuto("Directo")}
                 </b>
               </header>
 
@@ -776,7 +910,9 @@ function CrewMessages() {
                     </div>
                   ))
                 ) : selectedMessages.length === 0 ? (
-                  <p className="messages-history__empty">Todavia no hay mensajes en esta conversacion.</p>
+                  <p className="messages-history__empty">
+                    {tAuto("Todavia no hay mensajes en esta conversacion.")}
+                  </p>
                 ) : (
                   selectedMessages.map((item) => (
                     <article
@@ -789,10 +925,10 @@ function CrewMessages() {
                         <ConversationAvatar name={item.sender_name} photoUrl={item.sender_photo_url} />
                         <span>
                           <strong>{item.sender_name}</strong>
-                          <small>{item.sender_role}</small>
+                          <small>{tAuto(item.sender_role)}</small>
                         </span>
                       </div>
-                      <p>{item.message}</p>
+                      <p>{tAuto(item.message)}</p>
                       <time>{formatDate(item.created_at, i18n.language, t("common.noDate"))}</time>
                     </article>
                   ))
@@ -801,10 +937,10 @@ function CrewMessages() {
 
               <form className="messages-compose" onSubmit={handleSubmit}>
                 <label>
-                  <span className="sr-only">Nuevo mensaje</span>
+                  <span className="sr-only">{tAuto("Nuevo mensaje")}</span>
                   <textarea
                     maxLength={MAX_MESSAGE_LENGTH}
-                    placeholder="Escribe un mensaje"
+                    placeholder={tAuto("Escribe un mensaje")}
                     rows={2}
                     value={draftMessage}
                     onChange={(event) => setDraftMessage(event.target.value)}
@@ -816,14 +952,14 @@ function CrewMessages() {
                   type="submit"
                   disabled={isSending || !draftMessage.trim()}
                 >
-                  {isSending ? "Enviando..." : "Enviar"}
+                  {isSending ? tAuto("Enviando...") : tAuto("Enviar")}
                 </button>
               </form>
             </>
           ) : (
             <div className="messages-chat__welcome">
-              <h2>Selecciona una conversacion</h2>
-              <p>Elige un chat directo o de equipo para revisar sus mensajes.</p>
+              <h2>{tAuto("Selecciona una conversacion")}</h2>
+              <p>{tAuto("Elige un chat directo o de equipo para revisar sus mensajes.")}</p>
             </div>
           )}
         </section>
@@ -843,15 +979,23 @@ function CrewMessages() {
             className="messages-info-modal__panel"
             role="dialog"
             aria-modal="true"
-            aria-label={infoConversation.type === "TEAM" ? "Información del grupo" : "Información del contacto"}
+            aria-label={
+              infoConversation.type === "TEAM"
+                ? tAuto("Información del grupo")
+                : tAuto("Información del contacto")
+            }
           >
             <header className="messages-info-modal__header">
               <div>
-                <p>{infoConversation.type === "TEAM" ? "Información del grupo" : "Información del contacto"}</p>
-                <h2>{getConversationTitle(infoConversation)}</h2>
+                <p>
+                  {infoConversation.type === "TEAM"
+                    ? tAuto("Información del grupo")
+                    : tAuto("Información del contacto")}
+                </p>
+                <h2>{getVisibleConversationTitle(infoConversation)}</h2>
               </div>
               <button className="messages-button" type="button" onClick={handleCloseInfo}>
-                Cerrar
+                {tAuto("Cerrar")}
               </button>
             </header>
 
@@ -871,19 +1015,24 @@ function CrewMessages() {
                     className="messages-info-photo-trigger"
                     type="button"
                     disabled={isUploadingTeamPhoto}
-                    title="Cambiar foto"
+                    title={tAuto("Cambiar foto")}
                     onClick={() => teamPhotoInputRef.current?.click()}
                   >
                     <ConversationAvatar
-                      name={getTeamTitle(conversationInfo)}
+                      name={getVisibleConversationTitle(conversationInfo)}
                       photoUrl={teamPhotoPreviewUrl || conversationInfo.avatar_url}
                     />
-                    <span>{isUploadingTeamPhoto ? "Subiendo..." : "Cambiar foto"}</span>
+                    <span>{isUploadingTeamPhoto ? tAuto("Subiendo...") : tAuto("Cambiar foto")}</span>
                   </button>
                   <div>
-                    <h3>{getTeamTitle(conversationInfo)}</h3>
-                    <p>Proyecto {conversationInfo.project_title || "sin informar"}</p>
-                    <span>{getParticipantsCount(conversationInfo)} integrantes</span>
+                    <h3>{getVisibleConversationTitle(conversationInfo)}</h3>
+                    <p>{tAuto("Proyecto")} {conversationInfo.project_title ? tAuto(conversationInfo.project_title) : tAuto("sin informar")}</p>
+                    <span>
+                      {getParticipantsCount(conversationInfo)}{" "}
+                      {getParticipantsCount(conversationInfo) === 1
+                        ? tAuto("integrante")
+                        : tAuto("integrantes")}
+                    </span>
                   </div>
                 </div>
 
@@ -906,7 +1055,7 @@ function CrewMessages() {
                     disabled={isUploadingTeamPhoto}
                     onClick={() => teamPhotoInputRef.current?.click()}
                   >
-                    {isUploadingTeamPhoto ? "Subiendo foto..." : "Cambiar foto"}
+                    {isUploadingTeamPhoto ? tAuto("Subiendo foto...") : tAuto("Cambiar foto")}
                   </button>
                   {teamPhoto ? <span>{teamPhoto.name}</span> : null}
                 </div>
@@ -914,7 +1063,7 @@ function CrewMessages() {
                 {isEditingTeam && canEditTeamName ? (
                   <form className="messages-info-form" onSubmit={handleSaveTeamSettings}>
                     <label>
-                      <span>Nombre del grupo</span>
+                      <span>{tAuto("Nombre del grupo")}</span>
                       <input
                         type="text"
                         value={teamName}
@@ -927,34 +1076,34 @@ function CrewMessages() {
                         type="button"
                         onClick={() => setIsEditingTeam(false)}
                       >
-                        Cancelar
+                        {tAuto("Cancelar")}
                       </button>
                       <button className="messages-button messages-button--primary" type="submit" disabled={isSavingTeam}>
-                        {isSavingTeam ? "Guardando..." : "Guardar"}
+                        {isSavingTeam ? tAuto("Guardando...") : tAuto("Guardar")}
                       </button>
                     </div>
                   </form>
                 ) : canEditTeamName ? (
                   <div className="messages-info-actions">
                     <button className="messages-button messages-button--primary" type="button" onClick={() => setIsEditingTeam(true)}>
-                      Editar nombre
+                      {tAuto("Editar nombre")}
                     </button>
                   </div>
                 ) : null}
 
                 <div className="messages-info-section">
-                  <h3>Integrantes</h3>
+                  <h3>{tAuto("Integrantes")}</h3>
                   <div className="messages-info-members">
                     {conversationInfo.participants.map((participant) => (
                       <article className="messages-info-member" key={participant.user_uid}>
                         <ConversationAvatar name={participant.name} photoUrl={participant.photo_url} />
                         <div>
                           <h4>{participant.name}</h4>
-                          <p>{participant.role || "Rol no informado"}</p>
-                          <span>{participant.task_description || "Sin tarea asignada"}</span>
+                          <p>{participant.role ? tAuto(participant.role) : tAuto("Rol no informado")}</p>
+                          <span>{participant.task_description ? tAuto(participant.task_description) : tAuto("Sin tarea asignada")}</span>
                           {participant.status ? (
                             <small className="messages-info-status">
-                              {translateStatus(t, participant.status)}
+                              {tAuto(formatParticipantStatusLabel(participant.status))}
                             </small>
                           ) : null}
                         </div>
@@ -968,14 +1117,14 @@ function CrewMessages() {
                 <ConversationAvatar name={infoContact.name} photoUrl={infoContact.photo_url} />
                 <div>
                   <h3>{infoContact.name}</h3>
-                  <p>Proyecto {conversationInfo.project_title || "sin informar"}</p>
-                  <span>{infoContact.role || "Rol no informado"}</span>
+                  <p>{tAuto("Proyecto")} {conversationInfo.project_title ? tAuto(conversationInfo.project_title) : tAuto("sin informar")}</p>
+                  <span>{infoContact.role || tAuto("Rol no informado")}</span>
                   {infoContact.email ? <a href={`mailto:${infoContact.email}`}>{infoContact.email}</a> : null}
                 </div>
               </div>
             ) : (
               <p className="messages-feedback messages-feedback--error">
-                No se pudo cargar la información.
+                {tAuto("No se pudo cargar la información.")}
               </p>
             )}
           </section>

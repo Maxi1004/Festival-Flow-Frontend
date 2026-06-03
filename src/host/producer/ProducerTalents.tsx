@@ -11,6 +11,8 @@ import type { Opportunity, Project } from "../../types/producer";
 import type { AvailableTalent } from "../../types/talent";
 import { formatDisplayDate } from "./utils";
 import { translateStatus } from "../../utils/translateStatus";
+import { useAutoTranslate, useFestivalFlowLanguage } from "../../hooks/useAutoTranslate";
+import { combineTranslationTexts } from "../../utils/translationTexts";
 import "../../styles/producer.css";
 
 type RecruitmentFormState = {
@@ -65,6 +67,57 @@ const initialFilters: AvailableTalentFilters = {
   availability: "AVAILABLE",
 };
 
+const producerTalentsBaseTexts = [
+  "Talentos disponibles",
+  "Cargando registros...",
+  "talentos encontrados",
+  "Buscar por nombre/email",
+  "Nombre o email",
+  "Categoria o especialidad",
+  "Todas",
+  "Ubicacion",
+  "Ciudad o region",
+  "Idioma",
+  "Ej. Espanol",
+  "Disponibilidad",
+  "Disponible",
+  "No disponible",
+  "No hay talentos disponibles para reclutar en este momento.",
+  "Talento",
+  "Email",
+  "Especialidad principal",
+  "Categorias / habilidades",
+  "Modalidad",
+  "Disponible desde",
+  "Estado",
+  "Acciones",
+  "No informadas",
+  "Ver perfil",
+  "Reclutar",
+  "Ficha de talento",
+  "Ubicacion no informada",
+  "Sin bio disponible.",
+  "Anos de experiencia",
+  "anos",
+  "No informado",
+  "No informada",
+  "Habilidades",
+  "Sin habilidades informadas.",
+  "Idiomas",
+  "Sin idiomas informados.",
+  "Portafolio",
+  "Sin portafolio informado.",
+  "Convocatoria",
+  "Sin convocatoria especifica",
+  "Talentos",
+  "Filtra disponibilidad real, revisa perfiles y envia invitaciones sin salir del modulo.",
+  "Remota",
+  "Presencial",
+  "Híbrida",
+  "Flexible",
+  "Modalidad no informada",
+];
+
 function formatTalentName(talent: AvailableTalent, fallback: string): string {
   return (
     talent.display_name?.trim() ||
@@ -95,6 +148,17 @@ function getTalentCategory(talent: AvailableTalent): string {
     getTalentSpecialties(talent)[0] ||
     "Sin categoria"
   );
+}
+
+function formatAvailableTalentModality(talent: AvailableTalent): string {
+  return talent.work_modality
+    ? ({
+        REMOTE: "Remota",
+        ONSITE: "Presencial",
+        HYBRID: "Hibrida",
+        FLEXIBLE: "Flexible",
+      }[talent.work_modality.trim().toUpperCase()] ?? talent.work_modality)
+    : "Modalidad no informada";
 }
 
 function getTalentSkills(talent: AvailableTalent): string[] {
@@ -206,6 +270,7 @@ function ProducerTalentsContent() {
   const tRef = useRef(t);
   tRef.current = t;
   const { token } = useCurrentProfile();
+  const language = useFestivalFlowLanguage();
   const [talents, setTalents] = useState<AvailableTalent[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
   const [opportunities, setOpportunities] = useState<Opportunity[]>([]);
@@ -217,6 +282,34 @@ function ProducerTalentsContent() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
+  const translationTexts = useMemo(
+    () =>
+      combineTranslationTexts(
+        producerTalentsBaseTexts,
+        talents.flatMap((talent) => [
+          getTalentCategory(talent),
+          getTalentLocation(talent, "Ubicacion no informada"),
+          formatAvailableTalentModality(talent),
+          translateStatus(t, talent.status),
+          talent.profile?.bio,
+          talent.notes,
+          ...getTalentSkills(talent),
+          ...getTalentLanguages(talent),
+          ...getPortfolioLinks(talent).map((link) => link.label),
+        ]),
+        projects.flatMap((project) => [project.title, project.description, project.location, project.production_type, project.status]),
+        opportunities.flatMap((opportunity) => [
+          opportunity.title,
+          opportunity.description,
+          opportunity.role_needed,
+          opportunity.specialty,
+          opportunity.location,
+          opportunity.status,
+        ])
+      ),
+    [opportunities, projects, t, talents]
+  );
+  const { tAuto } = useAutoTranslate(translationTexts, language, token);
 
   useEffect(() => {
     let isMounted = true;
@@ -369,21 +462,22 @@ function ProducerTalentsContent() {
 
   const formatTalentModality = (talent: AvailableTalent): string =>
     talent.work_modality
-      ? t(`options.opportunityModality.${talent.work_modality}`, {
-          defaultValue: talent.work_modality,
-        })
-      : t("producer.talents.modalityMissing");
+      ? ({
+          REMOTE: "Remota",
+          ONSITE: "Presencial",
+          HYBRID: "Híbrida",
+          FLEXIBLE: "Flexible",
+        }[talent.work_modality.trim().toUpperCase()] ?? talent.work_modality)
+      : "Modalidad no informada";
 
   return (
     <div className="producer-shell">
       <section className="producer-card producer-banner">
         <div>
-          <p className="producer-page__eyebrow">{t("producer.talents.eyebrow")}</p>
-          <h1 className="producer-page__title">{t("producer.talents.title")}</h1>
+          <p className="producer-page__eyebrow">{tAuto("Talentos")}</p>
+          <h1 className="producer-page__title">{tAuto("Talentos disponibles")}</h1>
           <p className="producer-page__subtitle">
-            {t("producer.talents.subtitle", {
-              defaultValue: "Filtra disponibilidad real, revisa perfiles y envia invitaciones sin salir del modulo.",
-            })}
+            {tAuto("Filtra disponibilidad real, revisa perfiles y envia invitaciones sin salir del modulo.")}
           </p>
         </div>
       </section>
@@ -402,56 +496,58 @@ function ProducerTalentsContent() {
       <section className="producer-card producer-project-crm producer-talent-crm">
         <div className="producer-project-crm__heading">
           <div>
-            <h2>Talentos disponibles</h2>
+            <h2>{tAuto("Talentos disponibles")}</h2>
             <span>
-              {isLoading ? "Cargando registros..." : `${talents.length} talentos encontrados`}
+              {isLoading
+                ? tAuto("Cargando registros...")
+                : `${talents.length} ${tAuto("talentos encontrados")}`}
             </span>
           </div>
         </div>
 
         <div className="producer-project-filters producer-talent-filters">
           <label className="producer-field">
-            <span>Buscar por nombre/email</span>
+            <span>{tAuto("Buscar por nombre/email")}</span>
             <input
               name="search"
               value={filters.search}
               onChange={handleFilterChange}
-              placeholder="Nombre o email"
+              placeholder={tAuto("Nombre o email")}
             />
           </label>
           <label className="producer-field">
-            <span>Categoria o especialidad</span>
+            <span>{tAuto("Categoria o especialidad")}</span>
             <select name="category" value={filters.category} onChange={handleFilterChange}>
-              <option value="">Todas</option>
+              <option value="">{tAuto("Todas")}</option>
               {TALENT_CATEGORY_OPTIONS.map((category) => (
-                <option key={category} value={category}>{category}</option>
+                <option key={category} value={category}>{tAuto(category)}</option>
               ))}
             </select>
           </label>
           <label className="producer-field">
-            <span>Ubicacion</span>
+            <span>{tAuto("Ubicacion")}</span>
             <input
               name="location"
               value={filters.location}
               onChange={handleFilterChange}
-              placeholder="Ciudad o region"
+              placeholder={tAuto("Ciudad o region")}
             />
           </label>
           <label className="producer-field">
-            <span>Idioma</span>
+            <span>{tAuto("Idioma")}</span>
             <input
               name="language"
               value={filters.language}
               onChange={handleFilterChange}
-              placeholder="Ej. Espanol"
+              placeholder={tAuto("Ej. Espanol")}
             />
           </label>
           <label className="producer-field">
-            <span>Disponibilidad</span>
+            <span>{tAuto("Disponibilidad")}</span>
             <select name="availability" value={filters.availability} onChange={handleFilterChange}>
-              <option value="AVAILABLE">Disponible</option>
-              <option value="UNAVAILABLE">No disponible</option>
-              <option value="ALL">Todas</option>
+              <option value="AVAILABLE">{tAuto("Disponible")}</option>
+              <option value="UNAVAILABLE">{tAuto("No disponible")}</option>
+              <option value="ALL">{tAuto("Todas")}</option>
             </select>
           </label>
         </div>
@@ -460,22 +556,22 @@ function ProducerTalentsContent() {
           <TalentTableSkeleton />
         ) : talents.length === 0 ? (
           <article className="producer-empty producer-project-crm__empty">
-            <p>No hay talentos disponibles para reclutar en este momento.</p>
+            <p>{tAuto("No hay talentos disponibles para reclutar en este momento.")}</p>
           </article>
         ) : (
           <div className="producer-project-table-wrap producer-talent-table-wrap">
             <table className="producer-project-table producer-talent-table">
               <thead>
                 <tr>
-                  <th>Talento</th>
-                  <th>Email</th>
-                  <th>Especialidad principal</th>
-                  <th>Categorias / habilidades</th>
-                  <th>Ubicacion</th>
-                  <th>Modalidad</th>
-                  <th>Disponible desde</th>
-                  <th>Estado</th>
-                  <th>Acciones</th>
+                  <th>{tAuto("Talento")}</th>
+                  <th>{tAuto("Email")}</th>
+                  <th>{tAuto("Especialidad principal")}</th>
+                  <th>{tAuto("Categorias / habilidades")}</th>
+                  <th>{tAuto("Ubicacion")}</th>
+                  <th>{tAuto("Modalidad")}</th>
+                  <th>{tAuto("Disponible desde")}</th>
+                  <th>{tAuto("Estado")}</th>
+                  <th>{tAuto("Acciones")}</th>
                 </tr>
               </thead>
               <tbody>
@@ -491,36 +587,36 @@ function ProducerTalentsContent() {
                           <TalentAvatar talent={talent} fallback={t("producer.talents.unnamed")} />
                           <div className="producer-project-table__title">
                             <strong>{talentName}</strong>
-                            <span>{getTalentCategory(talent)}</span>
+                            <span>{tAuto(getTalentCategory(talent))}</span>
                           </div>
                         </div>
                       </td>
                       <td>{getTalentEmail(talent, t("common.noEmail"))}</td>
-                      <td>{getTalentCategory(talent)}</td>
+                      <td>{tAuto(getTalentCategory(talent))}</td>
                       <td>
                         {skills.length ? (
                           <div className="producer-chip-list producer-chip-list--compact">
                             {skills.slice(0, 3).map((skill) => (
-                              <span key={skill} className="producer-chip">{skill}</span>
+                              <span key={skill} className="producer-chip">{tAuto(skill)}</span>
                             ))}
                             {skills.length > 3 ? <span className="producer-muted">+{skills.length - 3}</span> : null}
                           </div>
                         ) : (
-                          <span className="producer-muted">No informadas</span>
+                          <span className="producer-muted">{tAuto("No informadas")}</span>
                         )}
                       </td>
-                      <td>{getTalentLocation(talent, t("producer.talents.locationMissing"))}</td>
-                      <td>{formatTalentModality(talent)}</td>
+                      <td>{tAuto(getTalentLocation(talent, tAuto("Ubicacion no informada")))}</td>
+                      <td>{tAuto(formatTalentModality(talent))}</td>
                       <td>{formatDisplayDate(talent.available_from)}</td>
                       <td>
                         <span className={`producer-status producer-status--${getTalentStatusClass(talent.status)}`}>
-                          {translateStatus(t, talent.status)}
+                          {tAuto(translateStatus(t, talent.status))}
                         </span>
                       </td>
                       <td>
                         <div className="producer-table-actions producer-talent-table__actions">
                           <button className="producer-button" type="button" onClick={() => setDetailTalent(talent)}>
-                            Ver perfil
+                            {tAuto("Ver perfil")}
                           </button>
                           <button
                             className="producer-button producer-button--primary"
@@ -528,7 +624,7 @@ function ProducerTalentsContent() {
                             disabled={!talentId}
                             onClick={() => void openRecruitmentModal(talent)}
                           >
-                            Reclutar
+                            {tAuto("Reclutar")}
                           </button>
                         </div>
                       </td>
@@ -548,7 +644,7 @@ function ProducerTalentsContent() {
               <div className="producer-talent-detail__identity">
                 <TalentAvatar talent={detailTalent} fallback={t("producer.talents.unnamed")} large />
                 <div>
-                  <p className="producer-record__eyebrow">Ficha de talento</p>
+                  <p className="producer-record__eyebrow">{tAuto("Ficha de talento")}</p>
                   <h2 className="producer-record__title">
                     {formatTalentName(detailTalent, t("producer.talents.unnamed"))}
                   </h2>
@@ -561,81 +657,85 @@ function ProducerTalentsContent() {
             </div>
 
             <div className="producer-meta-list">
-              <span>{getTalentCategory(detailTalent)}</span>
-              <span>{getTalentLocation(detailTalent, "Ubicacion no informada")}</span>
-              <span>{formatTalentModality(detailTalent)}</span>
-              <span>{translateStatus(t, detailTalent.status)}</span>
+              <span>{tAuto(getTalentCategory(detailTalent))}</span>
+              <span>{tAuto(getTalentLocation(detailTalent, tAuto("Ubicacion no informada")))}</span>
+              <span>{tAuto(formatTalentModality(detailTalent))}</span>
+              <span>{tAuto(translateStatus(t, detailTalent.status))}</span>
               <span>{formatDisplayDate(detailTalent.available_from)}</span>
             </div>
 
             <p className="producer-record__text">
-              {detailTalent.profile?.bio?.trim() || detailTalent.notes?.trim() || "Sin bio disponible."}
+              {detailTalent.profile?.bio?.trim()
+                ? tAuto(detailTalent.profile.bio.trim())
+                : detailTalent.notes?.trim()
+                ? tAuto(detailTalent.notes.trim())
+                : tAuto("Sin bio disponible.")}
             </p>
 
             <div className="producer-project-detail-grid">
               <div>
-                <span>Especialidad principal</span>
-                <strong>{getTalentCategory(detailTalent)}</strong>
+                <span>{tAuto("Especialidad principal")}</span>
+                <strong>{tAuto(getTalentCategory(detailTalent))}</strong>
               </div>
               <div>
-                <span>Anos de experiencia</span>
+                <span>{tAuto("Anos de experiencia")}</span>
                 <strong>
                   {detailTalent.profile?.experience_years !== undefined
-                    ? `${detailTalent.profile.experience_years} anos`
-                    : "No informado"}
+                    ? `${detailTalent.profile.experience_years} ${tAuto("anos")}`
+                    : tAuto("No informado")}
                 </strong>
               </div>
               <div>
-                <span>Ubicacion</span>
-                <strong>{getTalentLocation(detailTalent, "No informada")}</strong>
+                <span>{tAuto("Ubicacion")}</span>
+                <strong>{tAuto(getTalentLocation(detailTalent, tAuto("No informada")))}</strong>
               </div>
               <div>
-                <span>Modalidad</span>
-                <strong>{formatTalentModality(detailTalent)}</strong>
+                <span>{tAuto("Modalidad")}</span>
+                <strong>{tAuto(formatTalentModality(detailTalent))}</strong>
               </div>
               <div>
-                <span>Disponibilidad</span>
+                <span>{tAuto("Disponibilidad")}</span>
                 <strong>{formatDisplayDate(detailTalent.available_from)}</strong>
               </div>
               <div>
-                <span>Estado</span>
-                <strong>{translateStatus(t, detailTalent.status)}</strong>
+                <span>{tAuto("Estado")}</span>
+                <strong>{tAuto(translateStatus(t, detailTalent.status))}</strong>
               </div>
             </div>
 
             <div className="producer-talent-detail__section">
-              <strong>Habilidades</strong>
+              <strong>{tAuto("Habilidades")}</strong>
               <div className="producer-chip-list">
                 {getTalentSkills(detailTalent).length ? (
                   getTalentSkills(detailTalent).map((skill) => (
-                    <span key={skill} className="producer-chip">{skill}</span>
+                    <span key={skill} className="producer-chip">{tAuto(skill)}</span>
                   ))
                 ) : (
-                  <span className="producer-muted">Sin habilidades informadas.</span>
+                  <span className="producer-muted">{tAuto("Sin habilidades informadas.")}</span>
                 )}
               </div>
             </div>
 
             <div className="producer-talent-detail__section">
-              <strong>Idiomas</strong>
+              <strong>{tAuto("Idiomas")}</strong>
               <div className="producer-chip-list">
                 {getTalentLanguages(detailTalent).length ? (
                   getTalentLanguages(detailTalent).map((language) => (
-                    <span key={language} className="producer-chip">{language}</span>
+                    <span key={language} className="producer-chip">{tAuto(language)}</span>
                   ))
                 ) : (
-                  <span className="producer-muted">Sin idiomas informados.</span>
+                  <span className="producer-muted">{tAuto("Sin idiomas informados.")}</span>
                 )}
               </div>
             </div>
 
             <div className="producer-talent-detail__section">
-              <strong>Portafolio</strong>
+              <strong>{tAuto("Portafolio")}</strong>
               {getPortfolioLinks(detailTalent).length || detailTalent.profile?.portfolio_pdf_url ? (
                 <div className="producer-talent-portfolio">
                   {getPortfolioLinks(detailTalent).map((link) => (
                     <a key={link.url} href={link.url} target="_blank" rel="noreferrer">
-                      {link.label}
+                      {tAuto(link.label)}
                     </a>
                   ))}
                   {detailTalent.profile?.portfolio_pdf_url ? (
@@ -645,7 +745,7 @@ function ProducerTalentsContent() {
                   ) : null}
                 </div>
               ) : (
-                <span className="producer-muted">Sin portafolio informado.</span>
+                <span className="producer-muted">{tAuto("Sin portafolio informado.")}</span>
               )}
             </div>
 
@@ -656,7 +756,7 @@ function ProducerTalentsContent() {
                 disabled={!getTalentId(detailTalent)}
                 onClick={() => void openRecruitmentModal(detailTalent)}
               >
-                Reclutar
+                {tAuto("Reclutar")}
               </button>
             </div>
           </article>
@@ -700,23 +800,23 @@ function ProducerTalentsContent() {
                   ) : null}
                   {projects.map((project) => (
                     <option key={project.id} value={project.id}>
-                      {project.title}
+                      {tAuto(project.title)}
                     </option>
                   ))}
                 </select>
               </label>
 
               <label className="producer-field">
-                <span>Convocatoria</span>
+                <span>{tAuto("Convocatoria")}</span>
                 <select
                   name="opportunity_id"
                   value={formData.opportunity_id}
                   onChange={handleChange}
                 >
-                  <option value="">Sin convocatoria especifica</option>
+                  <option value="">{tAuto("Sin convocatoria especifica")}</option>
                   {filteredOpportunities.map((opportunity) => (
                     <option key={opportunity.id} value={opportunity.id}>
-                      {opportunity.title || opportunity.role_needed}
+                      {tAuto(opportunity.title || opportunity.role_needed)}
                     </option>
                   ))}
                 </select>
@@ -732,7 +832,7 @@ function ProducerTalentsContent() {
                 >
                   {ROLE_OPTIONS.map((role) => (
                     <option key={role} value={role}>
-                      {t(`producer.talents.roles.${role}`, { defaultValue: role })}
+                      {tAuto(t(`producer.talents.roles.${role}`, { defaultValue: role }))}
                     </option>
                   ))}
                 </select>

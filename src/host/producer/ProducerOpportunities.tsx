@@ -34,6 +34,8 @@ import {
 } from "../../types/producer";
 import "../../styles/producer.css";
 import { useCurrentProfile } from "../useCurrentProfile";
+import { useAutoTranslate, useFestivalFlowLanguage } from "../../hooks/useAutoTranslate";
+import { combineTranslationTexts } from "../../utils/translationTexts";
 
 type OpportunityFormState = {
   project_id: string;
@@ -64,6 +66,105 @@ const OPPORTUNITY_MODALITY_LABELS: Record<string, string> = {
   HYBRID: "Híbrida",
   FLEXIBLE: "Flexible",
 };
+
+const producerOpportunitiesBaseTexts = [
+  "Activa",
+  "Borrador",
+  "Cerrada",
+  "Cancelada",
+  "Completada",
+  "Pausada",
+  "Remota",
+  "Presencial",
+  "Híbrida",
+  "Flexible",
+  "No informada",
+  "Aceptada",
+  "En revisión",
+  "Pendiente",
+  "Preseleccionada",
+  "Rechazada",
+  "Enviada",
+  "Sin estado",
+  "Sin fecha",
+  "Talento sin nombre",
+  "Sin correo",
+  "Proyecto sin informar",
+  "No se pudieron cargar tus convocatorias.",
+  "No se pudieron cargar los proyectos para editar.",
+  "No se pudo actualizar la convocatoria.",
+  "No se pudo cerrar la convocatoria.",
+  "No se pudieron cargar los postulantes.",
+  "Postulante aceptado correctamente.",
+  "Postulante rechazado correctamente.",
+  "No se pudo actualizar el estado del postulante.",
+  "Convocatorias",
+  "Administra tus oportunidades",
+  "Publica, actualiza o cierra convocatorias conectadas a tus proyectos reales.",
+  "Nueva convocatoria",
+  "Total convocatorias",
+  "Activas",
+  "Postulantes por proyecto",
+  "Proyecto seleccionado",
+  "Revisa las convocatorias asociadas y abre sus postulantes para aceptar o rechazar.",
+  "Ver todas las convocatorias",
+  "Cargando registros...",
+  "proyectos",
+  "Buscar convocatoria",
+  "Buscar",
+  "Buscar convocatoria, proyecto o rol",
+  "Todas",
+  "convocatorias",
+  "Crea una oportunidad real para comenzar a recibir postulaciones desde el backend.",
+  "Proyecto",
+  "Todos",
+  "Estado",
+  "Modalidad",
+  "Cargando convocatorias...",
+  "Este proyecto todavía no tiene convocatorias",
+  "No hay convocatorias todavía",
+  "Sin resultados",
+  "Ajusta los filtros para ver otras convocatorias.",
+  "Convocatoria",
+  "Rol",
+  "Especialidad",
+  "Fecha límite",
+  "Postulantes",
+  "Acciones",
+  "Sin descripción",
+  "No informado",
+  "postul.",
+  "Ver detalle",
+  "Editar",
+  "Cargando...",
+  "Ver postulantes",
+  "Cancelando...",
+  "Cancelar",
+  "Detalle de convocatoria",
+  "Esta convocatoria no incluye descripción adicional.",
+  "Rol requerido",
+  "Ubicación",
+  "Cancelar convocatoria",
+  "Cerrar",
+  "Editar convocatoria",
+  "Título",
+  "Descripción",
+  "Requisitos",
+  "Guardando...",
+  "Guardar cambios",
+  "Iniciar",
+  "Postulantes",
+  "Cargando postulantes...",
+  "Fecha de postulación:",
+  "Mensaje:",
+  "No disponible todavía.",
+  "Actualizando...",
+  "Aceptar",
+  "Rechazar",
+  "No hay postulantes para esta convocatoria.",
+  "Convocatorias activas",
+  "No hay convocatorias para mostrar.",
+];
 
 function normalizeText(value?: string | null): string {
   return value?.trim().toLowerCase() ?? "";
@@ -183,7 +284,7 @@ function ProducerOpportunitiesContent() {
   const navigate = useNavigate();
   const location = useLocation();
   const { token } = useCurrentProfile();
-
+  const language = useFestivalFlowLanguage();
   const [projects, setProjects] = useState<Project[]>([]);
   const [opportunities, setOpportunities] = useState<Opportunity[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -214,6 +315,39 @@ function ProducerOpportunitiesContent() {
   >({});
   const [error, setError] = useState("");
   const [summaryModal, setSummaryModal] = useState<"all" | "active" | null>(null);
+  const translationTexts = useMemo(
+    () =>
+      combineTranslationTexts(
+        producerOpportunitiesBaseTexts,
+        projects.flatMap((project) => [project.title, project.description, project.location, project.production_type, project.status]),
+        opportunities.flatMap((opportunity) => [
+          opportunity.title,
+          opportunity.description,
+          opportunity.role_needed,
+          opportunity.specialty,
+          opportunity.location,
+          opportunity.modality,
+          formatOpportunityStatusLabel(opportunity.status),
+          getOpportunityProjectLabel(opportunity),
+          ...(opportunity.requirements ?? []),
+        ]),
+        Object.values(applicantsByOpportunity).flatMap((applications) =>
+          applications.flatMap((application) => [
+            application.message,
+            application.status,
+            application.main_specialty,
+            ...getApplicantSpecialties(application),
+          ])
+        )
+      ),
+    [applicantsByOpportunity, opportunities, projects]
+  );
+  const { tAuto } = useAutoTranslate(translationTexts, language, token);
+  const getVisibleOpportunityProjectLabel = (opportunity: Opportunity) => {
+    const label = getOpportunityProjectLabel(opportunity);
+
+    return label === "Proyecto sin informar" ? tAuto("Proyecto sin informar") : tAuto(label);
+  };
 
   const focusedProjectId =
     (location.state as { projectId?: string } | null)?.projectId ?? "";
@@ -249,7 +383,7 @@ function ProducerOpportunitiesContent() {
           setError(
             loadError instanceof Error
               ? loadError.message
-              : "No se pudieron cargar tus convocatorias."
+              : tAuto("No se pudieron cargar tus convocatorias.")
           );
         }
       } finally {
@@ -357,7 +491,7 @@ function ProducerOpportunitiesContent() {
       setEditError(
         loadError instanceof Error
           ? loadError.message
-          : "No se pudieron cargar los proyectos para editar."
+          : tAuto("No se pudieron cargar los proyectos para editar.")
       );
     }
 
@@ -402,7 +536,7 @@ function ProducerOpportunitiesContent() {
       setEditError(
         submitError instanceof Error
           ? submitError.message
-          : "No se pudo actualizar la convocatoria."
+          : tAuto("No se pudo actualizar la convocatoria.")
       );
     } finally {
       setIsEditingSubmitting(false);
@@ -433,7 +567,7 @@ function ProducerOpportunitiesContent() {
       setError(
         closeError instanceof Error
           ? closeError.message
-          : "No se pudo cerrar la convocatoria."
+          : tAuto("No se pudo cerrar la convocatoria.")
       );
     } finally {
       setClosingId("");
@@ -472,7 +606,7 @@ function ProducerOpportunitiesContent() {
         [opportunity.id]:
           loadError instanceof Error
             ? loadError.message
-            : "No se pudieron cargar los postulantes.",
+            : tAuto("No se pudieron cargar los postulantes."),
       }));
     } finally {
       setLoadingApplicantsId("");
@@ -517,8 +651,8 @@ function ProducerOpportunitiesContent() {
         ...current,
         [opportunityId]:
           status === "ACCEPTED"
-            ? "Postulante aceptado correctamente."
-            : "Postulante rechazado correctamente.",
+            ? tAuto("Postulante aceptado correctamente.")
+            : tAuto("Postulante rechazado correctamente."),
       }));
     } catch (updateError) {
       setApplicantsErrorByOpportunity((current) => ({
@@ -526,7 +660,7 @@ function ProducerOpportunitiesContent() {
         [opportunityId]:
           updateError instanceof Error
             ? updateError.message
-            : "No se pudo actualizar el estado del postulante.",
+            : tAuto("No se pudo actualizar el estado del postulante."),
       }));
     } finally {
       setUpdatingApplicationId("");
@@ -551,14 +685,16 @@ function ProducerOpportunitiesContent() {
     <div className="producer-shell">
       <section className="producer-card producer-banner producer-banner--compact">
         <div>
-          <p className="producer-page__eyebrow">Convocatorias</p>
-          <h1 className="producer-page__title">Administra tus oportunidades</h1>
+          <p className="producer-page__eyebrow">{tAuto("Convocatorias")}</p>
+          <h1 className="producer-page__title">{tAuto("Administra tus oportunidades")}</h1>
           <p className="producer-page__subtitle">
-            Publica, actualiza o cierra convocatorias conectadas a tus proyectos reales.
+            {tAuto(
+              "Publica, actualiza o cierra convocatorias conectadas a tus proyectos reales."
+            )}
           </p>
         </div>
         <Link className="producer-button producer-button--primary" to="/producer/opportunities/new">
-          Nueva convocatoria
+          {tAuto("Nueva convocatoria")}
         </Link>
       </section>
 
@@ -568,7 +704,7 @@ function ProducerOpportunitiesContent() {
           onClick={() => setSummaryModal("all")}
         >
           <span className="producer-metric__value">{isLoading ? "..." : opportunities.length}</span>
-          <p className="producer-metric__label">Total convocatorias</p>
+          <p className="producer-metric__label">{tAuto("Total convocatorias")}</p>
         </ClickableSummaryCard>
 
         <ClickableSummaryCard
@@ -576,7 +712,7 @@ function ProducerOpportunitiesContent() {
           onClick={() => setSummaryModal("active")}
         >
           <span className="producer-metric__value">{isLoading ? "..." : activeCount}</span>
-          <p className="producer-metric__label">Activas</p>
+          <p className="producer-metric__label">{tAuto("Activas")}</p>
         </ClickableSummaryCard>
       </section>
 
@@ -589,12 +725,14 @@ function ProducerOpportunitiesContent() {
       {focusedProjectId ? (
         <section className="producer-card producer-flow-focus">
           <div>
-            <p className="producer-page__eyebrow">Postulantes por proyecto</p>
+            <p className="producer-page__eyebrow">{tAuto("Postulantes por proyecto")}</p>
             <h2 className="producer-record__title">
-              {focusedProjectTitle || "Proyecto seleccionado"}
+              {focusedProjectTitle || tAuto("Proyecto seleccionado")}
             </h2>
             <p className="producer-record__text">
-              Revisa las convocatorias asociadas y abre sus postulantes para aceptar o rechazar.
+              {tAuto(
+                "Revisa las convocatorias asociadas y abre sus postulantes para aceptar o rechazar."
+              )}
             </p>
           </div>
           <button
@@ -602,7 +740,7 @@ function ProducerOpportunitiesContent() {
             type="button"
             onClick={() => navigate("/producer/opportunities", { replace: true })}
           >
-            Ver todas las convocatorias
+            {tAuto("Ver todas las convocatorias")}
           </button>
         </section>
       ) : null}
@@ -610,57 +748,57 @@ function ProducerOpportunitiesContent() {
       <section className="producer-card producer-project-crm">
         <div className="producer-project-crm__heading">
           <div>
-            <h2>Convocatorias</h2>
+            <h2>{tAuto("Convocatorias")}</h2>
             <span>
               {isLoading
-                ? "Cargando registros..."
-                : `${filteredOpportunities.length} de ${displayedOpportunities.length} convocatorias`}
+                ? tAuto("Cargando registros...")
+                : `${filteredOpportunities.length} de ${displayedOpportunities.length} ${tAuto("convocatorias")}`}
             </span>
           </div>
         </div>
 
         <div className="producer-project-filters">
           <label className="producer-field">
-            <span>Buscar</span>
+            <span>{tAuto("Buscar")}</span>
             <input
               name="search"
               value={filters.search}
               onChange={handleFilterChange}
-              placeholder="Buscar convocatoria, proyecto o rol"
+              placeholder={tAuto("Buscar convocatoria, proyecto o rol")}
             />
           </label>
 
           <label className="producer-field">
-            <span>Proyecto</span>
+            <span>{tAuto("Proyecto")}</span>
             <select name="projectId" value={filters.projectId} onChange={handleFilterChange}>
-              <option value="">Todos</option>
+              <option value="">{tAuto("Todos")}</option>
               {projectOptions.map((project) => (
                 <option key={project.id} value={project.id}>
-                  {project.title}
+                  {tAuto(project.title)}
                 </option>
               ))}
             </select>
           </label>
 
           <label className="producer-field">
-            <span>Estado</span>
+            <span>{tAuto("Estado")}</span>
             <select name="status" value={filters.status} onChange={handleFilterChange}>
-              <option value="">Todos</option>
+              <option value="">{tAuto("Todos")}</option>
               {statusOptions.map((status) => (
                 <option key={status} value={status}>
-                  {formatOpportunityStatusLabel(status)}
+                  {tAuto(formatOpportunityStatusLabel(status))}
                 </option>
               ))}
             </select>
           </label>
 
           <label className="producer-field">
-            <span>Modalidad</span>
+            <span>{tAuto("Modalidad")}</span>
             <select name="modality" value={filters.modality} onChange={handleFilterChange}>
-              <option value="">Todas</option>
+              <option value="">{tAuto("Todas")}</option>
               {modalityOptions.map((modality) => (
                 <option key={modality} value={modality}>
-                  {formatOpportunityModality(modality)}
+                  {tAuto(formatOpportunityModality(modality))}
                 </option>
               ))}
             </select>
@@ -669,24 +807,24 @@ function ProducerOpportunitiesContent() {
 
         {isLoading ? (
           <article className="producer-empty">
-            <p>Cargando convocatorias...</p>
+            <p>{tAuto("Cargando convocatorias...")}</p>
           </article>
         ) : displayedOpportunities.length === 0 ? (
           <article className="producer-empty producer-project-crm__empty">
             <h2 className="producer-card__title">
               {focusedProjectId
-                ? "Este proyecto todavía no tiene convocatorias"
-                : "No hay convocatorias todavía"}
+                ? tAuto("Este proyecto todavía no tiene convocatorias")
+                : tAuto("No hay convocatorias todavía")}
             </h2>
             <p className="producer-card__text">
-              Crea una oportunidad real para comenzar a recibir postulaciones desde el backend.
+              {tAuto("Crea una oportunidad real para comenzar a recibir postulaciones desde el backend.")}
             </p>
           </article>
         ) : filteredOpportunities.length === 0 ? (
           <article className="producer-empty producer-project-crm__empty">
-            <h2 className="producer-card__title">Sin resultados</h2>
+            <h2 className="producer-card__title">{tAuto("Sin resultados")}</h2>
             <p className="producer-card__text">
-              Ajusta los filtros para ver otras convocatorias.
+              {tAuto("Ajusta los filtros para ver otras convocatorias.")}
             </p>
           </article>
         ) : (
@@ -694,15 +832,15 @@ function ProducerOpportunitiesContent() {
             <table className="producer-project-table">
               <thead>
                 <tr>
-                  <th>Convocatoria</th>
-                  <th>Proyecto</th>
-                  <th>Rol</th>
-                  <th>Especialidad</th>
-                  <th>Modalidad</th>
-                  <th>Fecha límite</th>
-                  <th>Estado</th>
-                  <th>Postulantes</th>
-                  <th>Acciones</th>
+                  <th>{tAuto("Convocatoria")}</th>
+                  <th>{tAuto("Proyecto")}</th>
+                  <th>{tAuto("Rol")}</th>
+                  <th>{tAuto("Especialidad")}</th>
+                  <th>{tAuto("Modalidad")}</th>
+                  <th>{tAuto("Fecha límite")}</th>
+                  <th>{tAuto("Estado")}</th>
+                  <th>{tAuto("Postulantes")}</th>
+                  <th>{tAuto("Acciones")}</th>
                 </tr>
               </thead>
               <tbody>
@@ -710,14 +848,18 @@ function ProducerOpportunitiesContent() {
                   <tr key={opportunity.id}>
                     <td>
                       <div className="producer-project-table__title">
-                        <strong>{opportunity.title}</strong>
-                        <span>{opportunity.description || "Sin descripción"}</span>
+                        <strong>{tAuto(opportunity.title)}</strong>
+                        <span>
+                          {opportunity.description
+                            ? tAuto(opportunity.description)
+                            : tAuto("Sin descripción")}
+                        </span>
                       </div>
                     </td>
-                    <td>{getOpportunityProjectLabel(opportunity)}</td>
-                    <td>{opportunity.role_needed || "No informado"}</td>
-                    <td>{opportunity.specialty || "No informada"}</td>
-                    <td>{formatOpportunityModality(opportunity.modality)}</td>
+                    <td>{getVisibleOpportunityProjectLabel(opportunity)}</td>
+                    <td>{opportunity.role_needed ? tAuto(opportunity.role_needed) : tAuto("No informado")}</td>
+                    <td>{opportunity.specialty ? tAuto(opportunity.specialty) : tAuto("No informada")}</td>
+                    <td>{tAuto(formatOpportunityModality(opportunity.modality))}</td>
                     <td>{formatDisplayDate(opportunity.deadline)}</td>
                     <td>
                       <span
@@ -725,13 +867,13 @@ function ProducerOpportunitiesContent() {
                           normalizeUpper(opportunity.status).toLowerCase() || "default"
                         }`}
                       >
-                        {formatOpportunityStatusLabel(opportunity.status)}
+                        {tAuto(formatOpportunityStatusLabel(opportunity.status))}
                       </span>
                     </td>
                     <td>
                       <span className="producer-count-badge">
                         {applicantsByOpportunity[opportunity.id]?.length ??
-                          getOpportunityApplicantsCount(opportunity)} postul.
+                          getOpportunityApplicantsCount(opportunity)} {tAuto("postul.")}
                       </span>
                     </td>
                     <td>
@@ -741,7 +883,7 @@ function ProducerOpportunitiesContent() {
                           type="button"
                           onClick={() => setDetailOpportunity(opportunity)}
                         >
-                          Ver detalle
+                          {tAuto("Ver detalle")}
                         </button>
 
                         <button
@@ -749,7 +891,7 @@ function ProducerOpportunitiesContent() {
                           type="button"
                           onClick={() => void handleOpenEditModal(opportunity)}
                         >
-                          Editar
+                          {tAuto("Editar")}
                         </button>
 
                         <button
@@ -758,7 +900,9 @@ function ProducerOpportunitiesContent() {
                           disabled={loadingApplicantsId === opportunity.id}
                           onClick={() => void handleOpenApplicantsModal(opportunity)}
                         >
-                          {loadingApplicantsId === opportunity.id ? "Cargando..." : "Ver postulantes"}
+                          {loadingApplicantsId === opportunity.id
+                            ? tAuto("Cargando...")
+                            : tAuto("Ver postulantes")}
                         </button>
 
                         <button
@@ -771,10 +915,10 @@ function ProducerOpportunitiesContent() {
                           onClick={() => void handleCloseOpportunity(opportunity.id)}
                         >
                           {closingId === opportunity.id
-                            ? "Cancelando..."
+                            ? tAuto("Cancelando...")
                             : isCancelledStatus(opportunity.status)
-                            ? "Cancelada"
-                            : "Cancelar"}
+                            ? tAuto("Cancelada")
+                            : tAuto("Cancelar")}
                         </button>
                       </div>
                     </td>
@@ -795,46 +939,47 @@ function ProducerOpportunitiesContent() {
           >
             <div className="producer-project-detail-modal__header">
               <div>
-                <p className="producer-page__eyebrow">Detalle de convocatoria</p>
-                <h2>{detailOpportunity.title}</h2>
+                <p className="producer-page__eyebrow">{tAuto("Detalle de convocatoria")}</p>
+                <h2>{tAuto(detailOpportunity.title)}</h2>
               </div>
               <span
                 className={`producer-status producer-status--${
                   normalizeUpper(detailOpportunity.status).toLowerCase() || "default"
                 }`}
               >
-                {formatOpportunityStatusLabel(detailOpportunity.status)}
+                {tAuto(formatOpportunityStatusLabel(detailOpportunity.status))}
               </span>
             </div>
 
             <p className="producer-record__text">
-              {detailOpportunity.description ||
-                "Esta convocatoria no incluye descripción adicional."}
+              {detailOpportunity.description
+                ? tAuto(detailOpportunity.description)
+                : tAuto("Esta convocatoria no incluye descripción adicional.")}
             </p>
 
             <div className="producer-project-detail-grid">
               <div>
-                <span>Proyecto</span>
-                <strong>{getOpportunityProjectLabel(detailOpportunity)}</strong>
+                <span>{tAuto("Proyecto")}</span>
+                <strong>{getVisibleOpportunityProjectLabel(detailOpportunity)}</strong>
               </div>
               <div>
-                <span>Rol requerido</span>
-                <strong>{detailOpportunity.role_needed || "No informado"}</strong>
+                <span>{tAuto("Rol requerido")}</span>
+                <strong>{detailOpportunity.role_needed ? tAuto(detailOpportunity.role_needed) : tAuto("No informado")}</strong>
               </div>
               <div>
-                <span>Especialidad</span>
-                <strong>{detailOpportunity.specialty || "No informada"}</strong>
+                <span>{tAuto("Especialidad")}</span>
+                <strong>{detailOpportunity.specialty ? tAuto(detailOpportunity.specialty) : tAuto("No informada")}</strong>
               </div>
               <div>
-                <span>Ubicación</span>
-                <strong>{detailOpportunity.location || "No informada"}</strong>
+                <span>{tAuto("Ubicación")}</span>
+                <strong>{detailOpportunity.location ? tAuto(detailOpportunity.location) : tAuto("No informada")}</strong>
               </div>
               <div>
-                <span>Modalidad</span>
-                <strong>{formatOpportunityModality(detailOpportunity.modality)}</strong>
+                <span>{tAuto("Modalidad")}</span>
+                <strong>{tAuto(formatOpportunityModality(detailOpportunity.modality))}</strong>
               </div>
               <div>
-                <span>Fecha límite</span>
+                <span>{tAuto("Fecha límite")}</span>
                 <strong>{formatDisplayDate(detailOpportunity.deadline)}</strong>
               </div>
             </div>
@@ -843,7 +988,7 @@ function ProducerOpportunitiesContent() {
               <div className="producer-chip-list">
                 {detailOpportunity.requirements.map((item) => (
                   <span key={item} className="producer-chip">
-                    {item}
+                    {tAuto(item)}
                   </span>
                 ))}
               </div>
@@ -855,7 +1000,7 @@ function ProducerOpportunitiesContent() {
                 type="button"
                 onClick={() => void handleOpenEditModal(detailOpportunity)}
               >
-                Editar
+                {tAuto("Editar")}
               </button>
 
               <button
@@ -863,7 +1008,7 @@ function ProducerOpportunitiesContent() {
                 type="button"
                 onClick={() => void handleOpenApplicantsModal(detailOpportunity)}
               >
-                Ver postulantes
+                {tAuto("Ver postulantes")}
               </button>
 
               <button
@@ -875,7 +1020,7 @@ function ProducerOpportunitiesContent() {
                 }
                 onClick={() => void handleCloseOpportunity(detailOpportunity.id)}
               >
-                Cancelar convocatoria
+                {tAuto("Cancelar convocatoria")}
               </button>
 
               <button
@@ -883,7 +1028,7 @@ function ProducerOpportunitiesContent() {
                 type="button"
                 onClick={() => setDetailOpportunity(null)}
               >
-                Cerrar
+                {tAuto("Cerrar")}
               </button>
             </div>
           </article>
@@ -899,7 +1044,7 @@ function ProducerOpportunitiesContent() {
           >
             <div className="producer-project-detail-modal__header">
               <div>
-                <p className="producer-page__eyebrow">Editar convocatoria</p>
+                <p className="producer-page__eyebrow">{tAuto("Editar convocatoria")}</p>
                 <h2>{editingOpportunity.title}</h2>
               </div>
               <button
@@ -911,13 +1056,13 @@ function ProducerOpportunitiesContent() {
                   setEditError("");
                 }}
               >
-                Cerrar
+                {tAuto("Cerrar")}
               </button>
             </div>
 
             <form className="producer-form" onSubmit={handleEditSubmit}>
               <label className="producer-field">
-                <span>Proyecto</span>
+                <span>{tAuto("Proyecto")}</span>
                 <select
                   name="project_id"
                   value={editFormData.project_id}
@@ -926,19 +1071,19 @@ function ProducerOpportunitiesContent() {
                 >
                   {projects.map((project) => (
                     <option key={project.id} value={project.id}>
-                      {project.title}
+                      {tAuto(project.title)}
                     </option>
                   ))}
                 </select>
               </label>
 
               <label className="producer-field">
-                <span>Título</span>
+                <span>{tAuto("Título")}</span>
                 <input name="title" value={editFormData.title} onChange={handleEditChange} required />
               </label>
 
               <label className="producer-field">
-                <span>Rol requerido</span>
+                <span>{tAuto("Rol requerido")}</span>
                 <input
                   name="role_needed"
                   value={editFormData.role_needed}
@@ -948,7 +1093,7 @@ function ProducerOpportunitiesContent() {
               </label>
 
               <label className="producer-field">
-                <span>Especialidad</span>
+                <span>{tAuto("Especialidad")}</span>
                 <input
                   name="specialty"
                   value={editFormData.specialty}
@@ -958,7 +1103,7 @@ function ProducerOpportunitiesContent() {
               </label>
 
               <label className="producer-field">
-                <span>Ubicación</span>
+                <span>{tAuto("Ubicación")}</span>
                 <input
                   name="location"
                   value={editFormData.location}
@@ -968,29 +1113,29 @@ function ProducerOpportunitiesContent() {
               </label>
 
               <label className="producer-field">
-                <span>Modalidad</span>
+                <span>{tAuto("Modalidad")}</span>
                 <select name="modality" value={editFormData.modality} onChange={handleEditChange}>
                   {OPPORTUNITY_MODALITY_OPTIONS.map((modality) => (
                     <option key={modality} value={modality}>
-                      {formatOpportunityModality(modality)}
+                      {tAuto(formatOpportunityModality(modality))}
                     </option>
                   ))}
                 </select>
               </label>
 
               <label className="producer-field">
-                <span>Estado</span>
+                <span>{tAuto("Estado")}</span>
                 <select name="status" value={editFormData.status} onChange={handleEditChange}>
                   {OPPORTUNITY_STATUS_OPTIONS.map((status) => (
                     <option key={status.value} value={status.value}>
-                      {status.label}
+                      {tAuto(status.label)}
                     </option>
                   ))}
                 </select>
               </label>
 
               <label className="producer-field">
-                <span>Fecha límite</span>
+                <span>{tAuto("Fecha límite")}</span>
                 <input
                   type="date"
                   name="deadline"
@@ -1000,7 +1145,7 @@ function ProducerOpportunitiesContent() {
               </label>
 
               <label className="producer-field producer-field--full">
-                <span>Descripción</span>
+                <span>{tAuto("Descripción")}</span>
                 <textarea
                   name="description"
                   value={editFormData.description}
@@ -1011,7 +1156,7 @@ function ProducerOpportunitiesContent() {
               </label>
 
               <label className="producer-field producer-field--full">
-                <span>Requisitos</span>
+                <span>{tAuto("Requisitos")}</span>
                 <textarea
                   name="requirements"
                   value={editFormData.requirements}
@@ -1034,14 +1179,14 @@ function ProducerOpportunitiesContent() {
                     setEditError("");
                   }}
                 >
-                  Cancelar
+                  {tAuto("Cancelar")}
                 </button>
                 <button
                   className="producer-button producer-button--primary"
                   type="submit"
                   disabled={isEditingSubmitting}
                 >
-                  {isEditingSubmitting ? "Guardando..." : "Guardar cambios"}
+                  {isEditingSubmitting ? tAuto("Guardando...") : tAuto("Guardar cambios")}
                 </button>
               </div>
             </form>
@@ -1058,15 +1203,15 @@ function ProducerOpportunitiesContent() {
           >
             <div className="producer-project-detail-modal__header">
               <div>
-                <p className="producer-page__eyebrow">Postulantes</p>
-                <h2>{applicantsModalOpportunity.title}</h2>
+                <p className="producer-page__eyebrow">{tAuto("Postulantes")}</p>
+                <h2>{tAuto(applicantsModalOpportunity.title)}</h2>
               </div>
               <button
                 className="producer-button producer-button--primary"
                 type="button"
                 onClick={handleCloseApplicantsModal}
               >
-                Cerrar
+                {tAuto("Cerrar")}
               </button>
             </div>
 
@@ -1077,7 +1222,7 @@ function ProducerOpportunitiesContent() {
             ) : null}
 
             {loadingApplicantsId === applicantsModalOpportunity.id ? (
-              <p className="producer-muted">Cargando postulantes...</p>
+              <p className="producer-muted">{tAuto("Cargando postulantes...")}</p>
             ) : applicantsErrorByOpportunity[applicantsModalOpportunity.id] ? (
               <p className="producer-feedback producer-feedback--error">
                 {applicantsErrorByOpportunity[applicantsModalOpportunity.id]}
@@ -1101,26 +1246,28 @@ function ProducerOpportunitiesContent() {
                           </h4>
                         </div>
                         <span className={`producer-status producer-status--${applicationStatus.toLowerCase() || "default"}`}>
-                          {formatApplicationStatus(application.status)}
+                          {tAuto(formatApplicationStatus(application.status))}
                         </span>
                       </div>
 
                       <p className="producer-list-card__text">
-                        Fecha de postulación:{" "}
+                        {tAuto("Fecha de postulación:")}{" "}
                         {formatApplicationDate(
                           application.applied_at || application.created_at
                         )}
                       </p>
                       <p className="producer-list-card__text">
-                        Mensaje:{" "}
-                        {application.message?.trim() || "No disponible todavía."}
+                        {tAuto("Mensaje:")}{" "}
+                        {application.message?.trim()
+                          ? tAuto(application.message.trim())
+                          : tAuto("No disponible todavía.")}
                       </p>
 
                       {getApplicantSpecialties(application).length ? (
                         <div className="producer-chip-list">
                           {getApplicantSpecialties(application).map((specialty) => (
                             <span key={specialty} className="producer-chip">
-                              {specialty}
+                              {tAuto(specialty)}
                             </span>
                           ))}
                         </div>
@@ -1141,8 +1288,8 @@ function ProducerOpportunitiesContent() {
                             }
                           >
                             {updatingApplicationId === application.id
-                              ? "Actualizando..."
-                              : "Aceptar"}
+                              ? tAuto("Actualizando...")
+                              : tAuto("Aceptar")}
                           </button>
                           <button
                             className="producer-button"
@@ -1156,7 +1303,7 @@ function ProducerOpportunitiesContent() {
                               )
                             }
                           >
-                            Rechazar
+                            {tAuto("Rechazar")}
                           </button>
                         </div>
                       )}
@@ -1167,7 +1314,7 @@ function ProducerOpportunitiesContent() {
               </div>
             ) : (
               <p className="producer-muted">
-                No hay postulantes para esta convocatoria.
+                {tAuto("No hay postulantes para esta convocatoria.")}
               </p>
             )}
           </article>
@@ -1176,23 +1323,27 @@ function ProducerOpportunitiesContent() {
 
       {summaryModal ? (
         <SummaryDetailModal
-          title={summaryModal === "active" ? "Convocatorias activas" : "Total convocatorias"}
+          title={
+            summaryModal === "active"
+              ? tAuto("Convocatorias activas")
+              : tAuto("Total convocatorias")
+          }
           onClose={() => setSummaryModal(null)}
         >
           <div className="summary-detail-list">
             {summaryOpportunities.length ? (
               summaryOpportunities.map((opportunity) => (
                 <article key={opportunity.id} className="summary-detail-list__item">
-                  <h3>{opportunity.title}</h3>
+                  <h3>{tAuto(opportunity.title)}</h3>
                   <p>
-                    {getOpportunityProjectLabel(opportunity)} |{" "}
-                    {formatOpportunityStatusLabel(opportunity.status)}
+                    {getVisibleOpportunityProjectLabel(opportunity)} |{" "}
+                    {tAuto(formatOpportunityStatusLabel(opportunity.status))}
                   </p>
                 </article>
               ))
             ) : (
               <p className="summary-detail-empty">
-                No hay convocatorias para mostrar.
+                {tAuto("No hay convocatorias para mostrar.")}
               </p>
             )}
           </div>

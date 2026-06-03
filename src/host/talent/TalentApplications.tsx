@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { SummaryDetailModal } from "../../components/SummaryDetailModal";
 import {
@@ -12,6 +12,8 @@ import type {
 } from "../../types/talent";
 import { translateStatus } from "../../utils/translateStatus";
 import { useCurrentProfile } from "../useCurrentProfile";
+import { useAutoTranslate, useFestivalFlowLanguage } from "../../hooks/useAutoTranslate";
+import { combineTranslationTexts } from "../../utils/translationTexts";
 import "../../styles/talent.css";
 
 const PAGE_SIZE = 10;
@@ -27,6 +29,44 @@ const EMPTY_SUMMARY: TalentApplicationFeedSummary = {
   closed: 0,
   acceptance_rate: 0,
 };
+
+const talentApplicationsBaseTexts = [
+  "Aceptada",
+  "Rechazada",
+  "Proceso finalizado",
+  "No se pudo calcular el resumen.",
+  "En revisión",
+  "Aceptadas",
+  "Rechazadas",
+  "Canceladas",
+  "Finalizadas",
+  "Gestiona el avance de tus postulaciones y revisa tu historial profesional.",
+  "Resumen de postulaciones",
+  "Total postulaciones",
+  "Cerradas / Finalizadas",
+  "Tasa de aceptación",
+  "Distribución",
+  "Postulaciones por estado",
+  "Calculando resumen...",
+  "Historial profesional",
+  "Seguimiento de postulaciones",
+  "cargadas",
+  "Convocatoria",
+  "Proyecto",
+  "Estado",
+  "Fecha postulación",
+  "Última actualización",
+  "Resultado",
+  "Acciones",
+  "Ver detalle",
+  "Cargando...",
+  "Cargar más",
+  "Mensaje enviado",
+  "Rol solicitado",
+  "Especialidad",
+  "Ubicación",
+  "Modalidad",
+];
 
 function normalizeStatus(value?: string | null): string {
   return value?.trim().toUpperCase().replaceAll(" ", "_") ?? "";
@@ -95,6 +135,7 @@ function appendUniqueApplications(
 function TalentApplications() {
   const { t, i18n } = useTranslation();
   const { user, token, profile, isProfileLoading } = useCurrentProfile();
+  const language = useFestivalFlowLanguage();
   const tRef = useRef(t);
   tRef.current = t;
   const [applications, setApplications] = useState<TalentApplication[]>([]);
@@ -106,6 +147,27 @@ function TalentApplications() {
   const [isSummaryLoading, setIsSummaryLoading] = useState(true);
   const [error, setError] = useState("");
   const [summaryError, setSummaryError] = useState("");
+  const missingValue = t("common.notProvided");
+  const translationTexts = useMemo(
+    () =>
+      combineTranslationTexts(
+        talentApplicationsBaseTexts,
+        applications.flatMap((application) => [
+          getOpportunityTitle(application, missingValue),
+          getProjectTitle(application, missingValue),
+          getApplicationResult(application, missingValue),
+          translateStatus(t, application.status, "talent.applications.noStatus"),
+          application.message,
+          application.opportunity?.role_needed,
+          application.opportunity?.specialty,
+          application.opportunity?.location,
+          application.opportunity?.modality,
+          application.opportunity?.description,
+        ])
+      ),
+    [applications, missingValue, t]
+  );
+  const { tAuto } = useAutoTranslate(translationTexts, language, token);
 
   useEffect(() => {
     if (isProfileLoading) {
@@ -172,7 +234,7 @@ function TalentApplications() {
         }
       } catch {
         if (isMounted) {
-          setSummaryError("No se pudo calcular el resumen.");
+          setSummaryError(tAuto("No se pudo calcular el resumen."));
         }
       } finally {
         if (isMounted) {
@@ -217,14 +279,13 @@ function TalentApplications() {
 
   const closedCount = summary.closed + summary.completed;
   const chartItems = [
-    { label: "En revisión", value: summary.reviewing, tone: "reviewing" },
-    { label: "Aceptadas", value: summary.accepted, tone: "accepted" },
-    { label: "Rechazadas", value: summary.rejected, tone: "rejected" },
-    { label: "Canceladas", value: summary.cancelled, tone: "cancelled" },
-    { label: "Finalizadas", value: closedCount, tone: "completed" },
+    { label: tAuto("En revisión"), value: summary.reviewing, tone: "reviewing" },
+    { label: tAuto("Aceptadas"), value: summary.accepted, tone: "accepted" },
+    { label: tAuto("Rechazadas"), value: summary.rejected, tone: "rejected" },
+    { label: tAuto("Canceladas"), value: summary.cancelled, tone: "cancelled" },
+    { label: tAuto("Finalizadas"), value: closedCount, tone: "completed" },
   ];
   const chartMax = Math.max(...chartItems.map((item) => item.value), 1);
-  const missingValue = t("common.notProvided");
 
   return (
     <div className="talent-page talent-applications-page">
@@ -233,19 +294,19 @@ function TalentApplications() {
           <p className="talent-page__eyebrow">{t("talent.applications.eyebrow")}</p>
           <h1 className="talent-page__title">{t("talent.applications.title")}</h1>
           <p className="talent-page__subtitle">
-            Gestiona el avance de tus postulaciones y revisa tu historial profesional.
+            {tAuto("Gestiona el avance de tus postulaciones y revisa tu historial profesional.")}
           </p>
         </div>
       </section>
 
-      <section className="talent-application-kpis" aria-label="Resumen de postulaciones">
+      <section className="talent-application-kpis" aria-label={tAuto("Resumen de postulaciones")}>
         {[
-          ["Total postulaciones", summary.total],
-          ["En revisión", summary.reviewing],
-          ["Aceptadas", summary.accepted],
-          ["Rechazadas", summary.rejected],
-          ["Cerradas / Finalizadas", closedCount],
-          ["Tasa de aceptación", `${summary.acceptance_rate}%`],
+          [tAuto("Total postulaciones"), summary.total],
+          [tAuto("En revisión"), summary.reviewing],
+          [tAuto("Aceptadas"), summary.accepted],
+          [tAuto("Rechazadas"), summary.rejected],
+          [tAuto("Cerradas / Finalizadas"), closedCount],
+          [tAuto("Tasa de aceptación"), `${summary.acceptance_rate}%`],
         ].map(([label, value]) => (
           <article className="talent-card talent-application-kpi" key={label}>
             <span className={isSummaryLoading ? "talent-application-kpi__skeleton" : ""}>
@@ -258,11 +319,11 @@ function TalentApplications() {
 
       <section className="talent-card talent-application-chart">
         <div>
-          <p className="talent-page__eyebrow">Distribución</p>
-          <h2>Postulaciones por estado</h2>
+          <p className="talent-page__eyebrow">{tAuto("Distribución")}</p>
+          <h2>{tAuto("Postulaciones por estado")}</h2>
         </div>
         {isSummaryLoading ? (
-          <p className="talent-application-chart__loading">Calculando resumen...</p>
+          <p className="talent-application-chart__loading">{tAuto("Calculando resumen...")}</p>
         ) : summaryError ? (
           <p className="talent-feedback talent-feedback--error">{summaryError}</p>
         ) : (
@@ -288,12 +349,12 @@ function TalentApplications() {
       <section className="talent-card talent-application-crm">
         <div className="talent-application-crm__heading">
           <div>
-            <p className="talent-page__eyebrow">Historial profesional</p>
-            <h2>Seguimiento de postulaciones</h2>
+            <p className="talent-page__eyebrow">{tAuto("Historial profesional")}</p>
+            <h2>{tAuto("Seguimiento de postulaciones")}</h2>
           </div>
           <span>
             {summaryError
-              ? `${applications.length} cargadas`
+              ? `${applications.length} ${tAuto("cargadas")}`
               : `${applications.length} de ${isSummaryLoading ? "..." : summary.total}`}
           </span>
         </div>
@@ -308,35 +369,35 @@ function TalentApplications() {
               <table className="talent-application-table">
                 <thead>
                   <tr>
-                    <th>Convocatoria</th>
-                    <th>Proyecto</th>
-                    <th>Estado</th>
-                    <th>Fecha postulación</th>
-                    <th>Última actualización</th>
-                    <th>Resultado</th>
-                    <th>Acciones</th>
+                    <th>{tAuto("Convocatoria")}</th>
+                    <th>{tAuto("Proyecto")}</th>
+                    <th>{tAuto("Estado")}</th>
+                    <th>{tAuto("Fecha postulación")}</th>
+                    <th>{tAuto("Última actualización")}</th>
+                    <th>{tAuto("Resultado")}</th>
+                    <th>{tAuto("Acciones")}</th>
                   </tr>
                 </thead>
                 <tbody>
                   {applications.map((application) => (
                     <tr key={application.id}>
-                      <td>{getOpportunityTitle(application, missingValue)}</td>
-                      <td>{getProjectTitle(application, missingValue)}</td>
+                      <td>{tAuto(getOpportunityTitle(application, missingValue))}</td>
+                      <td>{tAuto(getProjectTitle(application, missingValue))}</td>
                       <td>
                         <span className={`talent-application-status talent-application-status--${normalizeStatus(application.status).toLowerCase()}`}>
-                          {translateStatus(t, application.status, "talent.applications.noStatus")}
+                          {tAuto(translateStatus(t, application.status, "talent.applications.noStatus"))}
                         </span>
                       </td>
                       <td>{formatDate(application.applied_at || application.created_at, i18n.language, missingValue)}</td>
                       <td>{formatDate(application.updated_at, i18n.language, missingValue)}</td>
-                      <td>{getApplicationResult(application, missingValue)}</td>
+                      <td>{tAuto(getApplicationResult(application, missingValue))}</td>
                       <td>
                         <button
                           className="talent-button talent-application-table__action"
                           type="button"
                           onClick={() => setSelectedApplication(application)}
                         >
-                          Ver detalle
+                          {tAuto("Ver detalle")}
                         </button>
                       </td>
                     </tr>
@@ -353,7 +414,7 @@ function TalentApplications() {
                   disabled={isLoadingMore}
                   onClick={() => void handleLoadMore()}
                 >
-                  {isLoadingMore ? "Cargando..." : "Cargar más"}
+                  {isLoadingMore ? tAuto("Cargando...") : tAuto("Cargar más")}
                 </button>
               </div>
             ) : null}
@@ -363,22 +424,22 @@ function TalentApplications() {
 
       {selectedApplication ? (
         <SummaryDetailModal
-          title={getOpportunityTitle(selectedApplication, t("talent.applications.fallbackTitle"))}
-          description={getProjectTitle(selectedApplication, missingValue)}
+          title={tAuto(getOpportunityTitle(selectedApplication, t("talent.applications.fallbackTitle")))}
+          description={tAuto(getProjectTitle(selectedApplication, missingValue))}
           onClose={() => setSelectedApplication(null)}
         >
           <dl className="talent-application-detail">
-            <div><dt>Convocatoria</dt><dd>{getOpportunityTitle(selectedApplication, missingValue)}</dd></div>
-            <div><dt>Proyecto</dt><dd>{getProjectTitle(selectedApplication, missingValue)}</dd></div>
-            <div><dt>Estado</dt><dd>{translateStatus(t, selectedApplication.status, "talent.applications.noStatus")}</dd></div>
-            <div><dt>Mensaje enviado</dt><dd>{selectedApplication.message?.trim() || missingValue}</dd></div>
-            <div><dt>Fecha postulación</dt><dd>{formatDate(selectedApplication.applied_at || selectedApplication.created_at, i18n.language, missingValue)}</dd></div>
-            <div><dt>Última actualización</dt><dd>{formatDate(selectedApplication.updated_at, i18n.language, missingValue)}</dd></div>
-            <div><dt>Resultado</dt><dd>{getApplicationResult(selectedApplication, missingValue)}</dd></div>
-            {selectedApplication.opportunity?.role_needed ? <div><dt>Rol solicitado</dt><dd>{selectedApplication.opportunity.role_needed}</dd></div> : null}
-            {selectedApplication.opportunity?.specialty ? <div><dt>Especialidad</dt><dd>{selectedApplication.opportunity.specialty}</dd></div> : null}
-            {selectedApplication.opportunity?.location ? <div><dt>Ubicación</dt><dd>{selectedApplication.opportunity.location}</dd></div> : null}
-            {selectedApplication.opportunity?.modality ? <div><dt>Modalidad</dt><dd>{selectedApplication.opportunity.modality}</dd></div> : null}
+            <div><dt>{tAuto("Convocatoria")}</dt><dd>{tAuto(getOpportunityTitle(selectedApplication, missingValue))}</dd></div>
+            <div><dt>{tAuto("Proyecto")}</dt><dd>{tAuto(getProjectTitle(selectedApplication, missingValue))}</dd></div>
+            <div><dt>{tAuto("Estado")}</dt><dd>{tAuto(translateStatus(t, selectedApplication.status, "talent.applications.noStatus"))}</dd></div>
+            <div><dt>{tAuto("Mensaje enviado")}</dt><dd>{selectedApplication.message?.trim() ? tAuto(selectedApplication.message.trim()) : missingValue}</dd></div>
+            <div><dt>{tAuto("Fecha postulación")}</dt><dd>{formatDate(selectedApplication.applied_at || selectedApplication.created_at, i18n.language, missingValue)}</dd></div>
+            <div><dt>{tAuto("Última actualización")}</dt><dd>{formatDate(selectedApplication.updated_at, i18n.language, missingValue)}</dd></div>
+            <div><dt>{tAuto("Resultado")}</dt><dd>{tAuto(getApplicationResult(selectedApplication, missingValue))}</dd></div>
+            {selectedApplication.opportunity?.role_needed ? <div><dt>{tAuto("Rol solicitado")}</dt><dd>{tAuto(selectedApplication.opportunity.role_needed)}</dd></div> : null}
+            {selectedApplication.opportunity?.specialty ? <div><dt>{tAuto("Especialidad")}</dt><dd>{tAuto(selectedApplication.opportunity.specialty)}</dd></div> : null}
+            {selectedApplication.opportunity?.location ? <div><dt>{tAuto("Ubicación")}</dt><dd>{tAuto(selectedApplication.opportunity.location)}</dd></div> : null}
+            {selectedApplication.opportunity?.modality ? <div><dt>{tAuto("Modalidad")}</dt><dd>{tAuto(selectedApplication.opportunity.modality)}</dd></div> : null}
           </dl>
         </SummaryDetailModal>
       ) : null}

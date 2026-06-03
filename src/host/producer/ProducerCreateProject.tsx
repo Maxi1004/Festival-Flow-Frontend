@@ -5,6 +5,7 @@ import { createProject } from "../../service/projectApi";
 import { useCurrentProfile } from "../useCurrentProfile";
 import { PROJECT_STATUS_OPTIONS } from "../../types/producer";
 import { normalizeProjectFormData } from "./utils";
+import { useAutoTranslate, useFestivalFlowLanguage } from "../../hooks/useAutoTranslate";
 import "../../styles/producer.css";
 
 type ProjectFormState = {
@@ -27,9 +28,30 @@ const initialFormState: ProjectFormState = {
   status: "ACTIVE",
 };
 
+const producerCreateProjectBaseTexts = [
+  "No se pudo crear el proyecto.",
+  "Nuevo proyecto",
+  "Crear proyecto",
+  "Registra la base del proyecto para luego abrir convocatorias asociadas.",
+  "Titulo",
+  "Descripcion",
+  "Tipo de produccion",
+  "Serie, videoclip, documental...",
+  "Ubicacion",
+  "Santiago, Chile",
+  "Fecha de inicio",
+  "Fecha de termino",
+  "Estado",
+  "Iniciar",
+  "Cancelar",
+  "Creando...",
+];
+
 function ProducerCreateProjectContent() {
   const navigate = useNavigate();
   const { token } = useCurrentProfile();
+  const language = useFestivalFlowLanguage();
+  const { tAuto } = useAutoTranslate(producerCreateProjectBaseTexts, language, token);
   const [formData, setFormData] = useState<ProjectFormState>(initialFormState);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState("");
@@ -53,7 +75,7 @@ function ProducerCreateProjectContent() {
       setError(
         submitError instanceof Error
           ? submitError.message
-          : "No se pudo crear el proyecto."
+          : tAuto("No se pudo crear el proyecto.")
       );
     } finally {
       setIsSubmitting(false);
@@ -64,21 +86,21 @@ function ProducerCreateProjectContent() {
     <div className="producer-shell">
       <section className="producer-card producer-form-card">
         <div className="section-heading">
-          <p className="producer-page__eyebrow">Nuevo proyecto</p>
-          <h1 className="producer-page__title">Crear proyecto</h1>
+          <p className="producer-page__eyebrow">{tAuto("Nuevo proyecto")}</p>
+          <h1 className="producer-page__title">{tAuto("Crear proyecto")}</h1>
           <p className="producer-page__subtitle">
-            Registra la base del proyecto para luego abrir convocatorias asociadas.
+            {tAuto("Registra la base del proyecto para luego abrir convocatorias asociadas.")}
           </p>
         </div>
 
         <form className="producer-form" onSubmit={handleSubmit}>
           <label className="producer-field">
-            <span>Titulo</span>
+            <span>{tAuto("Titulo")}</span>
             <input name="title" value={formData.title} onChange={handleChange} required />
           </label>
 
           <label className="producer-field producer-field--full">
-            <span>Descripcion</span>
+            <span>{tAuto("Descripcion")}</span>
             <textarea
               name="description"
               value={formData.description}
@@ -89,29 +111,29 @@ function ProducerCreateProjectContent() {
           </label>
 
           <label className="producer-field">
-            <span>Tipo de produccion</span>
+            <span>{tAuto("Tipo de produccion")}</span>
             <input
               name="production_type"
               value={formData.production_type}
               onChange={handleChange}
-              placeholder="Serie, videoclip, documental..."
+              placeholder={tAuto("Serie, videoclip, documental...")}
               required
             />
           </label>
 
           <label className="producer-field">
-            <span>Ubicacion</span>
+            <span>{tAuto("Ubicacion")}</span>
             <input
               name="location"
               value={formData.location}
               onChange={handleChange}
-              placeholder="Santiago, Chile"
+              placeholder={tAuto("Santiago, Chile")}
               required
             />
           </label>
 
           <label className="producer-field">
-            <span>Fecha de inicio</span>
+            <span>{tAuto("Fecha de inicio")}</span>
             <input
               type="date"
               name="start_date"
@@ -121,7 +143,7 @@ function ProducerCreateProjectContent() {
           </label>
 
           <label className="producer-field">
-            <span>Fecha de termino</span>
+            <span>{tAuto("Fecha de termino")}</span>
             <input
               type="date"
               name="end_date"
@@ -131,11 +153,11 @@ function ProducerCreateProjectContent() {
           </label>
 
           <label className="producer-field">
-            <span>Estado</span>
+            <span>{tAuto("Estado")}</span>
             <select name="status" value={formData.status} onChange={handleChange}>
               {PROJECT_STATUS_OPTIONS.map((status) => (
                 <option key={status.value} value={status.value}>
-                  {status.label}
+                  {tAuto(status.label)}
                 </option>
               ))}
             </select>
@@ -145,14 +167,14 @@ function ProducerCreateProjectContent() {
 
           <div className="producer-actions">
             <button className="producer-button" type="button" onClick={() => navigate(-1)}>
-              Cancelar
+              {tAuto("Cancelar")}
             </button>
             <button
               className="producer-button producer-button--primary"
               type="submit"
               disabled={isSubmitting}
             >
-              {isSubmitting ? "Creando..." : "Crear proyecto"}
+              {isSubmitting ? tAuto("Creando...") : tAuto("Crear proyecto")}
             </button>
           </div>
         </form>

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   FiActivity,
   FiBriefcase,
@@ -35,8 +35,70 @@ import type {
   ProducerDashboardDetails,
 } from "../../types/dashboard";
 import { formatDisplayDate } from "./utils";
+import { useAutoTranslate, useFestivalFlowLanguage } from "../../hooks/useAutoTranslate";
+import { combineTranslationTexts } from "../../utils/translationTexts";
 import "../../styles/home.css";
 import "../../styles/producer.css";
+
+const producerHomeBaseTexts = [
+  "Talento sin nombre",
+  "Freelance",
+  "Hibrido",
+  "Presencial",
+  "Remoto",
+  "Modalidad no informada",
+  "Disponible",
+  "No disponible",
+  "Sin estado",
+  "Especialidad pendiente",
+  "Ubicacion no informada",
+  "No se pudieron cargar los detalles del dashboard.",
+  "No se pudo cargar el dashboard del productor.",
+  "Productor",
+  "Proyectos",
+  "Convocatorias",
+  "Activas",
+  "Cerradas",
+  "Talentos",
+  "Crew",
+  "Mensajes",
+  "Postulaciones",
+  "Inicio",
+  "Tu operacion creativa, organizada",
+  "Centraliza tus proyectos y publica convocatorias reales desde un panel conectado a tu backend actual.",
+  "Sin correo",
+  "Cuenta productora activa",
+  "proyectos registrados",
+  "convocatorias creadas en total.",
+  "Resumen general",
+  "Una vista rapida del estado de tus proyectos, convocatorias y operacion.",
+  "Operacion activa",
+  "Proyectos recientes",
+  "Ultimos proyectos registrados para seguir operando sin salir del panel.",
+  "Todavia no tienes proyectos creados.",
+  "Proximas actividades",
+  "Produccion, casting y grabaciones por venir.",
+  "Actividad",
+  "No hay actividades programadas.",
+  "Actividad reciente",
+  "Feed de novedades reales de tus producciones.",
+  "Acciones rapidas",
+  "Accesos directos para crear y administrar tus proyectos.",
+  "Crear proyecto",
+  "Ver mis proyectos",
+  "Crear convocatoria",
+  "Talentos disponibles",
+  "Consulta perfiles disponibles cuando el backend exponga el listado para productores.",
+  "Disponible desde",
+  "Ver perfil",
+  "No hay talentos disponibles por ahora.",
+  "Proyectos creados",
+  "Mostrando hasta 3 proyectos recientes.",
+  "Convocatorias activas",
+  "Convocatorias cerradas",
+  "Mostrando hasta 5 convocatorias.",
+  "No hay convocatorias para mostrar.",
+];
 
 function formatTalentName(talent: DashboardAvailableTalentSummary): string {
   return (
@@ -94,6 +156,7 @@ function getTalentLocation(talent: DashboardAvailableTalentSummary): string {
 
 function ProducerHomeContent() {
   const { user, token, profile } = useCurrentProfile();
+  const language = useFestivalFlowLanguage();
   const [projectsCount, setProjectsCount] = useState(0);
   const [opportunitiesCount, setOpportunitiesCount] = useState(0);
   const [activeOpportunities, setActiveOpportunities] = useState(0);
@@ -113,6 +176,47 @@ function ProducerHomeContent() {
   const [isDetailsLoading, setIsDetailsLoading] = useState(false);
   const [error, setError] = useState("");
   const [detailsError, setDetailsError] = useState("");
+  const translationTexts = useMemo(
+    () =>
+      combineTranslationTexts(
+        producerHomeBaseTexts,
+        latestProjects.flatMap((project) => [
+          project.title,
+          project.production_type,
+          project.location,
+          project.status,
+        ]),
+        [...activeOpportunityDetails, ...closedOpportunityDetails].flatMap((opportunity) => [
+          opportunity.title,
+          opportunity.role_needed,
+          opportunity.specialty,
+          opportunity.location,
+          opportunity.status,
+        ]),
+        upcomingActivities.flatMap((event) => [event.title, event.type]),
+        recentActivity.flatMap((activity) => [
+          activity.title,
+          activity.description,
+          activity.time_label,
+        ]),
+        availableTalents.flatMap((talent) => [
+          getTalentMainSpecialty(talent),
+          ...getTalentSpecialties(talent),
+          getTalentLocation(talent),
+          formatTalentModality(talent.work_modality),
+          formatTalentStatus(talent.status),
+        ])
+      ),
+    [
+      activeOpportunityDetails,
+      availableTalents,
+      closedOpportunityDetails,
+      latestProjects,
+      recentActivity,
+      upcomingActivities,
+    ]
+  );
+  const { tAuto } = useAutoTranslate(translationTexts, language, token);
 
   useEffect(() => {
     if (!token) {
@@ -146,7 +250,7 @@ function ProducerHomeContent() {
         setUpcomingActivities(details.upcoming_activities ?? []);
       } catch {
         if (isMounted) {
-          setDetailsError("No se pudieron cargar los detalles del dashboard.");
+          setDetailsError(tAuto("No se pudieron cargar los detalles del dashboard."));
         }
       } finally {
         if (isMounted) {
@@ -187,7 +291,7 @@ function ProducerHomeContent() {
         setError(
           loadError instanceof Error
             ? loadError.message
-            : "No se pudo cargar el dashboard del productor."
+            : tAuto("No se pudo cargar el dashboard del productor.")
         );
       } finally {
         if (isMounted) {
@@ -203,7 +307,7 @@ function ProducerHomeContent() {
     };
   }, [token]);
 
-  const displayName = profile?.name?.trim() || user?.displayName?.trim() || "Productor";
+  const displayName = profile?.name?.trim() || user?.displayName?.trim() || tAuto("Productor");
   const metricCards: Array<{
     label: string;
     value: number | null;
@@ -212,52 +316,52 @@ function ProducerHomeContent() {
     onClick?: () => void;
   }> = [
     {
-      label: "Proyectos",
+      label: tAuto("Proyectos"),
       value: projectsCount,
       icon: FiFolder,
       tone: "slate",
       onClick: () => setDetailModal("projects"),
     },
     {
-      label: "Convocatorias",
+      label: tAuto("Convocatorias"),
       value: opportunitiesCount,
       icon: FiBriefcase,
       tone: "blue",
     },
     {
-      label: "Activas",
+      label: tAuto("Activas"),
       value: activeOpportunities,
       icon: FiActivity,
       tone: "green",
       onClick: () => setDetailModal("active"),
     },
     {
-      label: "Cerradas",
+      label: tAuto("Cerradas"),
       value: closedOpportunities,
       icon: FiCheckCircle,
       tone: "amber",
       onClick: () => setDetailModal("closed"),
     },
     {
-      label: "Talentos",
+      label: tAuto("Talentos"),
       value: talentsCount,
       icon: FiUsers,
       tone: "violet",
     },
     {
-      label: "Crew",
+      label: tAuto("Crew"),
       value: activeCrewMembers,
       icon: FiUserCheck,
       tone: "cyan",
     },
     {
-      label: "Mensajes",
+      label: tAuto("Mensajes"),
       value: unreadMessages,
       icon: FiMessageSquare,
       tone: "rose",
     },
     {
-      label: "Postulaciones",
+      label: tAuto("Postulaciones"),
       value: applicationsReceived,
       icon: FiTrendingUp,
       tone: "indigo",
@@ -269,21 +373,27 @@ function ProducerHomeContent() {
     <div className="home producer-page">
       <section className="home__hero producer-hero">
         <div>
-          <p className="producer-page__eyebrow">Inicio</p>
-          <h1 className="home__title">Tu operacion creativa, organizada</h1>
+          <p className="producer-page__eyebrow">{tAuto("Inicio")}</p>
+          <h1 className="home__title">{tAuto("Tu operacion creativa, organizada")}</h1>
           <p className="home__subtitle">
-            Centraliza tus proyectos y publica convocatorias reales desde un panel conectado
-            a tu backend actual.
+            {tAuto(
+              "Centraliza tus proyectos y publica convocatorias reales desde un panel conectado a tu backend actual."
+            )}
           </p>
           <p className="home__subtitle home__subtitle--meta">
-            {displayName} | {profile?.email ?? user?.email ?? "Sin correo"} | PRODUCER
+            {displayName} | {profile?.email ?? user?.email ?? tAuto("Sin correo")} | PRODUCER
           </p>
         </div>
 
         <div className="producer-hero__panel">
-          <span className="producer-badge">Cuenta productora activa</span>
-          <strong>{isQuickLoading ? "..." : projectsCount} proyectos registrados</strong>
-          <p>{isQuickLoading ? "..." : opportunitiesCount} convocatorias creadas en total.</p>
+          <span className="producer-badge">{tAuto("Cuenta productora activa")}</span>
+          <strong>
+            {isQuickLoading ? "..." : projectsCount} {tAuto("proyectos registrados")}
+          </strong>
+          <p>
+            {isQuickLoading ? "..." : opportunitiesCount}{" "}
+            {tAuto("convocatorias creadas en total.")}
+          </p>
         </div>
       </section>
 
@@ -300,9 +410,9 @@ function ProducerHomeContent() {
 
       <section className="home__section">
         <div className="section-heading">
-          <h2 className="section-heading__title">Resumen general</h2>
+          <h2 className="section-heading__title">{tAuto("Resumen general")}</h2>
           <p className="section-heading__text">
-            Una vista rapida del estado de tus proyectos, convocatorias y operacion.
+            {tAuto("Una vista rapida del estado de tus proyectos, convocatorias y operacion.")}
           </p>
         </div>
 
@@ -316,7 +426,7 @@ function ProducerHomeContent() {
                 </span>
                 <span className="producer-kpi__value">{isQuickLoading ? "..." : metric.value}</span>
                 <span className="producer-kpi__label">{metric.label}</span>
-                <span className="producer-kpi__signal">Operacion activa</span>
+                <span className="producer-kpi__signal">{tAuto("Operacion activa")}</span>
               </>
             );
 
@@ -340,9 +450,9 @@ function ProducerHomeContent() {
       <section className="producer-operations-grid">
         <article className="panel producer-project-panel">
           <div className="section-heading">
-            <h2 className="section-heading__title">Proyectos recientes</h2>
+            <h2 className="section-heading__title">{tAuto("Proyectos recientes")}</h2>
             <p className="section-heading__text">
-              Ultimos proyectos registrados para seguir operando sin salir del panel.
+              {tAuto("Ultimos proyectos registrados para seguir operando sin salir del panel.")}
             </p>
           </div>
 
@@ -356,29 +466,31 @@ function ProducerHomeContent() {
                     <FiFilm aria-hidden="true" />
                   </span>
                   <div className="producer-project-card__body">
-                    <p className="producer-list-card__meta">{project.production_type}</p>
-                    <h3 className="producer-list-card__title">{project.title}</h3>
+                    <p className="producer-list-card__meta">{tAuto(project.production_type)}</p>
+                    <h3 className="producer-list-card__title">{tAuto(project.title)}</h3>
                     <p className="producer-list-card__text">
-                      <FiMapPin aria-hidden="true" /> {project.location} | {formatDisplayDate(project.start_date)}
+                      <FiMapPin aria-hidden="true" /> {tAuto(project.location)} | {formatDisplayDate(project.start_date)}
                     </p>
                   </div>
                   {project.status ? (
                     <span className="producer-project-card__count">
-                      {project.status}
+                      {tAuto(project.status)}
                     </span>
                   ) : null}
                 </article>
               ))}
             </div>
           ) : (
-            <p className="producer-muted">Todavia no tienes proyectos creados.</p>
+            <p className="producer-muted">{tAuto("Todavia no tienes proyectos creados.")}</p>
           )}
         </article>
 
         <article className="panel producer-calendar-card">
           <div className="section-heading">
-            <h2 className="section-heading__title">Proximas actividades</h2>
-            <p className="section-heading__text">Produccion, casting y grabaciones por venir.</p>
+            <h2 className="section-heading__title">{tAuto("Proximas actividades")}</h2>
+            <p className="section-heading__text">
+              {tAuto("Produccion, casting y grabaciones por venir.")}
+            </p>
           </div>
 
           <div className="producer-calendar-list">
@@ -388,12 +500,12 @@ function ProducerHomeContent() {
               <article key={event.id ?? `${event.title}-${event.date}`} className="producer-calendar-item">
                 <span><FiCalendar aria-hidden="true" /></span>
                 <div>
-                  <strong>{event.title}</strong>
-                  <small>{event.type || "Actividad"} | {formatDisplayDate(event.date)}</small>
+                  <strong>{tAuto(event.title)}</strong>
+                  <small>{event.type ? tAuto(event.type) : tAuto("Actividad")} | {formatDisplayDate(event.date)}</small>
                 </div>
               </article>
             )) : (
-              <p className="producer-muted">No hay actividades programadas.</p>
+              <p className="producer-muted">{tAuto("No hay actividades programadas.")}</p>
             )}
           </div>
         </article>
@@ -403,8 +515,10 @@ function ProducerHomeContent() {
         {hasRecentActivity ? (
           <article className="panel producer-activity-card">
             <div className="section-heading">
-              <h2 className="section-heading__title">Actividad reciente</h2>
-              <p className="section-heading__text">Feed de novedades reales de tus producciones.</p>
+              <h2 className="section-heading__title">{tAuto("Actividad reciente")}</h2>
+              <p className="section-heading__text">
+                {tAuto("Feed de novedades reales de tus producciones.")}
+              </p>
             </div>
 
             <div className="producer-activity-feed">
@@ -412,9 +526,9 @@ function ProducerHomeContent() {
                 <article key={activity.id ?? `${activity.title}-${index}`} className="producer-activity-item">
                   <span><FiClock aria-hidden="true" /></span>
                   <div>
-                    <small>{activity.time_label || formatDisplayDate(activity.created_at ?? null)}</small>
-                    <strong>{activity.title}</strong>
-                    {activity.description ? <p>{activity.description}</p> : null}
+                    <small>{activity.time_label ? tAuto(activity.time_label) : formatDisplayDate(activity.created_at ?? null)}</small>
+                    <strong>{tAuto(activity.title)}</strong>
+                    {activity.description ? <p>{tAuto(activity.description)}</p> : null}
                   </div>
                 </article>
               ))}
@@ -424,24 +538,24 @@ function ProducerHomeContent() {
 
         <article className="panel">
           <div className="section-heading">
-            <h2 className="section-heading__title">Acciones rapidas</h2>
+            <h2 className="section-heading__title">{tAuto("Acciones rapidas")}</h2>
             <p className="section-heading__text">
-              Accesos directos para crear y administrar tus proyectos.
+              {tAuto("Accesos directos para crear y administrar tus proyectos.")}
             </p>
           </div>
 
           <div className="actions">
             <Link className="actions__button producer-link-button" to="/producer/projects/new">
-              Crear proyecto
+              {tAuto("Crear proyecto")}
             </Link>
             <Link className="actions__button producer-link-button" to="/producer/projects">
-              Ver mis proyectos
+              {tAuto("Ver mis proyectos")}
             </Link>
             <Link
               className="actions__button producer-link-button"
               to="/producer/opportunities/new"
             >
-              Crear convocatoria
+              {tAuto("Crear convocatoria")}
             </Link>
           </div>
         </article>
@@ -449,9 +563,11 @@ function ProducerHomeContent() {
 
       <section className="home__section">
         <div className="section-heading">
-          <h2 className="section-heading__title">Talentos disponibles</h2>
+          <h2 className="section-heading__title">{tAuto("Talentos disponibles")}</h2>
           <p className="section-heading__text">
-            Consulta perfiles disponibles cuando el backend exponga el listado para productores.
+            {tAuto(
+              "Consulta perfiles disponibles cuando el backend exponga el listado para productores."
+            )}
           </p>
         </div>
 
@@ -464,6 +580,10 @@ function ProducerHomeContent() {
           <div className="producer-talent-showcase">
             {availableTalents.map((talent) => {
               const avatar = getTalentPhoto(talent);
+              const mainSpecialty = getTalentMainSpecialty(talent);
+              const statusLabel = formatTalentStatus(talent.status);
+              const modalityLabel = formatTalentModality(talent.work_modality);
+              const locationLabel = getTalentLocation(talent);
 
               return (
                 <article
@@ -479,30 +599,46 @@ function ProducerHomeContent() {
                       )}
                     </span>
                     <div className="producer-talent-showcase-card__identity">
-                      <p>{talent.email ?? "Sin correo"}</p>
+                      <p>{talent.email ?? tAuto("Sin correo")}</p>
                       <h3>{formatTalentName(talent)}</h3>
-                      <small>{getTalentMainSpecialty(talent)}</small>
+                      <small>
+                        {mainSpecialty === "Especialidad pendiente"
+                          ? tAuto(mainSpecialty)
+                          : tAuto(mainSpecialty)}
+                      </small>
                     </div>
                     <span className="producer-status">
-                      {formatTalentStatus(talent.status)}
+                      {["Disponible", "No disponible", "Sin estado"].includes(statusLabel)
+                        ? tAuto(statusLabel)
+                        : tAuto(statusLabel)}
                     </span>
                   </div>
 
                   <div className="producer-talent-chips">
                     {getTalentSpecialties(talent).slice(0, 2).map((specialty) => (
-                      <span key={specialty}>{specialty}</span>
+                      <span key={specialty}>{tAuto(specialty)}</span>
                     ))}
-                    <span>{formatTalentModality(talent.work_modality)}</span>
-                    <span>{getTalentLocation(talent)}</span>
+                    <span>
+                      {["Freelance", "Hibrido", "Presencial", "Remoto", "Modalidad no informada"].includes(
+                        modalityLabel
+                      )
+                        ? tAuto(modalityLabel)
+                        : tAuto(modalityLabel)}
+                    </span>
+                    <span>
+                      {locationLabel === "Ubicacion no informada"
+                        ? tAuto(locationLabel)
+                        : tAuto(locationLabel)}
+                    </span>
                   </div>
 
                   <div className="producer-talent-showcase-card__footer">
                     <div>
-                      <small>Disponible desde</small>
+                      <small>{tAuto("Disponible desde")}</small>
                       <strong>{formatDisplayDate(talent.available_from)}</strong>
                     </div>
                     <Link className="producer-profile-link" to="/producer/talents">
-                      <FiEye aria-hidden="true" /> Ver perfil
+                      <FiEye aria-hidden="true" /> {tAuto("Ver perfil")}
                     </Link>
                   </div>
                 </article>
@@ -511,15 +647,15 @@ function ProducerHomeContent() {
           </div>
         ) : (
           <article className="panel">
-            <p className="producer-muted">No hay talentos disponibles por ahora.</p>
+            <p className="producer-muted">{tAuto("No hay talentos disponibles por ahora.")}</p>
           </article>
         )}
       </section>
 
       {detailModal === "projects" ? (
         <SummaryDetailModal
-          title="Proyectos creados"
-          description="Mostrando hasta 3 proyectos recientes."
+          title={tAuto("Proyectos creados")}
+          description={tAuto("Mostrando hasta 3 proyectos recientes.")}
           onClose={() => setDetailModal(null)}
         >
           <div className="summary-detail-list">
@@ -527,18 +663,22 @@ function ProducerHomeContent() {
               <ProducerModalSkeleton />
             ) : latestProjects.length ? latestProjects.map((project) => (
               <article key={project.id} className="summary-detail-list__item">
-                <h3>{project.title}</h3>
-                <p>{project.production_type} | {project.location} | {formatDisplayDate(project.start_date)}</p>
+                <h3>{tAuto(project.title)}</h3>
+                <p>{tAuto(project.production_type)} | {tAuto(project.location)} | {formatDisplayDate(project.start_date)}</p>
               </article>
-            )) : <p className="summary-detail-empty">Todavia no tienes proyectos creados.</p>}
+            )) : <p className="summary-detail-empty">{tAuto("Todavia no tienes proyectos creados.")}</p>}
           </div>
         </SummaryDetailModal>
       ) : null}
 
       {detailModal === "active" || detailModal === "closed" ? (
         <SummaryDetailModal
-          title={detailModal === "active" ? "Convocatorias activas" : "Convocatorias cerradas"}
-          description="Mostrando hasta 5 convocatorias."
+          title={
+            detailModal === "active"
+              ? tAuto("Convocatorias activas")
+              : tAuto("Convocatorias cerradas")
+          }
+          description={tAuto("Mostrando hasta 5 convocatorias.")}
           onClose={() => setDetailModal(null)}
         >
           <div className="summary-detail-list">
@@ -547,11 +687,13 @@ function ProducerHomeContent() {
               : (detailModal === "active" ? activeOpportunityDetails : closedOpportunityDetails).length
               ? (detailModal === "active" ? activeOpportunityDetails : closedOpportunityDetails).map((opportunity) => (
                 <article key={opportunity.id} className="summary-detail-list__item">
-                  <h3>{opportunity.title}</h3>
-                  <p>{opportunity.role_needed || opportunity.specialty} | {opportunity.location} | {opportunity.status}</p>
+                  <h3>{tAuto(opportunity.title)}</h3>
+                  <p>
+                    {tAuto(opportunity.role_needed || opportunity.specialty)} | {tAuto(opportunity.location)} | {tAuto(opportunity.status)}
+                  </p>
                 </article>
               ))
-              : <p className="summary-detail-empty">No hay convocatorias para mostrar.</p>}
+              : <p className="summary-detail-empty">{tAuto("No hay convocatorias para mostrar.")}</p>}
           </div>
         </SummaryDetailModal>
       ) : null}

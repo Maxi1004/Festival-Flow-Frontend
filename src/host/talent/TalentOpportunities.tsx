@@ -12,6 +12,8 @@ import type {
   TalentCommitment,
 } from "../../types/talent";
 import { useCurrentProfile } from "../useCurrentProfile";
+import { useAutoTranslate, useFestivalFlowLanguage } from "../../hooks/useAutoTranslate";
+import { combineTranslationTexts } from "../../utils/translationTexts";
 
 type FilterState = {
   search: string;
@@ -128,6 +130,7 @@ function matchesFilter(
 function TalentOpportunities() {
   const { t, i18n } = useTranslation();
   const { user, token, profile, isProfileLoading } = useCurrentProfile();
+  const language = useFestivalFlowLanguage();
   const tRef = useRef(t);
   tRef.current = t;
   const opportunitiesRequestRef = useRef<{
@@ -157,6 +160,27 @@ function TalentOpportunities() {
     location: ANY_FILTER,
     modality: ALL_FILTER,
   });
+  const missingTitle = t("talent.opportunities.fallbackTitle");
+  const missingProject = t("talent.opportunities.fallbackProject");
+  const translationTexts = useMemo(
+    () =>
+      combineTranslationTexts(
+        [],
+        opportunities.flatMap((opportunity) => [
+          getOpportunityTitle(opportunity, missingTitle),
+          getProjectLabel(opportunity, missingProject),
+          opportunity.role_needed,
+          opportunity.specialty,
+          opportunity.description,
+          opportunity.location,
+          formatModality(opportunity.modality, t),
+          opportunity.status,
+          ...(opportunity.requirements ?? []),
+        ])
+      ),
+    [missingProject, missingTitle, opportunities, t]
+  );
+  const { tAuto } = useAutoTranslate(translationTexts, language, token);
 
   useEffect(() => {
     if (isProfileLoading) {
@@ -582,15 +606,15 @@ function TalentOpportunities() {
                 {filteredOpportunities.map((opportunity) => (
                   <tr className="bg-white align-middle transition hover:bg-slate-50" key={opportunity.id}>
                     <td className="px-4 py-4 font-semibold text-slate-900">
-                      {getOpportunityTitle(opportunity, t("talent.opportunities.fallbackTitle"))}
+                      {tAuto(getOpportunityTitle(opportunity, t("talent.opportunities.fallbackTitle")))}
                     </td>
                     <td className="px-4 py-4 text-slate-600">
-                      {getProjectLabel(opportunity, t("talent.opportunities.fallbackProject"))}
+                      {tAuto(getProjectLabel(opportunity, t("talent.opportunities.fallbackProject")))}
                     </td>
-                    <td className="px-4 py-4 text-slate-600">{opportunity.specialty || "-"}</td>
-                    <td className="px-4 py-4 text-slate-600">{opportunity.location || "-"}</td>
+                    <td className="px-4 py-4 text-slate-600">{opportunity.specialty ? tAuto(opportunity.specialty) : "-"}</td>
+                    <td className="px-4 py-4 text-slate-600">{opportunity.location ? tAuto(opportunity.location) : "-"}</td>
                     <td className="px-4 py-4 text-slate-600">
-                      {formatModality(opportunity.modality, t)}
+                      {tAuto(formatModality(opportunity.modality, t))}
                     </td>
                     <td className="px-4 py-4">{renderStatus(opportunity)}</td>
                     <td className="px-4 py-4">
@@ -653,10 +677,10 @@ function TalentOpportunities() {
                   {t("talent.opportunities.detail")}
                 </p>
                 <h2 className="mt-1 text-2xl font-bold text-slate-900" id="opportunity-detail-title">
-                  {getOpportunityTitle(
+                  {tAuto(getOpportunityTitle(
                     selectedOpportunity,
                     t("talent.opportunities.fallbackTitle")
-                  )}
+                  ))}
                 </h2>
               </div>
               {renderStatus(selectedOpportunity)}
@@ -664,11 +688,11 @@ function TalentOpportunities() {
 
             <dl className="mt-6 grid gap-3 sm:grid-cols-2">
               {[
-                [t("talent.opportunities.project"), getProjectLabel(selectedOpportunity, t("talent.opportunities.fallbackProject"))],
-                [t("talent.opportunities.roleNeeded"), selectedOpportunity.role_needed || t("talent.opportunities.undefinedRole")],
-                [t("talent.opportunities.specialty"), selectedOpportunity.specialty || "-"],
-                [t("talent.opportunities.location"), selectedOpportunity.location || t("talent.opportunities.pendingLocation")],
-                [t("talent.opportunities.modality"), formatModality(selectedOpportunity.modality, t)],
+                [t("talent.opportunities.project"), tAuto(getProjectLabel(selectedOpportunity, t("talent.opportunities.fallbackProject")))],
+                [t("talent.opportunities.roleNeeded"), selectedOpportunity.role_needed ? tAuto(selectedOpportunity.role_needed) : t("talent.opportunities.undefinedRole")],
+                [t("talent.opportunities.specialty"), selectedOpportunity.specialty ? tAuto(selectedOpportunity.specialty) : "-"],
+                [t("talent.opportunities.location"), selectedOpportunity.location ? tAuto(selectedOpportunity.location) : t("talent.opportunities.pendingLocation")],
+                [t("talent.opportunities.modality"), tAuto(formatModality(selectedOpportunity.modality, t))],
                 [t("talent.opportunities.deadline"), formatDate(selectedOpportunity.deadline, i18n.language, t("talent.opportunities.noDeadline"))],
               ].map(([label, value]) => (
                 <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3.5" key={label}>
@@ -681,7 +705,9 @@ function TalentOpportunities() {
             <div className="mt-5">
               <h3 className="text-sm font-bold text-slate-900">{t("talent.opportunities.description")}</h3>
               <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-slate-600">
-                {selectedOpportunity.description || t("talent.opportunities.noDescription")}
+                {selectedOpportunity.description
+                  ? tAuto(selectedOpportunity.description)
+                  : t("talent.opportunities.noDescription")}
               </p>
             </div>
 
@@ -690,7 +716,7 @@ function TalentOpportunities() {
               {selectedOpportunity.requirements?.length ? (
                 <ul className="mt-2 list-disc space-y-1 pl-5 text-sm leading-6 text-slate-600">
                   {selectedOpportunity.requirements.map((requirement) => (
-                    <li key={requirement}>{requirement}</li>
+                    <li key={requirement}>{tAuto(requirement)}</li>
                   ))}
                 </ul>
               ) : (

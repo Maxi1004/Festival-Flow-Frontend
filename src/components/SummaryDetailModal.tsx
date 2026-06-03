@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { useAutoTranslate, useFestivalFlowLanguage } from "../hooks/useAutoTranslate";
 import "../styles/summary-detail.css";
 
 type ClickableSummaryCardProps = {
@@ -19,6 +20,9 @@ export function ClickableSummaryCard({
   onClick,
   children,
 }: ClickableSummaryCardProps) {
+  const language = useFestivalFlowLanguage();
+  const { tAuto } = useAutoTranslate(["Ver detalle"], language);
+
   return (
     <article
       className={`${className} summary-detail-trigger`}
@@ -33,7 +37,7 @@ export function ClickableSummaryCard({
       }}
     >
       {children}
-      <span className="summary-detail-trigger__hint">Ver detalle</span>
+      <span className="summary-detail-trigger__hint">{tAuto("Ver detalle")}</span>
     </article>
   );
 }
@@ -44,6 +48,9 @@ export function SummaryDetailModal({
   onClose,
   children,
 }: SummaryDetailModalProps) {
+  const language = useFestivalFlowLanguage();
+  const { tAuto } = useAutoTranslate(["Cerrar"], language);
+
   return (
     <div className="summary-detail-modal" role="dialog" aria-modal="true" aria-label={title}>
       <section className="summary-detail-modal__panel">
@@ -53,7 +60,7 @@ export function SummaryDetailModal({
             {description ? <p>{description}</p> : null}
           </div>
           <button className="summary-detail-modal__close" type="button" onClick={onClose}>
-            Cerrar
+            {tAuto("Cerrar")}
           </button>
         </header>
         {children}

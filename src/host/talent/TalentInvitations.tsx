@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { SummaryDetailModal } from "../../components/SummaryDetailModal";
 import {
@@ -11,6 +11,8 @@ import {
 import { reusePendingRequest } from "../../service/pendingRequest";
 import { translateStatus } from "../../utils/translateStatus";
 import { useCurrentProfile } from "../useCurrentProfile";
+import { useAutoTranslate, useFestivalFlowLanguage } from "../../hooks/useAutoTranslate";
+import { combineTranslationTexts } from "../../utils/translationTexts";
 import "../../styles/talent.css";
 
 const EMPTY_SUMMARY: RecruitmentSummary = {
@@ -20,6 +22,31 @@ const EMPTY_SUMMARY: RecruitmentSummary = {
   rejected: 0,
   cancelled: 0,
 };
+
+const talentInvitationsBaseTexts = [
+  "No se pudo calcular el resumen.",
+  "Total",
+  "Pendientes",
+  "Aceptadas",
+  "Rechazadas",
+  "Canceladas",
+  "Ver detalle",
+  "Resumen de invitaciones",
+  "Calculando resumen...",
+  "Bandeja profesional",
+  "Seguimiento de invitaciones",
+  "cargadas",
+  "Proyecto",
+  "Convocatoria",
+  "Rol / Categoría",
+  "Productor",
+  "Estado",
+  "Fecha",
+  "Acciones",
+  "Cargando...",
+  "Cargar más",
+  "Mensaje",
+];
 
 function normalizeStatus(value?: string | null): string {
   return value?.trim().toUpperCase().replaceAll(" ", "_") ?? "";
@@ -103,6 +130,7 @@ function updateSummaryStatus(
 function TalentInvitations() {
   const { t, i18n } = useTranslation();
   const { user, token, profile, isProfileLoading } = useCurrentProfile();
+  const language = useFestivalFlowLanguage();
   const tRef = useRef(t);
   tRef.current = t;
   const [invitations, setInvitations] = useState<RecruitmentResponse[]>([]);
@@ -116,6 +144,23 @@ function TalentInvitations() {
   const [error, setError] = useState("");
   const [summaryError, setSummaryError] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
+  const missingValue = t("common.notProvided");
+  const translationTexts = useMemo(
+    () =>
+      combineTranslationTexts(
+        talentInvitationsBaseTexts,
+        invitations.flatMap((invitation) => [
+          getProjectTitle(invitation, missingValue),
+          getOpportunityTitle(invitation, missingValue),
+          getRole(invitation, missingValue),
+          translateStatus(t, invitation.status, "talent.invitationsPage.noStatus"),
+          invitation.message,
+          invitation.opportunity?.specialty,
+        ])
+      ),
+    [invitations, missingValue, t]
+  );
+  const { tAuto } = useAutoTranslate(translationTexts, language, token);
 
   useEffect(() => {
     if (isProfileLoading) {
@@ -182,7 +227,7 @@ function TalentInvitations() {
         }
       } catch {
         if (isMounted) {
-          setSummaryError("No se pudo calcular el resumen.");
+          setSummaryError(tAuto("No se pudo calcular el resumen."));
         }
       } finally {
         if (isMounted) {
@@ -268,13 +313,12 @@ function TalentInvitations() {
     }
   };
 
-  const missingValue = t("common.notProvided");
   const kpis: Array<[string, number]> = [
-    ["Total", summary.total],
-    ["Pendientes", summary.pending],
-    ["Aceptadas", summary.accepted],
-    ["Rechazadas", summary.rejected],
-    ["Canceladas", summary.cancelled],
+    [tAuto("Total"), summary.total],
+    [tAuto("Pendientes"), summary.pending],
+    [tAuto("Aceptadas"), summary.accepted],
+    [tAuto("Rechazadas"), summary.rejected],
+    [tAuto("Canceladas"), summary.cancelled],
   ];
 
   const renderActions = (invitation: RecruitmentResponse, showDetail = true) => {
@@ -290,7 +334,7 @@ function TalentInvitations() {
             type="button"
             onClick={() => setSelectedInvitation(invitation)}
           >
-            Ver detalle
+            {tAuto("Ver detalle")}
           </button>
         ) : null}
         {isPending ? (
@@ -327,7 +371,7 @@ function TalentInvitations() {
         </div>
       </section>
 
-      <section className="talent-invitation-kpis" aria-label="Resumen de invitaciones">
+      <section className="talent-invitation-kpis" aria-label={tAuto("Resumen de invitaciones")}>
         {kpis.map(([label, value]) => (
           <article className="talent-card talent-application-kpi" key={label}>
             <span className={isSummaryLoading ? "talent-application-kpi__skeleton" : ""}>
@@ -338,7 +382,7 @@ function TalentInvitations() {
         ))}
       </section>
 
-      {isSummaryLoading ? <p className="talent-feedback">Calculando resumen...</p> : null}
+      {isSummaryLoading ? <p className="talent-feedback">{tAuto("Calculando resumen...")}</p> : null}
       {summaryError ? <p className="talent-feedback talent-feedback--error">{summaryError}</p> : null}
       {error ? <p className="talent-feedback talent-feedback--error">{error}</p> : null}
       {successMessage ? <p className="talent-feedback talent-feedback--success">{successMessage}</p> : null}
@@ -346,12 +390,12 @@ function TalentInvitations() {
       <section className="talent-card talent-application-crm">
         <div className="talent-application-crm__heading">
           <div>
-            <p className="talent-page__eyebrow">Bandeja profesional</p>
-            <h2>Seguimiento de invitaciones</h2>
+            <p className="talent-page__eyebrow">{tAuto("Bandeja profesional")}</p>
+            <h2>{tAuto("Seguimiento de invitaciones")}</h2>
           </div>
           <span>
             {summaryError
-              ? `${invitations.length} cargadas`
+              ? `${invitations.length} ${tAuto("cargadas")}`
               : `${invitations.length} de ${isSummaryLoading ? "..." : summary.total}`}
           </span>
         </div>
@@ -366,25 +410,25 @@ function TalentInvitations() {
               <table className="talent-application-table talent-invitation-table">
                 <thead>
                   <tr>
-                    <th>Proyecto</th>
-                    <th>Convocatoria</th>
-                    <th>Rol / Categoría</th>
-                    <th>Productor</th>
-                    <th>Estado</th>
-                    <th>Fecha</th>
-                    <th>Acciones</th>
+                    <th>{tAuto("Proyecto")}</th>
+                    <th>{tAuto("Convocatoria")}</th>
+                    <th>{tAuto("Rol / Categoría")}</th>
+                    <th>{tAuto("Productor")}</th>
+                    <th>{tAuto("Estado")}</th>
+                    <th>{tAuto("Fecha")}</th>
+                    <th>{tAuto("Acciones")}</th>
                   </tr>
                 </thead>
                 <tbody>
                   {invitations.map((invitation, index) => (
                     <tr key={invitation.id ?? `${invitation.project_id}-${index}`}>
-                      <td>{getProjectTitle(invitation, t("crew.projectMissing"))}</td>
-                      <td>{getOpportunityTitle(invitation, t("crew.opportunityMissing"))}</td>
-                      <td>{getRole(invitation, t("crew.roleMissing"))}</td>
+                      <td>{tAuto(getProjectTitle(invitation, t("crew.projectMissing")))}</td>
+                      <td>{tAuto(getOpportunityTitle(invitation, t("crew.opportunityMissing")))}</td>
+                      <td>{tAuto(getRole(invitation, t("crew.roleMissing")))}</td>
                       <td>{getProducerName(invitation, t("crew.producerMissing"))}</td>
                       <td>
                         <span className={`talent-application-status talent-application-status--${normalizeStatus(invitation.status).toLowerCase()}`}>
-                          {translateStatus(t, invitation.status)}
+                          {tAuto(translateStatus(t, invitation.status))}
                         </span>
                       </td>
                       <td>{formatDate(invitation.created_at, i18n.language, missingValue)}</td>
@@ -403,7 +447,7 @@ function TalentInvitations() {
                   disabled={isLoadingMore}
                   onClick={() => void handleLoadMore()}
                 >
-                  {isLoadingMore ? "Cargando..." : "Cargar más"}
+                  {isLoadingMore ? tAuto("Cargando...") : tAuto("Cargar más")}
                 </button>
               </div>
             ) : null}
@@ -413,18 +457,18 @@ function TalentInvitations() {
 
       {selectedInvitation ? (
         <SummaryDetailModal
-          title={getProjectTitle(selectedInvitation, t("crew.projectMissing"))}
-          description={getOpportunityTitle(selectedInvitation, t("crew.opportunityMissing"))}
+          title={tAuto(getProjectTitle(selectedInvitation, t("crew.projectMissing")))}
+          description={tAuto(getOpportunityTitle(selectedInvitation, t("crew.opportunityMissing")))}
           onClose={() => setSelectedInvitation(null)}
         >
           <dl className="talent-application-detail">
-            <div><dt>Proyecto</dt><dd>{getProjectTitle(selectedInvitation, missingValue)}</dd></div>
-            <div><dt>Convocatoria</dt><dd>{getOpportunityTitle(selectedInvitation, missingValue)}</dd></div>
-            <div><dt>Rol / Categoría</dt><dd>{getRole(selectedInvitation, missingValue)}</dd></div>
-            <div><dt>Productor</dt><dd>{getProducerName(selectedInvitation, missingValue)}</dd></div>
-            <div><dt>Mensaje</dt><dd>{selectedInvitation.message?.trim() || t("messages.noMessage")}</dd></div>
-            <div><dt>Estado</dt><dd>{translateStatus(t, selectedInvitation.status)}</dd></div>
-            <div><dt>Fecha</dt><dd>{formatDate(selectedInvitation.created_at, i18n.language, missingValue)}</dd></div>
+            <div><dt>{tAuto("Proyecto")}</dt><dd>{tAuto(getProjectTitle(selectedInvitation, missingValue))}</dd></div>
+            <div><dt>{tAuto("Convocatoria")}</dt><dd>{tAuto(getOpportunityTitle(selectedInvitation, missingValue))}</dd></div>
+            <div><dt>{tAuto("Rol / Categoría")}</dt><dd>{tAuto(getRole(selectedInvitation, missingValue))}</dd></div>
+            <div><dt>{tAuto("Productor")}</dt><dd>{getProducerName(selectedInvitation, missingValue)}</dd></div>
+            <div><dt>{tAuto("Mensaje")}</dt><dd>{selectedInvitation.message?.trim() ? tAuto(selectedInvitation.message.trim()) : t("messages.noMessage")}</dd></div>
+            <div><dt>{tAuto("Estado")}</dt><dd>{tAuto(translateStatus(t, selectedInvitation.status))}</dd></div>
+            <div><dt>{tAuto("Fecha")}</dt><dd>{formatDate(selectedInvitation.created_at, i18n.language, missingValue)}</dd></div>
           </dl>
           {normalizeStatus(selectedInvitation.status) === "PENDING" ? (
             <div className="talent-invitation-modal__actions">

@@ -2,16 +2,26 @@ import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import ProducerGuard from "./ProducerGuard";
 import { getMyProjects } from "../../service/projectApi";
+import { getMyOpportunities } from "../../service/opportunityApi";
+import { getOpportunityApplications } from "../../service/applicationApi";
 import { reusePendingRequest } from "../../service/pendingRequest";
 import { useCurrentProfile } from "../useCurrentProfile";
-import type { Project } from "../../types/producer";
+import type { Opportunity, Project } from "../../types/producer";
+import type { TalentApplication } from "../../types/talent";
 import { formatDisplayDate, formatStatusLabel } from "./utils";
+import { useAutoTranslate, useFestivalFlowLanguage } from "../../hooks/useAutoTranslate";
+import { combineTranslationTexts } from "../../utils/translationTexts";
 import "../../styles/producer.css";
 
 type ProjectFilters = {
   search: string;
   productionType: string;
   status: string;
+};
+
+type ProjectApplicationGroup = {
+  opportunity: Opportunity;
+  applications: TalentApplication[];
 };
 
 const initialFilters: ProjectFilters = {
@@ -30,6 +40,16 @@ const PROJECT_STATUS_LABELS: Record<string, string> = {
   PAUSED: "Pausada",
 };
 
+const APPLICATION_STATUS_LABELS: Record<string, string> = {
+  ACCEPTED: "Aceptada",
+  CANCELLED: "Cancelada",
+  IN_REVIEW: "En revisión",
+  PENDING: "Pendiente",
+  PRESELECTED: "Preseleccionada",
+  REJECTED: "Rechazada",
+  SUBMITTED: "Enviada",
+};
+
 const PRODUCTION_TYPE_OPTIONS = [
   { value: "pelicula", label: "Película" },
   { value: "serie", label: "Serie" },
@@ -39,6 +59,83 @@ const PRODUCTION_TYPE_OPTIONS = [
   { value: "comercial", label: "Comercial" },
   { value: "evento", label: "Evento" },
   { value: "otro", label: "Otro" },
+];
+
+const producerProjectsBaseTexts = [
+  "Activa",
+  "Borrador",
+  "Cerrada",
+  "Cancelada",
+  "Completada",
+  "Pausada",
+  "Película",
+  "Serie",
+  "Documental",
+  "Cortometraje",
+  "Videoclip",
+  "Comercial",
+  "Evento",
+  "Otro",
+  "No informado",
+  "No se pudieron cargar tus proyectos.",
+  "No se pudieron cargar las postulaciones del proyecto.",
+  "Mis proyectos",
+  "Gestiona tus producciones",
+  "Consulta el estado de cada proyecto y crea convocatorias asociadas cuando lo necesites.",
+  "Nuevo proyecto",
+  "Como funciona?",
+  "Ocultar",
+  "Ver pasos",
+  "Primero crea un proyecto.",
+  "Luego crea una convocatoria asociada al proyecto.",
+  "Los talentos postulan a esa convocatoria.",
+  "Revisa postulantes y acepta o rechaza.",
+  "Al aceptar un talento, pasa al crew del proyecto.",
+  "Proyectos",
+  "proyectos",
+  "Cargando registros...",
+  "Buscar por nombre",
+  "Buscar proyecto",
+  "Tipo de produccion",
+  "Todos",
+  "Estado",
+  "Aun no hay proyectos",
+  "Crea tu primer proyecto para empezar a publicar convocatorias reales.",
+  "Sin resultados",
+  "Ajusta los filtros para ver otros proyectos.",
+  "Proyecto",
+  "Tipo",
+  "Ubicacion",
+  "Fecha inicio",
+  "Fecha fin",
+  "Convocatorias",
+  "Acciones",
+  "Sin descripcion",
+  "No informada",
+  "Ver detalle",
+  "Editar",
+  "Crear convocatoria",
+  "Ver postulaciones",
+  "Detalle de proyecto",
+  "Este proyecto no incluye descripcion adicional.",
+  "Cerrar",
+  "Postulaciones del proyecto",
+  "Cargando postulaciones...",
+  "No hay convocatorias para este proyecto.",
+  "No hay postulantes para este proyecto.",
+  "Convocatoria",
+  "Postulante",
+  "Correo",
+  "Mensaje",
+  "Fecha de postulación",
+  "Sin correo",
+  "Talento sin nombre",
+  "No disponible todavía.",
+  "Aceptada",
+  "Rechazada",
+  "Pendiente",
+  "En revisión",
+  "Enviada",
 ];
 
 function normalizeFilterText(value?: string | null): string {
@@ -70,19 +167,111 @@ function formatProjectStatusLabel(value?: string | null): string {
   return PROJECT_STATUS_LABELS[normalizedValue] ?? formatStatusLabel(value);
 }
 
+function formatApplicationStatus(value?: string | null): string {
+  const normalizedValue = value?.trim().toUpperCase().replaceAll(" ", "_") ?? "";
+  return APPLICATION_STATUS_LABELS[normalizedValue] ?? value?.trim() ?? "Pendiente";
+}
+
+function formatApplicationDate(value?: string | null): string {
+  if (!value) {
+    return "Sin fecha";
+  }
+
+  const parsedDate = new Date(value);
+
+  if (Number.isNaN(parsedDate.getTime())) {
+    return value;
+  }
+
+  return new Intl.DateTimeFormat("es-CL", {
+    dateStyle: "medium",
+    timeStyle: "short",
+  }).format(parsedDate);
+}
+
 function getProjectOpportunityCount(project: Project): number {
   return Math.max(0, Number(project.opportunities_count) || 0);
+}
+
+function getApplicantName(application: TalentApplication): string {
+  return (
+    application.talent_name?.trim() ||
+    application.talent?.name?.trim() ||
+    application.talent?.display_name?.trim() ||
+    application.talent?.profile?.display_name?.trim() ||
+    application.user?.name?.trim() ||
+    application.user?.display_name?.trim() ||
+    application.talent_profile?.display_name?.trim() ||
+    application.profile?.display_name?.trim() ||
+    "Talento sin nombre"
+  );
+}
+
+function getApplicantEmail(application: TalentApplication): string {
+  return (
+    application.talent_email?.trim() ||
+    application.talent?.email?.trim() ||
+    application.user?.email?.trim() ||
+    "Sin correo"
+  );
+}
+
+function getApplicantPhoto(application: TalentApplication): string {
+  return (
+    application.talent?.profile?.photo_url?.trim() ||
+    application.talent_profile?.photo_url?.trim() ||
+    application.profile?.photo_url?.trim() ||
+    ""
+  );
+}
+
+function getApplicantInitial(application: TalentApplication): string {
+  return getApplicantName(application).charAt(0).toUpperCase() || "T";
+}
+
+function getApplicantSpecialties(application: TalentApplication): string[] {
+  return (
+    application.specialties ??
+    application.talent_profile?.specialties ??
+    application.profile?.specialties ??
+    (application.main_specialty ? [application.main_specialty] : [])
+  );
 }
 
 function ProducerProjectsContent() {
   const navigate = useNavigate();
   const { token } = useCurrentProfile();
+  const language = useFestivalFlowLanguage();
+
   const [projects, setProjects] = useState<Project[]>([]);
   const [filters, setFilters] = useState<ProjectFilters>(initialFilters);
   const [isHelpOpen, setIsHelpOpen] = useState(false);
   const [detailProject, setDetailProject] = useState<Project | null>(null);
+  const [applicationsProject, setApplicationsProject] = useState<Project | null>(null);
+  const [applicationsByProject, setApplicationsByProject] = useState<
+    Record<string, ProjectApplicationGroup[]>
+  >({});
+  const [loadingApplicationsProjectId, setLoadingApplicationsProjectId] = useState("");
+  const [applicationsError, setApplicationsError] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
+
+  const translationTexts = useMemo(
+    () =>
+      combineTranslationTexts(
+        producerProjectsBaseTexts,
+        projects.flatMap((project) => [
+          project.title,
+          project.description,
+          project.location,
+          project.production_type,
+          formatProjectStatusLabel(project.status),
+        ])
+      ),
+    [projects]
+  );
+
+  const { tAuto } = useAutoTranslate(translationTexts, language, token);
 
   useEffect(() => {
     let isMounted = true;
@@ -121,9 +310,11 @@ function ProducerProjectsContent() {
     };
   }, [token]);
 
-
   const statusOptions = useMemo(
-    () => Array.from(new Set(projects.map((project) => normalizeStatus(project.status)).filter(Boolean))).sort(),
+    () =>
+      Array.from(
+        new Set(projects.map((project) => normalizeStatus(project.status)).filter(Boolean))
+      ).sort(),
     [projects]
   );
 
@@ -135,17 +326,21 @@ function ProducerProjectsContent() {
         !search ||
         normalizeFilterText(project.title).includes(search) ||
         normalizeFilterText(project.description).includes(search);
-      const matchesProductionType =
-          !filters.productionType ||
-          normalizeProductionType(project.production_type) === filters.productionType;
-        const matchesStatus =
-          !filters.status || normalizeStatus(project.status) === filters.status;
 
-        return matchesSearch && matchesProductionType && matchesStatus;
+      const matchesProductionType =
+        !filters.productionType ||
+        normalizeProductionType(project.production_type) === filters.productionType;
+
+      const matchesStatus =
+        !filters.status || normalizeStatus(project.status) === filters.status;
+
+      return matchesSearch && matchesProductionType && matchesStatus;
     });
   }, [filters, projects]);
 
-  const handleFilterChange = (event: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+  const handleFilterChange = (
+    event: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
+  ) => {
     const { name, value } = event.target;
 
     setFilters((current) => ({ ...current, [name]: value }));
@@ -161,25 +356,85 @@ function ProducerProjectsContent() {
     });
   };
 
-  const navigateToApplications = (projectId: string) => {
-    navigate("/producer/opportunities", {
-      state: { projectId },
-    });
+  const handleOpenProjectApplications = async (project: Project) => {
+    setApplicationsProject(project);
+    setApplicationsError("");
+
+    if (applicationsByProject[project.id]) {
+      return;
+    }
+
+    try {
+      setLoadingApplicationsProjectId(project.id);
+
+      const opportunities = await reusePendingRequest(
+        `producer-project-applications-opportunities:${project.id}:${token}`,
+        () => getMyOpportunities(token ?? undefined)
+      );
+
+      const projectOpportunities = opportunities.filter(
+        (opportunity) => opportunity.project_id === project.id
+      );
+
+      const groups = await Promise.all(
+        projectOpportunities.map(async (opportunity) => {
+          try {
+            const applications = await getOpportunityApplications(
+              opportunity.id,
+              token ?? undefined
+            );
+
+            return {
+              opportunity,
+              applications,
+            };
+          } catch {
+            return {
+              opportunity,
+              applications: [],
+            };
+          }
+        })
+      );
+
+      setApplicationsByProject((current) => ({
+        ...current,
+        [project.id]: groups,
+      }));
+    } catch (loadError) {
+      setApplicationsError(
+        loadError instanceof Error
+          ? loadError.message
+          : tAuto("No se pudieron cargar las postulaciones del proyecto.")
+      );
+    } finally {
+      setLoadingApplicationsProjectId("");
+    }
   };
+
+  const currentProjectApplicationGroups = applicationsProject
+    ? applicationsByProject[applicationsProject.id] ?? []
+    : [];
+
+  const currentProjectApplicationsTotal = currentProjectApplicationGroups.reduce(
+    (total, group) => total + group.applications.length,
+    0
+  );
 
   return (
     <div className="producer-shell">
       <section className="producer-card producer-banner producer-banner--compact">
         <div>
-          <p className="producer-page__eyebrow">Mis proyectos</p>
-          <h1 className="producer-page__title">Gestiona tus producciones</h1>
+          <p className="producer-page__eyebrow">{tAuto("Mis proyectos")}</p>
+          <h1 className="producer-page__title">{tAuto("Gestiona tus producciones")}</h1>
           <p className="producer-page__subtitle">
-            Consulta el estado de cada proyecto y crea convocatorias asociadas cuando lo
-            necesites.
+            {tAuto(
+              "Consulta el estado de cada proyecto y crea convocatorias asociadas cuando lo necesites."
+            )}
           </p>
         </div>
         <Link className="producer-button producer-button--primary" to="/producer/projects/new">
-          Nuevo proyecto
+          {tAuto("Nuevo proyecto")}
         </Link>
       </section>
 
@@ -196,16 +451,16 @@ function ProducerProjectsContent() {
           aria-expanded={isHelpOpen}
           onClick={() => setIsHelpOpen((current) => !current)}
         >
-          <span>Como funciona?</span>
-          <strong>{isHelpOpen ? "Ocultar" : "Ver pasos"}</strong>
+          <span>{tAuto("Como funciona?")}</span>
+          <strong>{isHelpOpen ? tAuto("Ocultar") : tAuto("Ver pasos")}</strong>
         </button>
         {isHelpOpen ? (
           <ol className="producer-flow-card__steps producer-help-card__steps">
-            <li>Primero crea un proyecto.</li>
-            <li>Luego crea una convocatoria asociada al proyecto.</li>
-            <li>Los talentos postulan a esa convocatoria.</li>
-            <li>Revisa postulantes y acepta o rechaza.</li>
-            <li>Al aceptar un talento, pasa al crew del proyecto.</li>
+            <li>{tAuto("Primero crea un proyecto.")}</li>
+            <li>{tAuto("Luego crea una convocatoria asociada al proyecto.")}</li>
+            <li>{tAuto("Los talentos postulan a esa convocatoria.")}</li>
+            <li>{tAuto("Revisa postulantes y acepta o rechaza.")}</li>
+            <li>{tAuto("Al aceptar un talento, pasa al crew del proyecto.")}</li>
           </ol>
         ) : null}
       </section>
@@ -213,62 +468,69 @@ function ProducerProjectsContent() {
       <section className="producer-card producer-project-crm">
         <div className="producer-project-crm__heading">
           <div>
-            <h2>Proyectos</h2>
+            <h2>{tAuto("Proyectos")}</h2>
             <span>
               {isLoading
-                ? "Cargando registros..."
-                : `${filteredProjects.length} de ${projects.length} proyectos`}
+                ? tAuto("Cargando registros...")
+                : `${filteredProjects.length} de ${projects.length} ${tAuto("proyectos")}`}
             </span>
           </div>
         </div>
 
         <div className="producer-project-filters">
           <label className="producer-field">
-            <span>Buscar por nombre</span>
+            <span>{tAuto("Buscar por nombre")}</span>
             <input
               name="search"
               value={filters.search}
               onChange={handleFilterChange}
-              placeholder="Buscar proyecto"
+              placeholder={tAuto("Buscar proyecto")}
             />
           </label>
+
           <label className="producer-field">
-            <span>Tipo de produccion</span>
-            <select name="productionType" value={filters.productionType} onChange={handleFilterChange}>
-              <option value="">Todos</option>
+            <span>{tAuto("Tipo de produccion")}</span>
+            <select
+              name="productionType"
+              value={filters.productionType}
+              onChange={handleFilterChange}
+            >
+              <option value="">{tAuto("Todos")}</option>
               {PRODUCTION_TYPE_OPTIONS.map((productionType) => (
                 <option key={productionType.value} value={productionType.value}>
-                  {productionType.label}
+                  {tAuto(productionType.label)}
                 </option>
               ))}
             </select>
           </label>
+
           <label className="producer-field">
-            <span>Estado</span>
+            <span>{tAuto("Estado")}</span>
             <select name="status" value={filters.status} onChange={handleFilterChange}>
-              <option value="">Todos</option>
+              <option value="">{tAuto("Todos")}</option>
               {statusOptions.map((status) => (
-                <option key={status} value={status}>{formatProjectStatusLabel(status)}</option>
+                <option key={status} value={status}>
+                  {tAuto(formatProjectStatusLabel(status))}
+                </option>
               ))}
             </select>
           </label>
-
         </div>
 
         {isLoading ? (
           <ProjectTableSkeleton />
         ) : projects.length === 0 ? (
           <article className="producer-empty producer-project-crm__empty">
-            <h2 className="producer-card__title">Aun no hay proyectos</h2>
+            <h2 className="producer-card__title">{tAuto("Aun no hay proyectos")}</h2>
             <p className="producer-card__text">
-              Crea tu primer proyecto para empezar a publicar convocatorias reales.
+              {tAuto("Crea tu primer proyecto para empezar a publicar convocatorias reales.")}
             </p>
           </article>
         ) : filteredProjects.length === 0 ? (
           <article className="producer-empty producer-project-crm__empty">
-            <h2 className="producer-card__title">Sin resultados</h2>
+            <h2 className="producer-card__title">{tAuto("Sin resultados")}</h2>
             <p className="producer-card__text">
-              Ajusta los filtros para ver otros proyectos.
+              {tAuto("Ajusta los filtros para ver otros proyectos.")}
             </p>
           </article>
         ) : (
@@ -276,14 +538,14 @@ function ProducerProjectsContent() {
             <table className="producer-project-table">
               <thead>
                 <tr>
-                  <th>Proyecto</th>
-                  <th>Tipo</th>
-                  <th>Ubicacion</th>
-                  <th>Fecha inicio</th>
-                  <th>Fecha fin</th>
-                  <th>Estado</th>
-                  <th>Convocatorias</th>
-                  <th>Acciones</th>
+                  <th>{tAuto("Proyecto")}</th>
+                  <th>{tAuto("Tipo")}</th>
+                  <th>{tAuto("Ubicacion")}</th>
+                  <th>{tAuto("Fecha inicio")}</th>
+                  <th>{tAuto("Fecha fin")}</th>
+                  <th>{tAuto("Estado")}</th>
+                  <th>{tAuto("Convocatorias")}</th>
+                  <th>{tAuto("Acciones")}</th>
                 </tr>
               </thead>
               <tbody>
@@ -294,17 +556,27 @@ function ProducerProjectsContent() {
                     <tr key={project.id}>
                       <td>
                         <div className="producer-project-table__title">
-                          <strong>{project.title}</strong>
-                          <span>{project.description || "Sin descripcion"}</span>
+                          <strong>{tAuto(project.title)}</strong>
+                          <span>
+                            {project.description
+                              ? tAuto(project.description)
+                              : tAuto("Sin descripcion")}
+                          </span>
                         </div>
                       </td>
-                      <td>{formatProductionType(project.production_type)}</td>
-                      <td>{project.location || "No informada"}</td>
+                      <td>{tAuto(formatProductionType(project.production_type))}</td>
+                      <td>
+                        {project.location ? tAuto(project.location) : tAuto("No informada")}
+                      </td>
                       <td>{formatDisplayDate(project.start_date)}</td>
                       <td>{formatDisplayDate(project.end_date)}</td>
                       <td>
-                        <span className={`producer-status producer-status--${normalizeStatus(project.status).toLowerCase() || "default"}`}>
-                          {formatProjectStatusLabel(project.status)}
+                        <span
+                          className={`producer-status producer-status--${
+                            normalizeStatus(project.status).toLowerCase() || "default"
+                          }`}
+                        >
+                          {tAuto(formatProjectStatusLabel(project.status))}
                         </span>
                       </td>
                       <td>
@@ -312,17 +584,33 @@ function ProducerProjectsContent() {
                       </td>
                       <td>
                         <div className="producer-table-actions">
-                          <button className="producer-button" type="button" onClick={() => setDetailProject(project)}>
-                            Ver detalle
+                          <button
+                            className="producer-button"
+                            type="button"
+                            onClick={() => setDetailProject(project)}
+                          >
+                            {tAuto("Ver detalle")}
                           </button>
-                          <button className="producer-button" type="button" onClick={() => navigateToEdit(project.id)}>
-                            Editar
+                          <button
+                            className="producer-button"
+                            type="button"
+                            onClick={() => navigateToEdit(project.id)}
+                          >
+                            {tAuto("Editar")}
                           </button>
-                          <button className="producer-button" type="button" onClick={() => navigateToNewOpportunity(project.id)}>
-                            Crear convocatoria
+                          <button
+                            className="producer-button"
+                            type="button"
+                            onClick={() => navigateToNewOpportunity(project.id)}
+                          >
+                            {tAuto("Crear convocatoria")}
                           </button>
-                          <button className="producer-button" type="button" onClick={() => navigateToApplications(project.id)}>
-                            Ver postulaciones
+                          <button
+                            className="producer-button"
+                            type="button"
+                            onClick={() => void handleOpenProjectApplications(project)}
+                          >
+                            {tAuto("Ver postulaciones")}
                           </button>
                         </div>
                       </td>
@@ -337,62 +625,203 @@ function ProducerProjectsContent() {
 
       {detailProject ? (
         <div className="producer-modal" role="presentation">
-          <article className="producer-modal__panel producer-project-detail-modal" role="dialog" aria-modal="true">
+          <article
+            className="producer-modal__panel producer-project-detail-modal"
+            role="dialog"
+            aria-modal="true"
+          >
             <div className="producer-project-detail-modal__header">
               <div>
-                <p className="producer-page__eyebrow">Detalle de proyecto</p>
-                <h2>{detailProject.title}</h2>
+                <p className="producer-page__eyebrow">{tAuto("Detalle de proyecto")}</p>
+                <h2>{tAuto(detailProject.title)}</h2>
               </div>
-              <span className={`producer-status producer-status--${normalizeStatus(detailProject.status).toLowerCase() || "default"}`}>
-                {formatProjectStatusLabel(detailProject.status)}
+              <span
+                className={`producer-status producer-status--${
+                  normalizeStatus(detailProject.status).toLowerCase() || "default"
+                }`}
+              >
+                {tAuto(formatProjectStatusLabel(detailProject.status))}
               </span>
             </div>
 
             <p className="producer-record__text">
-              {detailProject.description || "Este proyecto no incluye descripcion adicional."}
+              {detailProject.description
+                ? tAuto(detailProject.description)
+                : tAuto("Este proyecto no incluye descripcion adicional.")}
             </p>
 
             <div className="producer-project-detail-grid">
               <div>
-                <span>Tipo de produccion</span>
-                <strong>{formatProductionType(detailProject.production_type)}</strong>
+                <span>{tAuto("Tipo de produccion")}</span>
+                <strong>{tAuto(formatProductionType(detailProject.production_type))}</strong>
               </div>
               <div>
-                <span>Ubicacion</span>
-                <strong>{detailProject.location || "No informada"}</strong>
+                <span>{tAuto("Ubicacion")}</span>
+                <strong>
+                  {detailProject.location
+                    ? tAuto(detailProject.location)
+                    : tAuto("No informada")}
+                </strong>
               </div>
               <div>
-                <span>Fecha inicio</span>
+                <span>{tAuto("Fecha inicio")}</span>
                 <strong>{formatDisplayDate(detailProject.start_date)}</strong>
               </div>
               <div>
-                <span>Fecha fin</span>
+                <span>{tAuto("Fecha fin")}</span>
                 <strong>{formatDisplayDate(detailProject.end_date)}</strong>
               </div>
               <div>
-                <span>Estado</span>
-                <strong>{formatProjectStatusLabel(detailProject.status)}</strong>
+                <span>{tAuto("Estado")}</span>
+                <strong>{tAuto(formatProjectStatusLabel(detailProject.status))}</strong>
               </div>
               <div>
-                <span>Convocatorias</span>
+                <span>{tAuto("Convocatorias")}</span>
                 <strong>{getProjectOpportunityCount(detailProject)} conv.</strong>
               </div>
             </div>
 
             <div className="producer-actions">
-              <button className="producer-button" type="button" onClick={() => navigateToEdit(detailProject.id)}>
-                Editar
+              <button
+                className="producer-button"
+                type="button"
+                onClick={() => navigateToEdit(detailProject.id)}
+              >
+                {tAuto("Editar")}
               </button>
-              <button className="producer-button" type="button" onClick={() => navigateToNewOpportunity(detailProject.id)}>
-                Crear convocatoria
+              <button
+                className="producer-button"
+                type="button"
+                onClick={() => navigateToNewOpportunity(detailProject.id)}
+              >
+                {tAuto("Crear convocatoria")}
               </button>
-              <button className="producer-button" type="button" onClick={() => navigateToApplications(detailProject.id)}>
-                Ver postulaciones
+              <button
+                className="producer-button"
+                type="button"
+                onClick={() => void handleOpenProjectApplications(detailProject)}
+              >
+                {tAuto("Ver postulaciones")}
               </button>
-              <button className="producer-button producer-button--primary" type="button" onClick={() => setDetailProject(null)}>
-                Cerrar
+              <button
+                className="producer-button producer-button--primary"
+                type="button"
+                onClick={() => setDetailProject(null)}
+              >
+                {tAuto("Cerrar")}
               </button>
             </div>
+          </article>
+        </div>
+      ) : null}
+
+      {applicationsProject ? (
+        <div className="producer-modal" role="presentation">
+          <article
+            className="producer-modal__panel producer-project-detail-modal"
+            role="dialog"
+            aria-modal="true"
+          >
+            <div className="producer-project-detail-modal__header">
+              <div>
+                <p className="producer-page__eyebrow">
+                  {tAuto("Postulaciones del proyecto")}
+                </p>
+                <h2>{tAuto(applicationsProject.title)}</h2>
+              </div>
+              <button
+                className="producer-button producer-button--primary"
+                type="button"
+                onClick={() => {
+                  setApplicationsProject(null);
+                  setApplicationsError("");
+                }}
+              >
+                {tAuto("Cerrar")}
+              </button>
+            </div>
+
+            {loadingApplicationsProjectId === applicationsProject.id ? (
+              <p className="producer-muted">{tAuto("Cargando postulaciones...")}</p>
+            ) : applicationsError ? (
+              <p className="producer-feedback producer-feedback--error">{applicationsError}</p>
+            ) : currentProjectApplicationGroups.length === 0 ? (
+              <p className="producer-muted">
+                {tAuto("No hay convocatorias para este proyecto.")}
+              </p>
+            ) : currentProjectApplicationsTotal === 0 ? (
+              <p className="producer-muted">
+                {tAuto("No hay postulantes para este proyecto.")}
+              </p>
+            ) : (
+              <div className="producer-list">
+                {currentProjectApplicationGroups.map((group) =>
+                  group.applications.map((application) => {
+                    const photoUrl = getApplicantPhoto(application);
+                    const specialties = getApplicantSpecialties(application);
+
+                    return (
+                      <article key={application.id} className="producer-list-card">
+                        <div className="producer-record__header">
+                          <div className="producer-applicant-inline">
+                            <span className="producer-avatar producer-avatar--small">
+                              {photoUrl ? (
+                                <img src={photoUrl} alt={getApplicantName(application)} />
+                              ) : (
+                                <span>{getApplicantInitial(application)}</span>
+                              )}
+                            </span>
+                            <div>
+                              <p className="producer-list-card__meta">
+                                {tAuto("Convocatoria")}: {tAuto(group.opportunity.title)}
+                              </p>
+                              <h4 className="producer-list-card__title">
+                                {getApplicantName(application)}
+                              </h4>
+                              <p className="producer-list-card__meta">
+                                {getApplicantEmail(application)}
+                              </p>
+                            </div>
+                          </div>
+
+                          <span
+                            className={`producer-status producer-status--${normalizeStatus(
+                              application.status
+                            ).toLowerCase()}`}
+                          >
+                            {tAuto(formatApplicationStatus(application.status))}
+                          </span>
+                        </div>
+
+                        <p className="producer-list-card__text">
+                          {tAuto("Fecha de postulación")}:{" "}
+                          {formatApplicationDate(
+                            application.applied_at || application.created_at
+                          )}
+                        </p>
+
+                        <p className="producer-list-card__text">
+                          {tAuto("Mensaje")}:{" "}
+                          {application.message?.trim()
+                            ? tAuto(application.message)
+                            : tAuto("No disponible todavía.")}
+                        </p>
+
+                        {specialties.length ? (
+                          <div className="producer-chip-list">
+                            {specialties.map((specialty) => (
+                              <span key={specialty} className="producer-chip">
+                                {tAuto(specialty)}
+                              </span>
+                            ))}
+                          </div>
+                        ) : null}
+                      </article>
+                    );
+                  })
+                )}
+              </div>
+            )}
           </article>
         </div>
       ) : null}

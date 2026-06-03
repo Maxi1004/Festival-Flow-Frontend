@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { SummaryDetailModal } from "../../components/SummaryDetailModal";
@@ -19,8 +19,9 @@ import type {
   CrewProjectMember,
   CrewProjectMessage,
 } from "../../types/talent";
-import { translateStatus } from "../../utils/translateStatus";
 import { useCurrentProfile } from "../useCurrentProfile";
+import { useAutoTranslate, useFestivalFlowLanguage } from "../../hooks/useAutoTranslate";
+import { combineTranslationTexts } from "../../utils/translationTexts";
 import "../../styles/talent.css";
 
 const EMPTY_SUMMARY: CrewSummary = {
@@ -30,6 +31,86 @@ const EMPTY_SUMMARY: CrewSummary = {
   cancelled: 0,
 };
 const MAX_MESSAGE_LENGTH = 1000;
+
+const talentCrewBaseTexts = [
+  "Cerrar",
+  "No se pudo calcular el resumen.",
+  "No se encontro el proyecto asociado.",
+  "No se pudo cargar el equipo.",
+  "No se pudo cargar el chat.",
+  "No se pudo enviar el mensaje.",
+  "No se pudo cargar la conversacion.",
+  "Escribe un mensaje de hasta 1000 caracteres.",
+  "Total proyectos",
+  "Activos",
+  "Finalizados",
+  "Cancelados",
+  "Resumen de equipo",
+  "Calculando resumen...",
+  "Historial profesional",
+  "Proyectos y asignaciones",
+  "cargados",
+  "registros",
+  "proyectos",
+  "Proyecto",
+  "Convocatoria",
+  "Rol",
+  "Tarea",
+  "Productor",
+  "Estado",
+  "Fecha ingreso",
+  "Acciones",
+  "Ver detalle",
+  "Ver equipo",
+  "Chat del equipo",
+  "Cargando...",
+  "Cargar más",
+  "Rol asignado",
+  "Nota del productor",
+  "Equipo",
+  "Integrantes confirmados para este proyecto.",
+  "Cargando integrantes...",
+  "Este proyecto todavia no tiene integrantes.",
+  "Ingreso",
+  "Mensaje",
+  "Abrir chat del equipo",
+  "Todavia no hay mensajes en el chat del equipo.",
+  "Todavia no hay mensajes privados en este proyecto.",
+  "Cargando mensajes...",
+  "Nuevo mensaje",
+  "Escribe al equipo",
+  "Mensaje con",
+  "Escribe a",
+  "Enviando...",
+  "Enviar",
+  "Activo",
+  "Abierta",
+  "Aceptada",
+  "Pendiente",
+  "Completada",
+  "Finalizada",
+  "Cancelada",
+  "Rechazada",
+  "En revisión",
+  "Sin estado",
+];
+
+function formatCrewStatusLabel(value?: string | null): string {
+  const normalizedValue = normalizeStatus(value);
+  const labels: Record<string, string> = {
+    ACTIVE: "Activo",
+    OPEN: "Abierta",
+    ACCEPTED: "Aceptada",
+    PENDING: "Pendiente",
+    COMPLETED: "Completada",
+    CLOSED: "Finalizada",
+    CANCELLED: "Cancelada",
+    REJECTED: "Rechazada",
+    IN_REVIEW: "En revisión",
+  };
+
+  return labels[normalizedValue] ?? value?.trim() ?? "Sin estado";
+}
 
 function normalizeStatus(value?: string | null): string {
   return value?.trim().toUpperCase().replaceAll(" ", "_") ?? "";
@@ -129,6 +210,9 @@ function CollaborationModal({
   onClose: () => void;
   children: ReactNode;
 }) {
+  const language = useFestivalFlowLanguage();
+  const { tAuto } = useAutoTranslate(["Cerrar"], language);
+
   return (
     <div
       className="talent-collaboration-modal"
@@ -151,7 +235,7 @@ function CollaborationModal({
             {description ? <p>{description}</p> : null}
           </div>
           <button className="talent-button" type="button" onClick={onClose}>
-            Cerrar
+            {tAuto("Cerrar")}
           </button>
         </header>
         {children}
@@ -163,6 +247,7 @@ function CollaborationModal({
 function TalentCrew() {
   const { t, i18n } = useTranslation();
   const { user, token, profile, isProfileLoading } = useCurrentProfile();
+  const language = useFestivalFlowLanguage();
   const tRef = useRef(t);
   tRef.current = t;
   const navigate = useNavigate();
@@ -192,6 +277,25 @@ function TalentCrew() {
   const [isDirectChatLoading, setIsDirectChatLoading] = useState(false);
   const [isSendingDirectMessage, setIsSendingDirectMessage] = useState(false);
   const [directChatError, setDirectChatError] = useState("");
+  const missingValue = t("common.notProvided");
+  const translationTexts = useMemo(
+    () =>
+      combineTranslationTexts(
+        talentCrewBaseTexts,
+        crew.flatMap((member) => [
+          getProjectTitle(member, missingValue),
+          getOpportunityTitle(member, missingValue),
+          getRole(member, missingValue),
+          getTask(member, missingValue),
+          formatCrewStatusLabel(member.status),
+        ]),
+        projectMembers.flatMap((member) => [member.role, member.task_description, formatCrewStatusLabel(member.status)]),
+        teamMessages.flatMap((message) => [message.message, message.sender_role]),
+        directMessages.map((message) => message.message)
+      ),
+    [crew, directMessages, missingValue, projectMembers, teamMessages]
+  );
+  const { tAuto } = useAutoTranslate(translationTexts, language, token);
 
   useEffect(() => {
     if (isProfileLoading) {
@@ -254,7 +358,7 @@ function TalentCrew() {
         }
       } catch {
         if (isMounted) {
-          setSummaryError("No se pudo calcular el resumen.");
+          setSummaryError(tAuto("No se pudo calcular el resumen."));
         }
       } finally {
         if (isMounted) {
@@ -301,7 +405,7 @@ function TalentCrew() {
 
   const handleViewTeam = async (member: CrewMember) => {
     if (!member.project_id || !token) {
-      setError("No se encontro el proyecto asociado.");
+      setError(tAuto("No se encontro el proyecto asociado."));
       return;
     }
 
@@ -318,7 +422,7 @@ function TalentCrew() {
       );
       setProjectMembers(members);
     } catch (loadError) {
-      setTeamError(loadError instanceof Error ? loadError.message : "No se pudo cargar el equipo.");
+      setTeamError(loadError instanceof Error ? loadError.message : tAuto("No se pudo cargar el equipo."));
     } finally {
       setIsTeamLoading(false);
     }
@@ -326,7 +430,7 @@ function TalentCrew() {
 
   const handleOpenTeamChat = async (member: CrewMember) => {
     if (!member.project_id || !token) {
-      setError("No se encontro el proyecto asociado.");
+      setError(tAuto("No se encontro el proyecto asociado."));
       return;
     }
 
@@ -345,7 +449,7 @@ function TalentCrew() {
       );
       setTeamMessages(sortMessages(messages));
     } catch (loadError) {
-      setTeamChatError(loadError instanceof Error ? loadError.message : "No se pudo cargar el chat.");
+      setTeamChatError(loadError instanceof Error ? loadError.message : tAuto("No se pudo cargar el chat."));
     } finally {
       setIsTeamChatLoading(false);
     }
@@ -356,7 +460,7 @@ function TalentCrew() {
     const message = teamDraft.trim();
 
     if (!chatProject?.project_id || !token || !message || message.length > MAX_MESSAGE_LENGTH) {
-      setTeamChatError("Escribe un mensaje de hasta 1000 caracteres.");
+      setTeamChatError(tAuto("Escribe un mensaje de hasta 1000 caracteres."));
       return;
     }
 
@@ -367,7 +471,7 @@ function TalentCrew() {
       setTeamMessages((current) => sortMessages([...current, sentMessage]));
       setTeamDraft("");
     } catch (sendError) {
-      setTeamChatError(sendError instanceof Error ? sendError.message : "No se pudo enviar el mensaje.");
+      setTeamChatError(sendError instanceof Error ? sendError.message : tAuto("No se pudo enviar el mensaje."));
     } finally {
       setIsSendingTeamMessage(false);
     }
@@ -375,7 +479,7 @@ function TalentCrew() {
 
   const handleOpenDirectChat = async (member: CrewProjectMember) => {
     if (!teamProject?.project_id || !token) {
-      setTeamError("No se encontro el proyecto asociado.");
+      setTeamError(tAuto("No se encontro el proyecto asociado."));
       return;
     }
 
@@ -396,7 +500,7 @@ function TalentCrew() {
       );
       setDirectMessages(sortMessages(messages));
     } catch (loadError) {
-      setDirectChatError(loadError instanceof Error ? loadError.message : "No se pudo cargar la conversacion.");
+      setDirectChatError(loadError instanceof Error ? loadError.message : tAuto("No se pudo cargar la conversacion."));
     } finally {
       setIsDirectChatLoading(false);
     }
@@ -413,7 +517,7 @@ function TalentCrew() {
       !message ||
       message.length > MAX_MESSAGE_LENGTH
     ) {
-      setDirectChatError("Escribe un mensaje de hasta 1000 caracteres.");
+      setDirectChatError(tAuto("Escribe un mensaje de hasta 1000 caracteres."));
       return;
     }
 
@@ -429,18 +533,17 @@ function TalentCrew() {
       setDirectMessages((current) => sortMessages([...current, sentMessage]));
       setDirectDraft("");
     } catch (sendError) {
-      setDirectChatError(sendError instanceof Error ? sendError.message : "No se pudo enviar el mensaje.");
+      setDirectChatError(sendError instanceof Error ? sendError.message : tAuto("No se pudo enviar el mensaje."));
     } finally {
       setIsSendingDirectMessage(false);
     }
   };
 
-  const missingValue = t("common.notProvided");
   const kpis: Array<[string, number]> = [
-    ["Total proyectos", summary.total_projects],
-    ["Activos", summary.active],
-    ["Finalizados", summary.completed],
-    ["Cancelados", summary.cancelled],
+    [tAuto("Total proyectos"), summary.total_projects],
+    [tAuto("Activos"), summary.active],
+    [tAuto("Finalizados"), summary.completed],
+    [tAuto("Cancelados"), summary.cancelled],
   ];
 
   return (
@@ -453,7 +556,7 @@ function TalentCrew() {
         </div>
       </section>
 
-      <section className="talent-crew-kpis" aria-label="Resumen de equipo">
+      <section className="talent-crew-kpis" aria-label={tAuto("Resumen de equipo")}>
         {kpis.map(([label, value]) => (
           <article className="talent-card talent-application-kpi" key={label}>
             <span className={isSummaryLoading ? "talent-application-kpi__skeleton" : ""}>
@@ -464,20 +567,20 @@ function TalentCrew() {
         ))}
       </section>
 
-      {isSummaryLoading ? <p className="talent-feedback">Calculando resumen...</p> : null}
+      {isSummaryLoading ? <p className="talent-feedback">{tAuto("Calculando resumen...")}</p> : null}
       {summaryError ? <p className="talent-feedback talent-feedback--error">{summaryError}</p> : null}
       {error ? <p className="talent-feedback talent-feedback--error">{error}</p> : null}
 
       <section className="talent-card talent-application-crm">
         <div className="talent-application-crm__heading">
           <div>
-            <p className="talent-page__eyebrow">Historial profesional</p>
-            <h2>Proyectos y asignaciones</h2>
+            <p className="talent-page__eyebrow">{tAuto("Historial profesional")}</p>
+            <h2>{tAuto("Proyectos y asignaciones")}</h2>
           </div>
           <span>
             {summaryError
-              ? `${crew.length} cargados`
-              : `${crew.length} registros | ${isSummaryLoading ? "..." : summary.total_projects} proyectos`}
+              ? `${crew.length} ${tAuto("cargados")}`
+              : `${crew.length} ${tAuto("registros")} | ${isSummaryLoading ? "..." : summary.total_projects} ${tAuto("proyectos")}`}
           </span>
         </div>
 
@@ -491,27 +594,27 @@ function TalentCrew() {
               <table className="talent-application-table talent-crew-table">
                 <thead>
                   <tr>
-                    <th>Proyecto</th>
-                    <th>Convocatoria</th>
-                    <th>Rol</th>
-                    <th>Tarea</th>
-                    <th>Productor</th>
-                    <th>Estado</th>
-                    <th>Fecha ingreso</th>
-                    <th>Acciones</th>
+                    <th>{tAuto("Proyecto")}</th>
+                    <th>{tAuto("Convocatoria")}</th>
+                    <th>{tAuto("Rol")}</th>
+                    <th>{tAuto("Tarea")}</th>
+                    <th>{tAuto("Productor")}</th>
+                    <th>{tAuto("Estado")}</th>
+                    <th>{tAuto("Fecha ingreso")}</th>
+                    <th>{tAuto("Acciones")}</th>
                   </tr>
                 </thead>
                 <tbody>
                   {crew.map((member, index) => (
                     <tr key={getCrewMemberKey(member, index)}>
-                      <td>{getProjectTitle(member, t("crew.projectMissing"))}</td>
-                      <td>{getOpportunityTitle(member, t("crew.opportunityMissing"))}</td>
-                      <td>{getRole(member, t("crew.roleMissing"))}</td>
-                      <td>{getTask(member, t("crew.taskMissing"))}</td>
+                      <td>{tAuto(getProjectTitle(member, t("crew.projectMissing")))}</td>
+                      <td>{tAuto(getOpportunityTitle(member, t("crew.opportunityMissing")))}</td>
+                      <td>{tAuto(getRole(member, t("crew.roleMissing")))}</td>
+                      <td>{tAuto(getTask(member, t("crew.taskMissing")))}</td>
                       <td>{getProducer(member, t("crew.producerMissing"))}</td>
                       <td>
                         <span className={`talent-application-status talent-application-status--${normalizeStatus(member.status).toLowerCase()}`}>
-                          {translateStatus(t, member.status)}
+                          {tAuto(formatCrewStatusLabel(member.status))}
                         </span>
                       </td>
                       <td>{formatDate(getJoinedAt(member), i18n.language, missingValue)}</td>
@@ -522,7 +625,7 @@ function TalentCrew() {
                             type="button"
                             onClick={() => setSelectedMember(member)}
                           >
-                            Ver detalle
+                            {tAuto("Ver detalle")}
                           </button>
                           <button
                             className="talent-button talent-application-table__action"
@@ -530,7 +633,7 @@ function TalentCrew() {
                             disabled={!member.project_id}
                             onClick={() => void handleViewTeam(member)}
                           >
-                            Ver equipo
+                            {tAuto("Ver equipo")}
                           </button>
                           <button
                             className="talent-button talent-application-table__action"
@@ -538,7 +641,7 @@ function TalentCrew() {
                             disabled={!member.project_id}
                             onClick={() => void handleOpenTeamChat(member)}
                           >
-                            Chat del equipo
+                            {tAuto("Chat del equipo")}
                           </button>
                           <button
                             className="talent-button talent-button--primary talent-application-table__action"
@@ -564,7 +667,7 @@ function TalentCrew() {
                   disabled={isLoadingMore}
                   onClick={() => void handleLoadMore()}
                 >
-                  {isLoadingMore ? "Cargando..." : "Cargar más"}
+                  {isLoadingMore ? tAuto("Cargando...") : tAuto("Cargar más")}
                 </button>
               </div>
             ) : null}
@@ -574,18 +677,18 @@ function TalentCrew() {
 
       {selectedMember ? (
         <SummaryDetailModal
-          title={getProjectTitle(selectedMember, t("crew.projectMissing"))}
-          description={getOpportunityTitle(selectedMember, t("crew.opportunityMissing"))}
+          title={tAuto(getProjectTitle(selectedMember, t("crew.projectMissing")))}
+          description={tAuto(getOpportunityTitle(selectedMember, t("crew.opportunityMissing")))}
           onClose={() => setSelectedMember(null)}
         >
           <dl className="talent-application-detail">
-            <div><dt>Proyecto</dt><dd>{getProjectTitle(selectedMember, missingValue)}</dd></div>
-            <div><dt>Convocatoria</dt><dd>{getOpportunityTitle(selectedMember, missingValue)}</dd></div>
-            <div><dt>Rol asignado</dt><dd>{getRole(selectedMember, missingValue)}</dd></div>
-            <div><dt>Tarea</dt><dd>{getTask(selectedMember, t("crew.taskMissing"))}</dd></div>
-            <div><dt>Nota del productor</dt><dd>{getProducerNote(selectedMember, t("crew.noteMissing"))}</dd></div>
-            <div><dt>Estado</dt><dd>{translateStatus(t, selectedMember.status)}</dd></div>
-            <div><dt>Fecha ingreso</dt><dd>{formatDate(getJoinedAt(selectedMember), i18n.language, missingValue)}</dd></div>
+            <div><dt>{tAuto("Proyecto")}</dt><dd>{tAuto(getProjectTitle(selectedMember, missingValue))}</dd></div>
+            <div><dt>{tAuto("Convocatoria")}</dt><dd>{tAuto(getOpportunityTitle(selectedMember, missingValue))}</dd></div>
+            <div><dt>{tAuto("Rol asignado")}</dt><dd>{tAuto(getRole(selectedMember, missingValue))}</dd></div>
+            <div><dt>{tAuto("Tarea")}</dt><dd>{tAuto(getTask(selectedMember, t("crew.taskMissing")))}</dd></div>
+            <div><dt>{tAuto("Nota del productor")}</dt><dd>{getProducerNote(selectedMember, t("crew.noteMissing"))}</dd></div>
+            <div><dt>{tAuto("Estado")}</dt><dd>{tAuto(formatCrewStatusLabel(selectedMember.status))}</dd></div>
+            <div><dt>{tAuto("Fecha ingreso")}</dt><dd>{formatDate(getJoinedAt(selectedMember), i18n.language, missingValue)}</dd></div>
           </dl>
           <div className="talent-invitation-modal__actions">
             <button
@@ -602,15 +705,15 @@ function TalentCrew() {
 
       {teamProject ? (
         <CollaborationModal
-          title={`Equipo - ${getProjectTitle(teamProject, t("crew.projectMissing"))}`}
-          description="Integrantes confirmados para este proyecto."
+          title={`${tAuto("Equipo")} - ${tAuto(getProjectTitle(teamProject, t("crew.projectMissing")))}`}
+          description={tAuto("Integrantes confirmados para este proyecto.")}
           onClose={() => setTeamProject(null)}
         >
           {teamError ? <p className="talent-feedback talent-feedback--error">{teamError}</p> : null}
           {isTeamLoading ? (
-            <p className="talent-feedback">Cargando integrantes...</p>
+            <p className="talent-feedback">{tAuto("Cargando integrantes...")}</p>
           ) : projectMembers.length === 0 ? (
-            <p className="talent-feedback">Este proyecto todavia no tiene integrantes.</p>
+            <p className="talent-feedback">{tAuto("Este proyecto todavia no tiene integrantes.")}</p>
           ) : (
             <div className="talent-collaboration-members">
               {projectMembers.map((member) => (
@@ -620,10 +723,10 @@ function TalentCrew() {
                     <h3>{member.name}</h3>
                     {member.email ? <p>{member.email}</p> : null}
                     <dl>
-                      <div><dt>Rol</dt><dd>{member.role || missingValue}</dd></div>
-                      <div><dt>Tarea</dt><dd>{member.task_description || missingValue}</dd></div>
-                      <div><dt>Estado</dt><dd>{translateStatus(t, member.status)}</dd></div>
-                      <div><dt>Ingreso</dt><dd>{formatDate(member.joined_at, i18n.language, missingValue)}</dd></div>
+                      <div><dt>{tAuto("Rol")}</dt><dd>{member.role ? tAuto(member.role) : missingValue}</dd></div>
+                      <div><dt>{tAuto("Tarea")}</dt><dd>{member.task_description ? tAuto(member.task_description) : missingValue}</dd></div>
+                      <div><dt>{tAuto("Estado")}</dt><dd>{tAuto(formatCrewStatusLabel(member.status))}</dd></div>
+                      <div><dt>{tAuto("Ingreso")}</dt><dd>{formatDate(member.joined_at, i18n.language, missingValue)}</dd></div>
                     </dl>
                   </div>
                   {member.user_uid !== profile?.uid ? (
@@ -632,7 +735,7 @@ function TalentCrew() {
                       type="button"
                       onClick={() => void handleOpenDirectChat(member)}
                     >
-                      Mensaje
+                      {tAuto("Mensaje")}
                     </button>
                   ) : null}
                 </article>
@@ -645,7 +748,7 @@ function TalentCrew() {
               type="button"
               onClick={() => void handleOpenTeamChat(teamProject)}
             >
-              Abrir chat del equipo
+              {tAuto("Abrir chat del equipo")}
             </button>
           </div>
         </CollaborationModal>
@@ -653,15 +756,15 @@ function TalentCrew() {
 
       {chatProject ? (
         <CollaborationModal
-          title={`Chat del equipo - ${getProjectTitle(chatProject, t("crew.projectMissing"))}`}
+          title={`${tAuto("Chat del equipo")} - ${tAuto(getProjectTitle(chatProject, t("crew.projectMissing")))}`}
           onClose={() => setChatProject(null)}
         >
           {teamChatError ? <p className="talent-feedback talent-feedback--error">{teamChatError}</p> : null}
           <div className="talent-collaboration-messages" aria-live="polite">
             {isTeamChatLoading ? (
-              <p className="talent-collaboration-empty">Cargando mensajes...</p>
+              <p className="talent-collaboration-empty">{tAuto("Cargando mensajes...")}</p>
             ) : teamMessages.length === 0 ? (
-              <p className="talent-collaboration-empty">Todavia no hay mensajes en el chat del equipo.</p>
+              <p className="talent-collaboration-empty">{tAuto("Todavia no hay mensajes en el chat del equipo.")}</p>
             ) : (
               teamMessages.map((message) => (
                 <article
@@ -673,8 +776,8 @@ function TalentCrew() {
                   <ProjectAvatar name={message.sender_name} photoUrl={message.sender_photo_url} />
                   <div>
                     <strong>{message.sender_name}</strong>
-                    <small>{message.sender_role} | {formatDate(message.created_at, i18n.language, missingValue)}</small>
-                    <p>{message.message}</p>
+                    <small>{tAuto(message.sender_role)} | {formatDate(message.created_at, i18n.language, missingValue)}</small>
+                    <p>{tAuto(message.message)}</p>
                   </div>
                 </article>
               ))
@@ -682,10 +785,10 @@ function TalentCrew() {
           </div>
           <form className="talent-collaboration-compose" onSubmit={handleSendTeamMessage}>
             <label>
-              <span>Nuevo mensaje</span>
+              <span>{tAuto("Nuevo mensaje")}</span>
               <textarea
                 maxLength={MAX_MESSAGE_LENGTH}
-                placeholder="Escribe al equipo"
+                placeholder={tAuto("Escribe al equipo")}
                 rows={3}
                 value={teamDraft}
                 onChange={(event) => setTeamDraft(event.target.value)}
@@ -697,7 +800,7 @@ function TalentCrew() {
               type="submit"
               disabled={isSendingTeamMessage || !teamDraft.trim()}
             >
-              {isSendingTeamMessage ? "Enviando..." : "Enviar"}
+              {isSendingTeamMessage ? tAuto("Enviando...") : tAuto("Enviar")}
             </button>
           </form>
         </CollaborationModal>
@@ -705,8 +808,8 @@ function TalentCrew() {
 
       {directProject && directTarget ? (
         <CollaborationModal
-          title={`Mensaje con ${directTarget.name}`}
-          description={getProjectTitle(directProject, t("crew.projectMissing"))}
+          title={`${tAuto("Mensaje con")} ${directTarget.name}`}
+          description={tAuto(getProjectTitle(directProject, t("crew.projectMissing")))}
           onClose={() => {
             setDirectProject(null);
             setDirectTarget(null);
@@ -715,9 +818,9 @@ function TalentCrew() {
           {directChatError ? <p className="talent-feedback talent-feedback--error">{directChatError}</p> : null}
           <div className="talent-collaboration-messages" aria-live="polite">
             {isDirectChatLoading ? (
-              <p className="talent-collaboration-empty">Cargando mensajes...</p>
+              <p className="talent-collaboration-empty">{tAuto("Cargando mensajes...")}</p>
             ) : directMessages.length === 0 ? (
-              <p className="talent-collaboration-empty">Todavia no hay mensajes privados en este proyecto.</p>
+              <p className="talent-collaboration-empty">{tAuto("Todavia no hay mensajes privados en este proyecto.")}</p>
             ) : (
               directMessages.map((message) => {
                 const isOwnMessage = message.sender_uid === profile?.uid;
@@ -736,7 +839,7 @@ function TalentCrew() {
                     <div>
                       <strong>{message.sender_name}</strong>
                       <small>{formatDate(message.created_at, i18n.language, missingValue)}</small>
-                      <p>{message.message}</p>
+                      <p>{tAuto(message.message)}</p>
                     </div>
                   </article>
                 );
@@ -745,10 +848,10 @@ function TalentCrew() {
           </div>
           <form className="talent-collaboration-compose" onSubmit={handleSendDirectMessage}>
             <label>
-              <span>Nuevo mensaje</span>
+              <span>{tAuto("Nuevo mensaje")}</span>
               <textarea
                 maxLength={MAX_MESSAGE_LENGTH}
-                placeholder={`Escribe a ${directTarget.name}`}
+                placeholder={`${tAuto("Escribe a")} ${directTarget.name}`}
                 rows={3}
                 value={directDraft}
                 onChange={(event) => setDirectDraft(event.target.value)}
@@ -760,7 +863,7 @@ function TalentCrew() {
               type="submit"
               disabled={isSendingDirectMessage || !directDraft.trim()}
             >
-              {isSendingDirectMessage ? "Enviando..." : "Enviar"}
+              {isSendingDirectMessage ? tAuto("Enviando...") : tAuto("Enviar")}
             </button>
           </form>
         </CollaborationModal>

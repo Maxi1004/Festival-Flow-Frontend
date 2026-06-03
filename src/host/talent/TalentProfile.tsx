@@ -14,6 +14,8 @@ import type {
   TalentProfile as TalentProfileData,
   TalentProfileUpdatePayload,
 } from "../../types/talent";
+import { useAutoTranslate, useFestivalFlowLanguage } from "../../hooks/useAutoTranslate";
+import { combineTranslationTexts } from "../../utils/translationTexts";
 import "../../styles/talent.css";
 
 type TalentProfileFormState = {
@@ -48,6 +50,76 @@ type ProfileCompletionRequirement = {
   label: string;
   weight: number;
 };
+
+const talentProfileBaseTexts = [
+  "La foto supera el tamano maximo permitido de 5 MB.",
+  "Foto de perfil actualizada correctamente.",
+  "No se pudo subir la foto de perfil.",
+  "El archivo debe estar en formato PDF.",
+  "El PDF supera el tamano maximo permitido de 10 MB.",
+  "PDF guardado correctamente.",
+  "No se pudo subir el PDF.",
+  "El PDF se quitó de esta vista. Para eliminarlo permanentemente se necesita soporte del backend.",
+  "Subir foto",
+  "Agregar nombre visible",
+  "Agregar ubicación",
+  "Agregar especialidad principal",
+  "Agregar especialidades",
+  "Agregar habilidades",
+  "Agregar idiomas",
+  "Agregar biografía",
+  "Agregar años de experiencia",
+  "Agregar experiencia",
+  "Subir CV",
+  "Activar perfil público",
+  "Cambiar foto de perfil",
+  "Subiendo...",
+  "Guardar foto",
+  "Cancelar",
+  "Agrega proyectos, películas, cortos u obras en los que hayas participado.",
+  "Trabajo sin nombre",
+  "Sin detalles informados.",
+  "Ver",
+  "Editar",
+  "Eliminar",
+  "+ Agregar trabajo",
+  "CV o portafolio en PDF",
+  "Adjunta tu CV o portafolio en formato PDF.",
+  "Seleccionar PDF",
+  "Aún no has seleccionado un archivo.",
+  "Subiendo archivo...",
+  "Listo para subir",
+  "Subir PDF",
+  "PDF guardado",
+  "Disponible para compartir desde tu perfil.",
+  "Ver PDF",
+  "Reemplazar PDF",
+  "Eliminar PDF",
+  "Completa estos elementos para mejorar tu perfil:",
+  "Perfil completo y listo para productores.",
+  "Detalle del trabajo",
+  "Nombre:",
+  "Tipo:",
+  "Rol:",
+  "Año:",
+  "No informado",
+  "Link:",
+  "Abrir enlace",
+  "Cerrar",
+  "Nuevo trabajo",
+  "Editar trabajo",
+  "Nombre del proyecto",
+  "Nombre de la película, corto, obra o proyecto",
+  "Tipo de proyecto",
+  "Seleccionar tipo...",
+  "Rol desempeñado",
+  "Dirección, actuación, sonido...",
+  "Año",
+  "Link opcional",
+  "IMDb, tráiler, YouTube, Drive...",
+  "Guardar trabajo",
+  "Guardar cambios",
+];
 
 const emptyPortfolioItem: PortfolioItemFormState = {
   title: "",
@@ -107,6 +179,11 @@ const SKILL_OPTIONS = [
 const LANGUAGE_OPTIONS = [
   "Español", "Inglés", "Chino Mandarín", "Hindi", "Árabe", "Francés",
   "Portugués", "Ruso", "Alemán", "Japonés", "Coreano", "Italiano",
+];
+
+const talentProfileTranslationTexts = [
+  ...talentProfileBaseTexts,
+  ...PROJECT_TYPE_OPTIONS,
 ];
 
 function normalizeSearchText(value: string): string {
@@ -212,9 +289,20 @@ type MultiSelectFieldProps = {
   options: string[];
   values: string[];
   onChange: (values: string[]) => void;
+  token?: string | null;
 };
 
-function MultiSelectField({ label, options, values, onChange }: MultiSelectFieldProps) {
+function MultiSelectField({ label, options, values, onChange, token }: MultiSelectFieldProps) {
+  const language = useFestivalFlowLanguage();
+  const { tAuto } = useAutoTranslate([
+    ...options,
+    "Seleccionar opciones...",
+    "Otro",
+    "Agregar",
+    "Eliminar",
+    "Todavía no has seleccionado opciones.",
+    "TodavÃ­a no has seleccionado opciones.",
+  ], language, token);
   const containerRef = useRef<HTMLDivElement>(null);
   const [isAddingCustomValue, setIsAddingCustomValue] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
@@ -278,7 +366,7 @@ function MultiSelectField({ label, options, values, onChange }: MultiSelectField
               setIsOpen(false);
             }
           }}
-          placeholder={`Seleccionar ${label.toLowerCase()}...`}
+          placeholder={tAuto("Seleccionar opciones...")}
         />
         {isOpen ? (
           <div className="talent-searchable-select__options" role="listbox">
@@ -290,7 +378,7 @@ function MultiSelectField({ label, options, values, onChange }: MultiSelectField
                 aria-selected="false"
                 onClick={() => handleOptionClick(option)}
               >
-                {option}
+                {tAuto(option)}
               </button>
             ))}
             <button
@@ -302,7 +390,7 @@ function MultiSelectField({ label, options, values, onChange }: MultiSelectField
                 setIsOpen(false);
               }}
             >
-              Otro
+              {tAuto("Otro")}
             </button>
           </div>
         ) : null}
@@ -313,10 +401,10 @@ function MultiSelectField({ label, options, values, onChange }: MultiSelectField
           <input
             value={customValue}
             onChange={(event) => setCustomValue(event.target.value)}
-            placeholder={`Agregar ${label.toLowerCase()}`}
+            placeholder={tAuto("Agregar")}
           />
           <button className="talent-button" type="button" onClick={handleAddCustomValue}>
-            Agregar
+            {tAuto("Agregar")}
           </button>
         </div>
       ) : null}
@@ -325,10 +413,10 @@ function MultiSelectField({ label, options, values, onChange }: MultiSelectField
         <div className="talent-selection-chips">
           {values.map((value) => (
             <span key={value} className="talent-selection-chip">
-              {value}
+              {options.includes(value) ? tAuto(value) : value}
               <button
                 type="button"
-                aria-label={`Eliminar ${value}`}
+                aria-label={`${tAuto("Eliminar")} ${options.includes(value) ? tAuto(value) : value}`}
                 onClick={() => onChange(values.filter((item) => item !== value))}
               >
                 ×
@@ -337,7 +425,7 @@ function MultiSelectField({ label, options, values, onChange }: MultiSelectField
           ))}
         </div>
       ) : (
-        <small className="talent-selection-empty">Todavía no has seleccionado opciones.</small>
+        <small className="talent-selection-empty">{tAuto("Todavía no has seleccionado opciones.")}</small>
       )}
     </div>
   );
@@ -347,6 +435,7 @@ function TalentProfile() {
   const { t } = useTranslation();
   const { updateProfilePhoto } = useAuth();
   const { user, token, profile, isProfileLoading } = useCurrentProfile();
+  const language = useFestivalFlowLanguage();
   const tRef = useRef(t);
   tRef.current = t;
   const photoInputRef = useRef<HTMLInputElement>(null);
@@ -375,6 +464,27 @@ function TalentProfile() {
   const [isCreatingPortfolioItem, setIsCreatingPortfolioItem] = useState(false);
   const [error, setError] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
+  const translationTexts = useMemo(
+    () =>
+      combineTranslationTexts(
+        talentProfileTranslationTexts,
+        [
+          formData.bio,
+          formData.main_specialty,
+          formData.location,
+          ...formData.specialties,
+          ...formData.languages,
+          ...formData.skills,
+          ...formData.portfolio_items.flatMap((item) => [
+            item.title,
+            item.project_type,
+            item.role,
+          ]),
+        ]
+      ),
+    [formData]
+  );
+  const { tAuto } = useAutoTranslate(translationTexts, language, token);
 
   useEffect(() => {
     if (isProfileLoading) {
@@ -501,7 +611,7 @@ function TalentProfile() {
     if (nextPhoto.size > MAX_PROFILE_PHOTO_SIZE) {
       setSelectedPhoto(null);
       event.target.value = "";
-      setPhotoError("La foto supera el tamano maximo permitido de 5 MB.");
+      setPhotoError(tAuto("La foto supera el tamano maximo permitido de 5 MB."));
       return;
     }
 
@@ -524,12 +634,12 @@ function TalentProfile() {
       if (photoInputRef.current) {
         photoInputRef.current.value = "";
       }
-      setPhotoSuccessMessage("Foto de perfil actualizada correctamente.");
+      setPhotoSuccessMessage(tAuto("Foto de perfil actualizada correctamente."));
     } catch (uploadError) {
       setPhotoError(
         uploadError instanceof Error
           ? uploadError.message
-          : "No se pudo subir la foto de perfil."
+          : tAuto("No se pudo subir la foto de perfil.")
       );
     } finally {
       setIsUploadingPhoto(false);
@@ -564,14 +674,14 @@ function TalentProfile() {
     if (nextPortfolioPdf.type !== "application/pdf") {
       setSelectedPortfolioPdf(null);
       event.target.value = "";
-      setPortfolioPdfError("El archivo debe estar en formato PDF.");
+      setPortfolioPdfError(tAuto("El archivo debe estar en formato PDF."));
       return;
     }
 
     if (nextPortfolioPdf.size > MAX_PORTFOLIO_PDF_SIZE) {
       setSelectedPortfolioPdf(null);
       event.target.value = "";
-      setPortfolioPdfError("El PDF supera el tamano maximo permitido de 10 MB.");
+      setPortfolioPdfError(tAuto("El PDF supera el tamano maximo permitido de 10 MB."));
       return;
     }
 
@@ -593,12 +703,12 @@ function TalentProfile() {
       if (portfolioPdfInputRef.current) {
         portfolioPdfInputRef.current.value = "";
       }
-      setPortfolioPdfSuccessMessage("PDF guardado correctamente.");
+      setPortfolioPdfSuccessMessage(tAuto("PDF guardado correctamente."));
     } catch (uploadError) {
       setPortfolioPdfError(
         uploadError instanceof Error
           ? uploadError.message
-          : "No se pudo subir el PDF."
+          : tAuto("No se pudo subir el PDF.")
       );
     } finally {
       setIsUploadingPortfolioPdf(false);
@@ -618,7 +728,7 @@ function TalentProfile() {
     handleCancelPortfolioPdfSelection();
     setPortfolioPdfUrl("");
     setPortfolioPdfSuccessMessage(
-      "El PDF se quitó de esta vista. Para eliminarlo permanentemente se necesita soporte del backend."
+      tAuto("El PDF se quitó de esta vista. Para eliminarlo permanentemente se necesita soporte del backend.")
     );
   };
 
@@ -709,18 +819,18 @@ function TalentProfile() {
   const avatarLetter = displayName.charAt(0).toUpperCase() || "T";
   const displayedPhotoUrl = photoPreviewUrl || photoUrl;
   const profileCompletionRequirements = useMemo<ProfileCompletionRequirement[]>(() => [
-    { isComplete: Boolean(photoUrl), label: "Subir foto", weight: 10 },
-    { isComplete: Boolean(formData.display_name.trim()), label: "Agregar nombre visible", weight: 5 },
-    { isComplete: Boolean(formData.location.trim()), label: "Agregar ubicación", weight: 5 },
-    { isComplete: Boolean(formData.main_specialty.trim()), label: "Agregar especialidad principal", weight: 10 },
-    { isComplete: formData.specialties.length > 0, label: "Agregar especialidades", weight: 10 },
-    { isComplete: formData.skills.length > 0, label: "Agregar habilidades", weight: 10 },
-    { isComplete: formData.languages.length > 0, label: "Agregar idiomas", weight: 10 },
-    { isComplete: Boolean(formData.bio.trim()), label: "Agregar biografía", weight: 10 },
-    { isComplete: Number(formData.experience_years) > 0, label: "Agregar años de experiencia", weight: 5 },
-    { isComplete: formData.portfolio_items.length > 0, label: "Agregar experiencia", weight: 10 },
-    { isComplete: Boolean(portfolioPdfUrl), label: "Subir CV", weight: 10 },
-    { isComplete: formData.is_public, label: "Activar perfil público", weight: 5 },
+    { isComplete: Boolean(photoUrl), label: tAuto("Subir foto"), weight: 10 },
+    { isComplete: Boolean(formData.display_name.trim()), label: tAuto("Agregar nombre visible"), weight: 5 },
+    { isComplete: Boolean(formData.location.trim()), label: tAuto("Agregar ubicación"), weight: 5 },
+    { isComplete: Boolean(formData.main_specialty.trim()), label: tAuto("Agregar especialidad principal"), weight: 10 },
+    { isComplete: formData.specialties.length > 0, label: tAuto("Agregar especialidades"), weight: 10 },
+    { isComplete: formData.skills.length > 0, label: tAuto("Agregar habilidades"), weight: 10 },
+    { isComplete: formData.languages.length > 0, label: tAuto("Agregar idiomas"), weight: 10 },
+    { isComplete: Boolean(formData.bio.trim()), label: tAuto("Agregar biografía"), weight: 10 },
+    { isComplete: Number(formData.experience_years) > 0, label: tAuto("Agregar años de experiencia"), weight: 5 },
+    { isComplete: formData.portfolio_items.length > 0, label: tAuto("Agregar experiencia"), weight: 10 },
+    { isComplete: Boolean(portfolioPdfUrl), label: tAuto("Subir CV"), weight: 10 },
+    { isComplete: formData.is_public, label: tAuto("Activar perfil público"), weight: 5 },
   ], [formData, photoUrl, portfolioPdfUrl]);
   const profileCompletion = profileCompletionRequirements.reduce(
     (total, requirement) => total + (requirement.isComplete ? requirement.weight : 0),
@@ -737,7 +847,7 @@ function TalentProfile() {
           <button
             className="talent-avatar talent-avatar--editable"
             type="button"
-            aria-label="Cambiar foto de perfil"
+            aria-label={tAuto("Cambiar foto de perfil")}
             disabled={isUploadingPhoto}
             onClick={() => photoInputRef.current?.click()}
           >
@@ -768,7 +878,7 @@ function TalentProfile() {
                 disabled={isUploadingPhoto}
                 onClick={() => void handlePhotoUpload()}
               >
-                {isUploadingPhoto ? "Subiendo..." : "Guardar foto"}
+                {isUploadingPhoto ? tAuto("Subiendo...") : tAuto("Guardar foto")}
               </button>
               <button
                 className="talent-button"
@@ -776,7 +886,7 @@ function TalentProfile() {
                 disabled={isUploadingPhoto}
                 onClick={handleCancelPhotoSelection}
               >
-                Cancelar
+                {tAuto("Cancelar")}
               </button>
             </div>
           ) : null}
@@ -787,12 +897,14 @@ function TalentProfile() {
             <p className="talent-page__eyebrow">{t("talent.profile.eyebrow")}</p>
             <h1 className="talent-page__title">{displayName}</h1>
             <p className="talent-page__subtitle">
-              {formData.main_specialty.trim() || t("talent.profile.completeMainSpecialty")}
+              {formData.main_specialty.trim()
+                ? tAuto(formData.main_specialty.trim())
+                : t("talent.profile.completeMainSpecialty")}
             </p>
           </div>
 
           <div className="talent-meta-list">
-            <span>{formData.location.trim() || t("talent.profile.pendingLocation")}</span>
+            <span>{formData.location.trim() ? tAuto(formData.location.trim()) : t("talent.profile.pendingLocation")}</span>
             <span>{profileCompletion}% {t("common.completed")}</span>
             <span>{formData.is_public ? t("talent.profile.public") : t("talent.profile.private")}</span>
           </div>
@@ -884,6 +996,7 @@ function TalentProfile() {
                   onChange={(specialties) =>
                     setFormData((current) => ({ ...current, specialties }))
                   }
+                  token={token}
                 />
 
                 <MultiSelectField
@@ -893,6 +1006,7 @@ function TalentProfile() {
                   onChange={(languages) =>
                     setFormData((current) => ({ ...current, languages }))
                   }
+                  token={token}
                 />
 
                 <MultiSelectField
@@ -902,6 +1016,7 @@ function TalentProfile() {
                   onChange={(skills) =>
                     setFormData((current) => ({ ...current, skills }))
                   }
+                  token={token}
                 />
 
                 <label className="talent-input-group talent-input-group--checkbox">
@@ -928,25 +1043,30 @@ function TalentProfile() {
                 <div className="talent-input-group talent-input-group--full">
                   <span>{t("talent.profile.portfolioLinks")}</span>
                   <small className="talent-selection-empty">
-                    Agrega proyectos, películas, cortos u obras en los que hayas participado.
+                    {tAuto("Agrega proyectos, películas, cortos u obras en los que hayas participado.")}
                   </small>
                   <div className="talent-portfolio-items">
                     {formData.portfolio_items.map((item, index) => {
                       return (
                         <div key={index} className="talent-portfolio-item">
                           <div className="talent-portfolio-item__summary">
-                            <h3>{item.title || "Trabajo sin nombre"}</h3>
-                            <p>{[item.project_type, item.role, item.year].filter(Boolean).join(" | ") || "Sin detalles informados."}</p>
+                            <h3>{item.title ? tAuto(item.title) : tAuto("Trabajo sin nombre")}</h3>
+                            <p>
+                              {[item.project_type, item.role, item.year]
+                                .filter(Boolean)
+                                .map((value) => (value === item.year ? value : tAuto(value)))
+                                .join(" | ") || tAuto("Sin detalles informados.")}
+                            </p>
                           </div>
                           <div className="talent-placeholder-actions talent-portfolio-item__actions">
                             <button className="talent-button" type="button" onClick={() => setViewingPortfolioItemIndex(index)}>
-                              Ver
+                              {tAuto("Ver")}
                             </button>
                             <button className="talent-button" type="button" onClick={() => handleEditPortfolioItem(index)}>
-                              Editar
+                              {tAuto("Editar")}
                             </button>
                             <button className="talent-button talent-button--danger" type="button" disabled={isSaving} onClick={() => void handleRemovePortfolioItem(index)}>
-                              Eliminar
+                              {tAuto("Eliminar")}
                             </button>
                           </div>
                         </div>
@@ -960,15 +1080,15 @@ function TalentProfile() {
                       disabled={editingPortfolioItemIndex !== null}
                       onClick={handleAddPortfolioItem}
                     >
-                      + Agregar trabajo
+                      {tAuto("+ Agregar trabajo")}
                     </button>
                   </div>
                 </div>
 
                 <div className="talent-input-group talent-input-group--full">
-                  <span>CV o portafolio en PDF</span>
+                  <span>{tAuto("CV o portafolio en PDF")}</span>
                   <small className="talent-selection-empty">
-                    Adjunta tu CV o portafolio en formato PDF.
+                    {tAuto("Adjunta tu CV o portafolio en formato PDF.")}
                   </small>
                   <input
                     ref={portfolioPdfInputRef}
@@ -986,11 +1106,11 @@ function TalentProfile() {
                         disabled={isUploadingPortfolioPdf}
                         onClick={() => portfolioPdfInputRef.current?.click()}
                       >
-                        Seleccionar PDF
+                        {tAuto("Seleccionar PDF")}
                       </button>
                     ) : null}
                     {!selectedPortfolioPdf && !portfolioPdfUrl ? (
-                      <span className="talent-portfolio-pdf__empty">Aún no has seleccionado un archivo.</span>
+                      <span className="talent-portfolio-pdf__empty">{tAuto("Aún no has seleccionado un archivo.")}</span>
                     ) : null}
                   </div>
                   {selectedPortfolioPdf ? (
@@ -998,7 +1118,7 @@ function TalentProfile() {
                       <div>
                         <strong>{selectedPortfolioPdf.name}</strong>
                         <span>{formatFileSize(selectedPortfolioPdf.size)}</span>
-                        <span>{isUploadingPortfolioPdf ? "Subiendo archivo..." : "Listo para subir"}</span>
+                        <span>{isUploadingPortfolioPdf ? tAuto("Subiendo archivo...") : tAuto("Listo para subir")}</span>
                       </div>
                       <div className="talent-placeholder-actions">
                         <button
@@ -1007,7 +1127,7 @@ function TalentProfile() {
                           disabled={isUploadingPortfolioPdf}
                           onClick={() => void handlePortfolioPdfUpload()}
                         >
-                          {isUploadingPortfolioPdf ? "Subiendo..." : "Subir PDF"}
+                          {isUploadingPortfolioPdf ? tAuto("Subiendo...") : tAuto("Subir PDF")}
                         </button>
                         <button
                           className="talent-button"
@@ -1015,7 +1135,7 @@ function TalentProfile() {
                           disabled={isUploadingPortfolioPdf}
                           onClick={handleCancelPortfolioPdfSelection}
                         >
-                          Cancelar
+                          {tAuto("Cancelar")}
                         </button>
                       </div>
                     </div>
@@ -1023,8 +1143,8 @@ function TalentProfile() {
                   {portfolioPdfUrl ? (
                     <div className="talent-portfolio-pdf__saved">
                       <div>
-                        <strong>PDF guardado</strong>
-                        <span>Disponible para compartir desde tu perfil.</span>
+                        <strong>{tAuto("PDF guardado")}</strong>
+                        <span>{tAuto("Disponible para compartir desde tu perfil.")}</span>
                       </div>
                       <div className="talent-placeholder-actions">
                         <a
@@ -1033,13 +1153,13 @@ function TalentProfile() {
                           target="_blank"
                           rel="noreferrer"
                         >
-                          Ver PDF
+                          {tAuto("Ver PDF")}
                         </a>
                         <button className="talent-button" type="button" onClick={() => portfolioPdfInputRef.current?.click()}>
-                          Reemplazar PDF
+                          {tAuto("Reemplazar PDF")}
                         </button>
                         <button className="talent-button talent-button--danger" type="button" onClick={handleRemovePortfolioPdf}>
-                          Eliminar PDF
+                          {tAuto("Eliminar PDF")}
                         </button>
                       </div>
                     </div>
@@ -1077,7 +1197,7 @@ function TalentProfile() {
               <div className="talent-profile-requirements">
                 {missingProfileRequirements.length > 0 ? (
                   <>
-                    <p>Completa estos elementos para mejorar tu perfil:</p>
+                    <p>{tAuto("Completa estos elementos para mejorar tu perfil:")}</p>
                     <ul>
                       {missingProfileRequirements.map((requirement) => (
                         <li key={requirement.label}>{requirement.label}</li>
@@ -1086,7 +1206,7 @@ function TalentProfile() {
                   </>
                 ) : (
                   <p className="talent-profile-requirements__complete">
-                    ✓ Perfil completo y listo para productores.
+                    ✓ {tAuto("Perfil completo y listo para productores.")}
                   </p>
                 )}
               </div>
@@ -1095,7 +1215,7 @@ function TalentProfile() {
                 {formData.specialties.length > 0 ? (
                   formData.specialties.map((specialty) => (
                     <li key={specialty} className="talent-chip-list__item">
-                      {specialty}
+                      {tAuto(specialty)}
                     </li>
                   ))
                 ) : (
@@ -1113,19 +1233,21 @@ function TalentProfile() {
           <article className="talent-modal__panel talent-portfolio-modal" role="dialog" aria-modal="true" aria-labelledby="portfolio-detail-title">
             <div className="talent-portfolio-modal__heading">
               <div>
-                <p className="talent-page__eyebrow">Detalle del trabajo</p>
+                <p className="talent-page__eyebrow">{tAuto("Detalle del trabajo")}</p>
                 <h2 id="portfolio-detail-title">
-                  {formData.portfolio_items[viewingPortfolioItemIndex]?.title || "Trabajo sin nombre"}
+                  {formData.portfolio_items[viewingPortfolioItemIndex]?.title
+                    ? tAuto(formData.portfolio_items[viewingPortfolioItemIndex].title)
+                    : tAuto("Trabajo sin nombre")}
                 </h2>
               </div>
             </div>
             <div className="talent-portfolio-modal__details">
-              <p><strong>Nombre:</strong> {formData.portfolio_items[viewingPortfolioItemIndex]?.title || "No informado"}</p>
-              <p><strong>Tipo:</strong> {formData.portfolio_items[viewingPortfolioItemIndex]?.project_type || "No informado"}</p>
-              <p><strong>Rol:</strong> {formData.portfolio_items[viewingPortfolioItemIndex]?.role || "No informado"}</p>
-              <p><strong>Año:</strong> {formData.portfolio_items[viewingPortfolioItemIndex]?.year || "No informado"}</p>
+              <p><strong>{tAuto("Nombre:")}</strong> {formData.portfolio_items[viewingPortfolioItemIndex]?.title ? tAuto(formData.portfolio_items[viewingPortfolioItemIndex].title) : tAuto("No informado")}</p>
+              <p><strong>{tAuto("Tipo:")}</strong> {formData.portfolio_items[viewingPortfolioItemIndex]?.project_type ? tAuto(formData.portfolio_items[viewingPortfolioItemIndex].project_type) : tAuto("No informado")}</p>
+              <p><strong>{tAuto("Rol:")}</strong> {formData.portfolio_items[viewingPortfolioItemIndex]?.role ? tAuto(formData.portfolio_items[viewingPortfolioItemIndex].role) : tAuto("No informado")}</p>
+              <p><strong>{tAuto("Año:")}</strong> {formData.portfolio_items[viewingPortfolioItemIndex]?.year || tAuto("No informado")}</p>
               {formData.portfolio_items[viewingPortfolioItemIndex]?.url ? (
-                <p><strong>Link:</strong> {formData.portfolio_items[viewingPortfolioItemIndex].url}</p>
+                <p><strong>{tAuto("Link:")}</strong> {formData.portfolio_items[viewingPortfolioItemIndex].url}</p>
               ) : null}
             </div>
             {formData.portfolio_items[viewingPortfolioItemIndex]?.url ? (
@@ -1135,18 +1257,18 @@ function TalentProfile() {
                 target="_blank"
                 rel="noreferrer"
               >
-                Abrir enlace
+                {tAuto("Abrir enlace")}
               </a>
             ) : null}
             <div className="talent-placeholder-actions talent-portfolio-modal__actions">
               <button className="talent-button talent-button--primary" type="button" onClick={() => handleEditPortfolioItem(viewingPortfolioItemIndex)}>
-                Editar
+                {tAuto("Editar")}
               </button>
               <button className="talent-button talent-button--danger" type="button" disabled={isSaving} onClick={() => void handleRemovePortfolioItem(viewingPortfolioItemIndex)}>
-                Eliminar
+                {tAuto("Eliminar")}
               </button>
               <button className="talent-button" type="button" onClick={() => setViewingPortfolioItemIndex(null)}>
-                Cerrar
+                {tAuto("Cerrar")}
               </button>
             </div>
           </article>
@@ -1158,44 +1280,48 @@ function TalentProfile() {
           <article className="talent-modal__panel talent-portfolio-modal" role="dialog" aria-modal="true" aria-labelledby="portfolio-form-title">
             <div className="talent-portfolio-modal__heading">
               <div>
-                <p className="talent-page__eyebrow">{isCreatingPortfolioItem ? "Nuevo trabajo" : "Editar trabajo"}</p>
-                <h2 id="portfolio-form-title">{isCreatingPortfolioItem ? "Agregar experiencia" : formData.portfolio_items[editingPortfolioItemIndex]?.title || "Trabajo sin nombre"}</h2>
+                <p className="talent-page__eyebrow">{isCreatingPortfolioItem ? tAuto("Nuevo trabajo") : tAuto("Editar trabajo")}</p>
+                <h2 id="portfolio-form-title">{isCreatingPortfolioItem ? tAuto("Agregar experiencia") : formData.portfolio_items[editingPortfolioItemIndex]?.title ? tAuto(formData.portfolio_items[editingPortfolioItemIndex].title) : tAuto("Trabajo sin nombre")}</h2>
               </div>
             </div>
             <div className="talent-portfolio-modal__form">
               <label className="talent-input-group talent-input-group--full">
-                <span>Nombre del proyecto</span>
-                <input value={formData.portfolio_items[editingPortfolioItemIndex]?.title ?? ""} onChange={(event) => handlePortfolioItemChange(editingPortfolioItemIndex, "title", event.target.value)} placeholder="Nombre de la película, corto, obra o proyecto" />
+                <span>{tAuto("Nombre del proyecto")}</span>
+                <input value={formData.portfolio_items[editingPortfolioItemIndex]?.title ?? ""} onChange={(event) => handlePortfolioItemChange(editingPortfolioItemIndex, "title", event.target.value)} placeholder={tAuto("Nombre de la película, corto, obra o proyecto")} />
               </label>
               <label className="talent-input-group">
-                <span>Tipo de proyecto</span>
+                <span>{tAuto("Tipo de proyecto")}</span>
                 <select value={formData.portfolio_items[editingPortfolioItemIndex]?.project_type ?? ""} onChange={(event) => handlePortfolioItemChange(editingPortfolioItemIndex, "project_type", event.target.value)}>
-                  <option value="">Seleccionar tipo...</option>
-                  {PROJECT_TYPE_OPTIONS.map((projectType) => <option key={projectType} value={projectType}>{projectType}</option>)}
+                  <option value="">{tAuto("Seleccionar tipo...")}</option>
+                  {PROJECT_TYPE_OPTIONS.map((projectType) => (
+                    <option key={projectType} value={projectType}>
+                      {tAuto(projectType)}
+                    </option>
+                  ))}
                 </select>
               </label>
               <label className="talent-input-group">
-                <span>Rol desempeñado</span>
-                <input value={formData.portfolio_items[editingPortfolioItemIndex]?.role ?? ""} onChange={(event) => handlePortfolioItemChange(editingPortfolioItemIndex, "role", event.target.value)} placeholder="Dirección, actuación, sonido..." />
+                <span>{tAuto("Rol desempeñado")}</span>
+                <input value={formData.portfolio_items[editingPortfolioItemIndex]?.role ?? ""} onChange={(event) => handlePortfolioItemChange(editingPortfolioItemIndex, "role", event.target.value)} placeholder={tAuto("Dirección, actuación, sonido...")} />
               </label>
               <label className="talent-input-group">
-                <span>Año</span>
+                <span>{tAuto("Año")}</span>
                 <input type="number" min="1900" max="2100" value={formData.portfolio_items[editingPortfolioItemIndex]?.year ?? ""} onChange={(event) => handlePortfolioItemChange(editingPortfolioItemIndex, "year", event.target.value)} placeholder="2026" />
               </label>
               <label className="talent-input-group talent-input-group--full">
-                <span>Link opcional</span>
-                <input type="url" value={formData.portfolio_items[editingPortfolioItemIndex]?.url ?? ""} onChange={(event) => handlePortfolioItemChange(editingPortfolioItemIndex, "url", event.target.value)} placeholder="IMDb, tráiler, YouTube, Drive..." />
+                <span>{tAuto("Link opcional")}</span>
+                <input type="url" value={formData.portfolio_items[editingPortfolioItemIndex]?.url ?? ""} onChange={(event) => handlePortfolioItemChange(editingPortfolioItemIndex, "url", event.target.value)} placeholder={tAuto("IMDb, tráiler, YouTube, Drive...")} />
               </label>
             </div>
             <div className="talent-placeholder-actions talent-portfolio-modal__actions">
               <button className="talent-button talent-button--primary" type="button" disabled={isSaving} onClick={() => void handleSavePortfolioItem()}>
-                {isSaving ? t("common.saving") : isCreatingPortfolioItem ? "Guardar trabajo" : "Guardar cambios"}
+                {isSaving ? t("common.saving") : isCreatingPortfolioItem ? tAuto("Guardar trabajo") : tAuto("Guardar cambios")}
               </button>
               <button className="talent-button" type="button" disabled={isSaving} onClick={() => handleCancelPortfolioItem(editingPortfolioItemIndex)}>
-                Cancelar
+                {tAuto("Cancelar")}
               </button>
               <button className="talent-button talent-button--danger" type="button" disabled={isSaving} onClick={() => void handleRemovePortfolioItem(editingPortfolioItemIndex)}>
-                Eliminar
+                {tAuto("Eliminar")}
               </button>
             </div>
           </article>

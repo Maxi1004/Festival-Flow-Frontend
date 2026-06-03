@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { FiCamera } from "react-icons/fi";
 import { useAuth } from "../../context/useAuth";
 import { reusePendingRequest } from "../../service/pendingRequest";
@@ -13,6 +13,8 @@ import type {
 } from "../../types/producer";
 import { useCurrentProfile } from "../useCurrentProfile";
 import ProducerGuard from "./ProducerGuard";
+import { useAutoTranslate, useFestivalFlowLanguage } from "../../hooks/useAutoTranslate";
+import { combineTranslationTexts } from "../../utils/translationTexts";
 import "../../styles/producer.css";
 
 type ProducerProfileFormState = ProducerProfileUpdatePayload;
@@ -30,6 +32,52 @@ const initialFormState: ProducerProfileFormState = {
 
 const ALLOWED_PROFILE_PHOTO_TYPES = ["image/jpeg", "image/png", "image/webp"];
 const MAX_PROFILE_PHOTO_SIZE = 5 * 1024 * 1024;
+
+const producerProfileBaseTexts = [
+  "Productor",
+  "No se pudo cargar el perfil del productor.",
+  "Ingresa un sitio web valido que comience con http:// o https://.",
+  "Perfil guardado correctamente.",
+  "No se pudo guardar el perfil del productor.",
+  "La foto debe ser una imagen JPEG, PNG o WebP.",
+  "La foto supera el tamano maximo permitido de 5 MB.",
+  "Foto de perfil actualizada correctamente.",
+  "No se pudo subir la foto de perfil.",
+  "Cambiar foto de perfil",
+  "Perfil de productor",
+  "Mi perfil",
+  "Productora / empresa pendiente",
+  "Cargo / rol pendiente",
+  "Sin correo",
+  "Subiendo...",
+  "Cambiar foto",
+  "JPEG, PNG o WebP. Maximo 5 MB.",
+  "Informacion profesional",
+  "Resumen compacto de los datos que veran talentos y equipos al revisar tus proyectos.",
+  "Nombre visible",
+  "Productora / Empresa",
+  "Cargo / Rol",
+  "Email",
+  "Ciudad / Pais",
+  "Telefono",
+  "Sitio web",
+  "Bio / Descripcion profesional",
+  "No informado",
+  "Todavia no has agregado una descripcion profesional.",
+  "Editar perfil",
+  "Editar perfil de productor",
+  "Tu nombre profesional",
+  "Nombre de tu productora",
+  "Director, productor ejecutivo...",
+  "Ciudad",
+  "Santiago",
+  "Pais",
+  "Chile",
+  "Cuenta tu experiencia, enfoque de produccion y tipos de proyectos.",
+  "Cancelar",
+  "Guardando...",
+  "Guardar cambios",
+];
 
 function mapProfileToFormState(
   producerProfile: Partial<ProducerProfileData> | null,
@@ -101,12 +149,25 @@ function ProducerProfileSkeleton() {
 function ProducerProfileContent() {
   const { updateProfilePhoto } = useAuth();
   const { user, token, profile, isProfileLoading } = useCurrentProfile();
+  const language = useFestivalFlowLanguage();
   const photoInputRef = useRef<HTMLInputElement>(null);
   const fallbackDisplayName = profile?.name?.trim() || user?.displayName?.trim() || "Productor";
   const [formData, setFormData] = useState<ProducerProfileFormState>({
     ...initialFormState,
     display_name: fallbackDisplayName,
   });
+  const translationTexts = useMemo(
+    () =>
+      combineTranslationTexts(producerProfileBaseTexts, [
+        formData.company_name,
+        formData.role_title,
+        formData.bio,
+        formData.location,
+        formData.country,
+      ]),
+    [formData]
+  );
+  const { tAuto } = useAutoTranslate(translationTexts, language, token);
   const [photoUrl, setPhotoUrl] = useState("");
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [draftFormData, setDraftFormData] = useState<ProducerProfileFormState>(formData);
@@ -155,7 +216,7 @@ function ProducerProfileContent() {
           setError(
             loadError instanceof Error
               ? loadError.message
-              : "No se pudo cargar el perfil del productor."
+              : tAuto("No se pudo cargar el perfil del productor.")
           );
           const fallbackFormData = mapProfileToFormState(null, fallbackDisplayName);
           setFormData(fallbackFormData);
@@ -212,7 +273,7 @@ function ProducerProfileContent() {
     event.preventDefault();
 
     if (!isValidWebsite(draftFormData.website)) {
-      setModalError("Ingresa un sitio web valido que comience con http:// o https://.");
+      setModalError(tAuto("Ingresa un sitio web valido que comience con http:// o https://."));
       setSuccessMessage("");
       return;
     }
@@ -230,12 +291,12 @@ function ProducerProfileContent() {
       setDraftFormData(nextFormData);
       setPhotoUrl(savedProfile.photo_url ?? photoUrl);
       setIsEditModalOpen(false);
-      setSuccessMessage("Perfil guardado correctamente.");
+      setSuccessMessage(tAuto("Perfil guardado correctamente."));
     } catch (submitError) {
       setModalError(
         submitError instanceof Error
           ? submitError.message
-          : "No se pudo guardar el perfil del productor."
+          : tAuto("No se pudo guardar el perfil del productor.")
       );
     } finally {
       setIsSaving(false);
@@ -253,13 +314,13 @@ function ProducerProfileContent() {
 
     if (!ALLOWED_PROFILE_PHOTO_TYPES.includes(selectedPhoto.type)) {
       event.target.value = "";
-      setPhotoError("La foto debe ser una imagen JPEG, PNG o WebP.");
+      setPhotoError(tAuto("La foto debe ser una imagen JPEG, PNG o WebP."));
       return;
     }
 
     if (selectedPhoto.size > MAX_PROFILE_PHOTO_SIZE) {
       event.target.value = "";
-      setPhotoError("La foto supera el tamano maximo permitido de 5 MB.");
+      setPhotoError(tAuto("La foto supera el tamano maximo permitido de 5 MB."));
       return;
     }
 
@@ -268,12 +329,12 @@ function ProducerProfileContent() {
       const uploadedPhoto = await uploadProducerProfilePhoto(selectedPhoto, token ?? undefined);
       setPhotoUrl(uploadedPhoto.photo_url);
       updateProfilePhoto(uploadedPhoto.photo_url);
-      setPhotoSuccessMessage("Foto de perfil actualizada correctamente.");
+      setPhotoSuccessMessage(tAuto("Foto de perfil actualizada correctamente."));
     } catch (uploadError) {
       setPhotoError(
         uploadError instanceof Error
           ? uploadError.message
-          : "No se pudo subir la foto de perfil."
+          : tAuto("No se pudo subir la foto de perfil.")
       );
     } finally {
       setIsUploadingPhoto(false);
@@ -289,7 +350,7 @@ function ProducerProfileContent() {
           type="button"
           disabled={isUploadingPhoto || isLoading}
           onClick={() => photoInputRef.current?.click()}
-          aria-label="Cambiar foto de perfil"
+          aria-label={tAuto("Cambiar foto de perfil")}
         >
           {visiblePhotoUrl ? (
             <img src={visiblePhotoUrl} alt={`Foto de perfil de ${visibleName}`} />
@@ -302,13 +363,13 @@ function ProducerProfileContent() {
         </button>
 
         <div className="producer-profile-hero__content">
-          <p className="producer-page__eyebrow">Perfil de productor</p>
-          <h1 className="producer-page__title">Mi perfil</h1>
+          <p className="producer-page__eyebrow">{tAuto("Perfil de productor")}</p>
+          <h1 className="producer-page__title">{tAuto("Mi perfil")}</h1>
           <div className="producer-profile-summary">
             <strong>{visibleName}</strong>
-            <span>{formData.company_name.trim() || "Productora / empresa pendiente"}</span>
-            <span>{formData.role_title.trim() || "Cargo / rol pendiente"}</span>
-            <span>{profile?.email ?? user?.email ?? "Sin correo"}</span>
+            <span>{formData.company_name.trim() ? tAuto(formData.company_name.trim()) : tAuto("Productora / empresa pendiente")}</span>
+            <span>{formData.role_title.trim() ? tAuto(formData.role_title.trim()) : tAuto("Cargo / rol pendiente")}</span>
+            <span>{profile?.email ?? user?.email ?? tAuto("Sin correo")}</span>
           </div>
         </div>
 
@@ -327,9 +388,9 @@ function ProducerProfileContent() {
             disabled={isUploadingPhoto || isLoading}
             onClick={() => photoInputRef.current?.click()}
           >
-            {isUploadingPhoto ? "Subiendo..." : "Cambiar foto"}
+            {isUploadingPhoto ? tAuto("Subiendo...") : tAuto("Cambiar foto")}
           </button>
-          <small>JPEG, PNG o WebP. Maximo 5 MB.</small>
+          <small>{tAuto("JPEG, PNG o WebP. Maximo 5 MB.")}</small>
         </div>
       </section>
 
@@ -348,50 +409,52 @@ function ProducerProfileContent() {
       ) : (
         <section className="producer-card producer-profile-overview">
           <div className="section-heading">
-            <h2 className="section-heading__title">Informacion profesional</h2>
+            <h2 className="section-heading__title">{tAuto("Informacion profesional")}</h2>
             <p className="section-heading__text">
-              Resumen compacto de los datos que veran talentos y equipos al revisar tus proyectos.
+              {tAuto(
+                "Resumen compacto de los datos que veran talentos y equipos al revisar tus proyectos."
+              )}
             </p>
           </div>
 
           <div className="producer-profile-detail-grid">
             <div className="producer-profile-detail">
-              <span>Nombre visible</span>
+              <span>{tAuto("Nombre visible")}</span>
               <strong>{visibleName}</strong>
             </div>
             <div className="producer-profile-detail">
-              <span>Productora / Empresa</span>
-              <strong>{formData.company_name.trim() || "No informado"}</strong>
+              <span>{tAuto("Productora / Empresa")}</span>
+              <strong>{formData.company_name.trim() ? tAuto(formData.company_name.trim()) : tAuto("No informado")}</strong>
             </div>
             <div className="producer-profile-detail">
-              <span>Cargo / Rol</span>
-              <strong>{formData.role_title.trim() || "No informado"}</strong>
+              <span>{tAuto("Cargo / Rol")}</span>
+              <strong>{formData.role_title.trim() ? tAuto(formData.role_title.trim()) : tAuto("No informado")}</strong>
             </div>
             <div className="producer-profile-detail">
-              <span>Email</span>
-              <strong>{profile?.email ?? user?.email ?? "Sin correo"}</strong>
+              <span>{tAuto("Email")}</span>
+              <strong>{profile?.email ?? user?.email ?? tAuto("Sin correo")}</strong>
             </div>
             <div className="producer-profile-detail">
-              <span>Ciudad / Pais</span>
-              <strong>{visibleLocation || "No informado"}</strong>
+              <span>{tAuto("Ciudad / Pais")}</span>
+              <strong>{visibleLocation ? tAuto(visibleLocation) : tAuto("No informado")}</strong>
             </div>
             <div className="producer-profile-detail">
-              <span>Telefono</span>
-              <strong>{formData.phone.trim() || "No informado"}</strong>
+              <span>{tAuto("Telefono")}</span>
+              <strong>{formData.phone.trim() || tAuto("No informado")}</strong>
             </div>
             <div className="producer-profile-detail producer-profile-detail--full">
-              <span>Sitio web</span>
+              <span>{tAuto("Sitio web")}</span>
               {visibleWebsite ? (
                 <a href={visibleWebsite} target="_blank" rel="noreferrer">
                   {visibleWebsite}
                 </a>
               ) : (
-                <strong>No informado</strong>
+                <strong>{tAuto("No informado")}</strong>
               )}
             </div>
             <div className="producer-profile-detail producer-profile-detail--full">
-              <span>Bio / Descripcion profesional</span>
-              <p>{visibleBio || "Todavia no has agregado una descripcion profesional."}</p>
+              <span>{tAuto("Bio / Descripcion profesional")}</span>
+              <p>{visibleBio ? tAuto(visibleBio) : tAuto("Todavia no has agregado una descripcion profesional.")}</p>
             </div>
           </div>
 
@@ -401,7 +464,7 @@ function ProducerProfileContent() {
               type="button"
               onClick={openEditModal}
             >
-              Editar perfil
+              {tAuto("Editar perfil")}
             </button>
           </div>
         </section>
@@ -418,8 +481,8 @@ function ProducerProfileContent() {
           >
             <div className="producer-profile-modal__heading">
               <div>
-                <p className="producer-page__eyebrow">Perfil de productor</p>
-                <h2 id="producer-profile-edit-title">Editar perfil de productor</h2>
+                <p className="producer-page__eyebrow">{tAuto("Perfil de productor")}</p>
+                <h2 id="producer-profile-edit-title">{tAuto("Editar perfil de productor")}</h2>
               </div>
             </div>
 
@@ -429,57 +492,57 @@ function ProducerProfileContent() {
 
             <div className="producer-form">
               <label className="producer-field">
-                <span>Nombre visible</span>
+                <span>{tAuto("Nombre visible")}</span>
                 <input
                   name="display_name"
                   value={draftFormData.display_name}
                   onChange={handleChange}
-                  placeholder="Tu nombre profesional"
+                  placeholder={tAuto("Tu nombre profesional")}
                 />
               </label>
 
               <label className="producer-field">
-                <span>Productora / Empresa</span>
+                <span>{tAuto("Productora / Empresa")}</span>
                 <input
                   name="company_name"
                   value={draftFormData.company_name}
                   onChange={handleChange}
-                  placeholder="Nombre de tu productora"
+                  placeholder={tAuto("Nombre de tu productora")}
                 />
               </label>
 
               <label className="producer-field">
-                <span>Cargo / Rol</span>
+                <span>{tAuto("Cargo / Rol")}</span>
                 <input
                   name="role_title"
                   value={draftFormData.role_title}
                   onChange={handleChange}
-                  placeholder="Director, productor ejecutivo..."
+                  placeholder={tAuto("Director, productor ejecutivo...")}
                 />
               </label>
 
               <label className="producer-field">
-                <span>Ciudad</span>
+                <span>{tAuto("Ciudad")}</span>
                 <input
                   name="location"
                   value={draftFormData.location}
                   onChange={handleChange}
-                  placeholder="Santiago"
+                  placeholder={tAuto("Santiago")}
                 />
               </label>
 
               <label className="producer-field">
-                <span>Pais</span>
+                <span>{tAuto("Pais")}</span>
                 <input
                   name="country"
                   value={draftFormData.country}
                   onChange={handleChange}
-                  placeholder="Chile"
+                  placeholder={tAuto("Chile")}
                 />
               </label>
 
               <label className="producer-field">
-                <span>Telefono</span>
+                <span>{tAuto("Telefono")}</span>
                 <input
                   name="phone"
                   value={draftFormData.phone}
@@ -489,7 +552,7 @@ function ProducerProfileContent() {
               </label>
 
               <label className="producer-field producer-field--full">
-                <span>Sitio web</span>
+                <span>{tAuto("Sitio web")}</span>
                 <input
                   type="url"
                   name="website"
@@ -500,13 +563,13 @@ function ProducerProfileContent() {
               </label>
 
               <label className="producer-field producer-field--full">
-                <span>Bio / Descripcion profesional</span>
+                <span>{tAuto("Bio / Descripcion profesional")}</span>
                 <textarea
                   name="bio"
                   value={draftFormData.bio}
                   onChange={handleChange}
                   rows={5}
-                  placeholder="Cuenta tu experiencia, enfoque de produccion y tipos de proyectos."
+                  placeholder={tAuto("Cuenta tu experiencia, enfoque de produccion y tipos de proyectos.")}
                 />
               </label>
             </div>
@@ -518,14 +581,14 @@ function ProducerProfileContent() {
                 disabled={isSaving}
                 onClick={closeEditModal}
               >
-                Cancelar
+                {tAuto("Cancelar")}
               </button>
               <button
                 className="producer-button producer-button--primary"
                 type="submit"
                 disabled={isSaving}
               >
-                {isSaving ? "Guardando..." : "Guardar cambios"}
+                {isSaving ? tAuto("Guardando...") : tAuto("Guardar cambios")}
               </button>
             </div>
           </form>

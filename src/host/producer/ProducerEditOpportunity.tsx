@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import ProducerGuard from "./ProducerGuard";
 import { getMyProjects } from "../../service/projectApi";
@@ -16,6 +16,7 @@ import {
   toDateInputValue,
   toVisibleStatusAction,
 } from "./utils";
+import { useAutoTranslate, useFestivalFlowLanguage } from "../../hooks/useAutoTranslate";
 import "../../styles/producer.css";
 
 type OpportunityFormState = {
@@ -44,22 +45,52 @@ const initialFormState: OpportunityFormState = {
   deadline: "",
 };
 
+const producerEditOpportunityBaseTexts = [
+  "No se encontro la convocatoria solicitada.",
+  "No se pudo cargar la convocatoria.",
+  "No se pudo actualizar la convocatoria.",
+  "Cargando convocatoria...",
+  "Editar convocatoria",
+  "Actualiza la oportunidad",
+  "Ajusta los datos del rol requerido y el estado de la convocatoria.",
+  "Proyecto",
+  "Titulo",
+  "Rol requerido",
+  "Especialidad",
+  "Ubicacion",
+  "Modalidad",
+  "Estado",
+  "Iniciar",
+  "Cancelar",
+  "Deadline",
+  "Descripcion",
+  "Requisitos",
+  "Guardando...",
+  "Guardar cambios",
+];
+
 function ProducerEditOpportunityContent() {
   const navigate = useNavigate();
   const { opportunityId } = useParams<{ opportunityId: string }>();
   const { token } = useCurrentProfile();
+  const language = useFestivalFlowLanguage();
   const [projects, setProjects] = useState<Project[]>([]);
   const [formData, setFormData] = useState<OpportunityFormState>(initialFormState);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState("");
+  const translationTexts = useMemo(
+    () => [...producerEditOpportunityBaseTexts, ...projects.map((project) => project.title)],
+    [projects]
+  );
+  const { tAuto } = useAutoTranslate(translationTexts, language, token);
 
   useEffect(() => {
     let isMounted = true;
 
     async function loadData() {
       if (!opportunityId) {
-        setError("No se encontro la convocatoria solicitada.");
+        setError(tAuto("No se encontro la convocatoria solicitada."));
         setIsLoading(false);
         return;
       }
@@ -96,7 +127,7 @@ function ProducerEditOpportunityContent() {
           setError(
             loadError instanceof Error
               ? loadError.message
-              : "No se pudo cargar la convocatoria."
+              : tAuto("No se pudo cargar la convocatoria.")
           );
         }
       } finally {
@@ -124,7 +155,7 @@ function ProducerEditOpportunityContent() {
     event.preventDefault();
 
     if (!opportunityId) {
-      setError("No se encontro la convocatoria solicitada.");
+      setError(tAuto("No se encontro la convocatoria solicitada."));
       return;
     }
 
@@ -137,7 +168,7 @@ function ProducerEditOpportunityContent() {
       setError(
         submitError instanceof Error
           ? submitError.message
-          : "No se pudo actualizar la convocatoria."
+          : tAuto("No se pudo actualizar la convocatoria.")
       );
     } finally {
       setIsSubmitting(false);
@@ -148,7 +179,7 @@ function ProducerEditOpportunityContent() {
     return (
       <div className="producer-shell">
         <article className="producer-card producer-empty">
-          <p>Cargando convocatoria...</p>
+          <p>{tAuto("Cargando convocatoria...")}</p>
         </article>
       </div>
     );
@@ -158,16 +189,16 @@ function ProducerEditOpportunityContent() {
     <div className="producer-shell">
       <section className="producer-card producer-form-card">
         <div className="section-heading">
-          <p className="producer-page__eyebrow">Editar convocatoria</p>
-          <h1 className="producer-page__title">Actualiza la oportunidad</h1>
+          <p className="producer-page__eyebrow">{tAuto("Editar convocatoria")}</p>
+          <h1 className="producer-page__title">{tAuto("Actualiza la oportunidad")}</h1>
           <p className="producer-page__subtitle">
-            Ajusta los datos del rol requerido y el estado de la convocatoria.
+            {tAuto("Ajusta los datos del rol requerido y el estado de la convocatoria.")}
           </p>
         </div>
 
         <form className="producer-form" onSubmit={handleSubmit}>
           <label className="producer-field">
-            <span>Proyecto</span>
+            <span>{tAuto("Proyecto")}</span>
             <select
               name="project_id"
               value={formData.project_id}
@@ -176,19 +207,19 @@ function ProducerEditOpportunityContent() {
             >
               {projects.map((project) => (
                 <option key={project.id} value={project.id}>
-                  {project.title}
+                  {tAuto(project.title)}
                 </option>
               ))}
             </select>
           </label>
 
           <label className="producer-field">
-            <span>Titulo</span>
+            <span>{tAuto("Titulo")}</span>
             <input name="title" value={formData.title} onChange={handleChange} required />
           </label>
 
           <label className="producer-field">
-            <span>Rol requerido</span>
+            <span>{tAuto("Rol requerido")}</span>
             <input
               name="role_needed"
               value={formData.role_needed}
@@ -198,7 +229,7 @@ function ProducerEditOpportunityContent() {
           </label>
 
           <label className="producer-field">
-            <span>Especialidad</span>
+            <span>{tAuto("Especialidad")}</span>
             <input
               name="specialty"
               value={formData.specialty}
@@ -208,12 +239,12 @@ function ProducerEditOpportunityContent() {
           </label>
 
           <label className="producer-field">
-            <span>Ubicacion</span>
+            <span>{tAuto("Ubicacion")}</span>
             <input name="location" value={formData.location} onChange={handleChange} required />
           </label>
 
           <label className="producer-field">
-            <span>Modalidad</span>
+            <span>{tAuto("Modalidad")}</span>
             <select name="modality" value={formData.modality} onChange={handleChange}>
               {OPPORTUNITY_MODALITY_OPTIONS.map((modality) => (
                 <option key={modality} value={modality}>
@@ -224,18 +255,18 @@ function ProducerEditOpportunityContent() {
           </label>
 
           <label className="producer-field">
-            <span>Estado</span>
+            <span>{tAuto("Estado")}</span>
             <select name="status" value={formData.status} onChange={handleChange}>
               {OPPORTUNITY_STATUS_OPTIONS.map((status) => (
                 <option key={status.value} value={status.value}>
-                  {status.label}
+                  {tAuto(status.label)}
                 </option>
               ))}
             </select>
           </label>
 
           <label className="producer-field">
-            <span>Deadline</span>
+            <span>{tAuto("Deadline")}</span>
             <input
               type="date"
               name="deadline"
@@ -245,7 +276,7 @@ function ProducerEditOpportunityContent() {
           </label>
 
           <label className="producer-field producer-field--full">
-            <span>Descripcion</span>
+            <span>{tAuto("Descripcion")}</span>
             <textarea
               name="description"
               value={formData.description}
@@ -256,7 +287,7 @@ function ProducerEditOpportunityContent() {
           </label>
 
           <label className="producer-field producer-field--full">
-            <span>Requisitos</span>
+            <span>{tAuto("Requisitos")}</span>
             <textarea
               name="requirements"
               value={formData.requirements}
@@ -269,14 +300,14 @@ function ProducerEditOpportunityContent() {
 
           <div className="producer-actions">
             <button className="producer-button" type="button" onClick={() => navigate(-1)}>
-              Cancelar
+              {tAuto("Cancelar")}
             </button>
             <button
               className="producer-button producer-button--primary"
               type="submit"
               disabled={isSubmitting}
             >
-              {isSubmitting ? "Guardando..." : "Guardar cambios"}
+              {isSubmitting ? tAuto("Guardando...") : tAuto("Guardar cambios")}
             </button>
           </div>
         </form>

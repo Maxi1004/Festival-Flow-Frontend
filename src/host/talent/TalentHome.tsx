@@ -16,6 +16,8 @@ import type {
   DashboardOpportunitySummary,
   TalentDashboardDetails,
 } from "../../types/dashboard";
+import { useAutoTranslate, useFestivalFlowLanguage } from "../../hooks/useAutoTranslate";
+import { combineTranslationTexts } from "../../utils/translationTexts";
 import "../../styles/home.css";
 import "../../styles/talent.css";
 
@@ -26,12 +28,23 @@ const talentQuickActions = [
   { labelKey: "talent.home.quickActions.applications", path: "/talent/applications" },
 ];
 
+const talentHomeBaseTexts = [
+  "No se pudieron cargar los detalles del dashboard.",
+  "Mostrando hasta 5 convocatorias disponibles.",
+  "No hay convocatorias disponibles.",
+  "Mostrando hasta 5 postulaciones.",
+  "Convocatoria sin titulo",
+  "Sin mensaje.",
+  "No tienes postulaciones registradas.",
+];
+
 function TalentHome() {
   const { t } = useTranslation();
   const tRef = useRef(t);
   tRef.current = t;
   const navigate = useNavigate();
   const { user, token, profile, isProfileLoading } = useCurrentProfile();
+  const language = useFestivalFlowLanguage();
   const [profileCompletion, setProfileCompletion] = useState(0);
   const [mainSpecialty, setMainSpecialty] = useState("");
   const [location, setLocation] = useState("");
@@ -44,6 +57,28 @@ function TalentHome() {
   const [isDetailsLoading, setIsDetailsLoading] = useState(false);
   const [error, setError] = useState("");
   const [detailsError, setDetailsError] = useState("");
+  const translationTexts = useMemo(
+    () =>
+      combineTranslationTexts(
+        talentHomeBaseTexts,
+        [
+          mainSpecialty,
+          location,
+          ...availableOpportunities.flatMap((opportunity) => [
+            opportunity.title,
+            opportunity.role_needed,
+            opportunity.specialty,
+            opportunity.location,
+          ]),
+          ...applications.flatMap((application) => [
+            application.status,
+            application.message,
+          ]),
+        ]
+      ),
+    [applications, availableOpportunities, location, mainSpecialty]
+  );
+  const { tAuto } = useAutoTranslate(translationTexts, language, token);
 
   const displayName = profile?.name?.trim() || user?.displayName?.trim() || t("common.talent");
   const email = profile?.email ?? user?.email ?? t("common.noEmail");
@@ -82,7 +117,7 @@ function TalentHome() {
         setApplications(details.applications);
       } catch {
         if (isMounted) {
-          setDetailsError("No se pudieron cargar los detalles del dashboard.");
+          setDetailsError(tAuto("No se pudieron cargar los detalles del dashboard."));
         }
       } finally {
         if (isMounted) {
@@ -161,7 +196,7 @@ function TalentHome() {
             {t("talent.home.subtitle")}
           </p>
           <p className="home__subtitle home__subtitle--meta">
-            {displayName} | {email} | {mainSpecialty || t("talent.home.specialtyPending")}
+            {displayName} | {email} | {mainSpecialty ? tAuto(mainSpecialty) : t("talent.home.specialtyPending")}
           </p>
         </div>
 
@@ -171,7 +206,7 @@ function TalentHome() {
               ? t("common.loading")
               : `${profileCompletion}% ${t("common.completed")}`}
           </span>
-          <strong>{location || t("talent.home.locationPending")}</strong>
+          <strong>{location ? tAuto(location) : t("talent.home.locationPending")}</strong>
           <p>{t("talent.home.badgeText")}</p>
         </div>
       </section>
@@ -254,7 +289,7 @@ function TalentHome() {
       {detailModal === "opportunities" ? (
         <SummaryDetailModal
           title={t("talent.home.availableOpportunities")}
-          description="Mostrando hasta 5 convocatorias disponibles."
+          description={tAuto("Mostrando hasta 5 convocatorias disponibles.")}
           onClose={() => setDetailModal(null)}
         >
           <div className="summary-detail-list">
@@ -262,10 +297,10 @@ function TalentHome() {
               <DashboardDetailSkeleton />
             ) : availableOpportunities.length ? availableOpportunities.map((opportunity) => (
               <article key={opportunity.id} className="summary-detail-list__item">
-                <h3>{opportunity.title}</h3>
-                <p>{opportunity.role_needed || opportunity.specialty} | {opportunity.location}</p>
+                <h3>{tAuto(opportunity.title)}</h3>
+                <p>{tAuto(opportunity.role_needed || opportunity.specialty)} | {tAuto(opportunity.location)}</p>
               </article>
-            )) : <p className="summary-detail-empty">No hay convocatorias disponibles.</p>}
+            )) : <p className="summary-detail-empty">{tAuto("No hay convocatorias disponibles.")}</p>}
           </div>
         </SummaryDetailModal>
       ) : null}
@@ -273,7 +308,7 @@ function TalentHome() {
       {detailModal === "applications" ? (
         <SummaryDetailModal
           title={t("talent.home.registeredApplications")}
-          description="Mostrando hasta 5 postulaciones."
+          description={tAuto("Mostrando hasta 5 postulaciones.")}
           onClose={() => setDetailModal(null)}
         >
           <div className="summary-detail-list">
@@ -281,10 +316,10 @@ function TalentHome() {
               <DashboardDetailSkeleton />
             ) : applications.length ? applications.map((application) => (
               <article key={application.id} className="summary-detail-list__item">
-                <h3>{application.opportunity_title || "Convocatoria sin titulo"}</h3>
-                <p>{application.status} | {application.message || "Sin mensaje."}</p>
+                <h3>{application.opportunity_title || tAuto("Convocatoria sin titulo")}</h3>
+                <p>{tAuto(application.status)} | {application.message ? tAuto(application.message) : tAuto("Sin mensaje.")}</p>
               </article>
-            )) : <p className="summary-detail-empty">No tienes postulaciones registradas.</p>}
+            )) : <p className="summary-detail-empty">{tAuto("No tienes postulaciones registradas.")}</p>}
           </div>
         </SummaryDetailModal>
       ) : null}
