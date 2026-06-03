@@ -1,4 +1,19 @@
 import { useEffect, useState } from "react";
+import {
+  FiActivity,
+  FiBriefcase,
+  FiCalendar,
+  FiCheckCircle,
+  FiClock,
+  FiEye,
+  FiFilm,
+  FiFolder,
+  FiMapPin,
+  FiMessageSquare,
+  FiTrendingUp,
+  FiUserCheck,
+  FiUsers,
+} from "react-icons/fi";
 import { Link } from "react-router-dom";
 import ProducerGuard from "./ProducerGuard";
 import {
@@ -6,18 +21,24 @@ import {
   SummaryDetailModal,
 } from "../../components/SummaryDetailModal";
 import { useCurrentProfile } from "../useCurrentProfile";
-import { getProducerDashboard } from "../../service/dashboardApi";
+import {
+  getProducerDashboardDetails,
+  getProducerDashboardQuick,
+} from "../../service/dashboardApi";
 import { reusePendingRequest } from "../../service/pendingRequest";
 import type {
+  DashboardActivityItem,
+  DashboardAvailableTalentSummary,
   DashboardOpportunitySummary,
   DashboardProjectSummary,
+  DashboardProductionEvent,
+  ProducerDashboardDetails,
 } from "../../types/dashboard";
-import type { AvailableTalent } from "../../types/talent";
 import { formatDisplayDate } from "./utils";
 import "../../styles/home.css";
 import "../../styles/producer.css";
 
-function formatTalentName(talent: AvailableTalent): string {
+function formatTalentName(talent: DashboardAvailableTalentSummary): string {
   return (
     talent.display_name?.trim() ||
     talent.profile?.display_name?.trim() ||
@@ -49,10 +70,26 @@ function formatTalentStatus(value?: string | null): string {
   return labels[normalizedValue] ?? value?.trim() ?? "Sin estado";
 }
 
-function getTalentSpecialties(talent: AvailableTalent): string[] {
+function getTalentSpecialties(talent: DashboardAvailableTalentSummary): string[] {
   return talent.specialties?.length
     ? talent.specialties
     : talent.profile?.specialties ?? (talent.main_specialty ? [talent.main_specialty] : []);
+}
+
+function getTalentPhoto(talent: DashboardAvailableTalentSummary): string {
+  return talent.photo_url?.trim() || talent.picture?.trim() || talent.avatar_url?.trim() || "";
+}
+
+function getTalentInitial(talent: DashboardAvailableTalentSummary): string {
+  return formatTalentName(talent).charAt(0).toUpperCase() || "T";
+}
+
+function getTalentMainSpecialty(talent: DashboardAvailableTalentSummary): string {
+  return talent.main_specialty?.trim() || talent.profile?.main_specialty?.trim() || "Especialidad pendiente";
+}
+
+function getTalentLocation(talent: DashboardAvailableTalentSummary): string {
+  return talent.location?.trim() || talent.work_location?.trim() || talent.profile?.location?.trim() || "Ubicacion no informada";
 }
 
 function ProducerHomeContent() {
@@ -61,25 +98,72 @@ function ProducerHomeContent() {
   const [opportunitiesCount, setOpportunitiesCount] = useState(0);
   const [activeOpportunities, setActiveOpportunities] = useState(0);
   const [closedOpportunities, setClosedOpportunities] = useState(0);
+  const [talentsCount, setTalentsCount] = useState<number | null>(null);
+  const [activeCrewMembers, setActiveCrewMembers] = useState<number | null>(null);
+  const [unreadMessages, setUnreadMessages] = useState<number | null>(null);
+  const [applicationsReceived, setApplicationsReceived] = useState<number | null>(null);
   const [latestProjects, setLatestProjects] = useState<DashboardProjectSummary[]>([]);
   const [activeOpportunityDetails, setActiveOpportunityDetails] = useState<DashboardOpportunitySummary[]>([]);
   const [closedOpportunityDetails, setClosedOpportunityDetails] = useState<DashboardOpportunitySummary[]>([]);
-  const [availableTalents, setAvailableTalents] = useState<AvailableTalent[]>([]);
+  const [availableTalents, setAvailableTalents] = useState<DashboardAvailableTalentSummary[]>([]);
+  const [recentActivity, setRecentActivity] = useState<DashboardActivityItem[]>([]);
+  const [upcomingActivities, setUpcomingActivities] = useState<DashboardProductionEvent[]>([]);
   const [detailModal, setDetailModal] = useState<"projects" | "active" | "closed" | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isQuickLoading, setIsQuickLoading] = useState(true);
+  const [isDetailsLoading, setIsDetailsLoading] = useState(false);
   const [error, setError] = useState("");
+  const [detailsError, setDetailsError] = useState("");
 
   useEffect(() => {
+    if (!token) {
+      setIsQuickLoading(true);
+      return;
+    }
+
+    const dashboardToken = token;
     let isMounted = true;
 
-    async function loadDashboard() {
+    async function loadDetails() {
       try {
-        setIsLoading(true);
+        setIsDetailsLoading(true);
+        setDetailsError("");
+
+        const details = await reusePendingRequest<ProducerDashboardDetails>(
+          `producer-dashboard-details:${dashboardToken}`,
+          () => getProducerDashboardDetails(dashboardToken)
+        );
+
+        if (!isMounted) {
+          return;
+        }
+
+        setLatestProjects(details.latest_projects);
+        setActiveOpportunityDetails(details.active_opportunities);
+        setClosedOpportunityDetails(details.closed_opportunities);
+        setAvailableTalents(details.available_talents);
+        setTalentsCount((currentCount) => currentCount ?? details.available_talents.length);
+        setRecentActivity(details.recent_activity ?? []);
+        setUpcomingActivities(details.upcoming_activities ?? []);
+      } catch {
+        if (isMounted) {
+          setDetailsError("No se pudieron cargar los detalles del dashboard.");
+        }
+      } finally {
+        if (isMounted) {
+          setIsDetailsLoading(false);
+        }
+      }
+    }
+
+    async function loadQuickDashboard() {
+      try {
+        setIsQuickLoading(true);
         setError("");
+        setDetailsError("");
 
         const dashboard = await reusePendingRequest(
-          `producer-dashboard:${token}`,
-          () => getProducerDashboard(token ?? undefined)
+          `producer-dashboard-quick:${dashboardToken}`,
+          () => getProducerDashboardQuick(dashboardToken)
         );
 
         if (!isMounted) {
@@ -90,10 +174,11 @@ function ProducerHomeContent() {
         setOpportunitiesCount(dashboard.opportunities_count);
         setActiveOpportunities(dashboard.active_opportunities_count);
         setClosedOpportunities(dashboard.closed_opportunities_count);
-        setLatestProjects(dashboard.latest_projects);
-        setActiveOpportunityDetails(dashboard.active_opportunities);
-        setClosedOpportunityDetails(dashboard.closed_opportunities);
-        setAvailableTalents(dashboard.available_talents);
+        setTalentsCount(dashboard.talents_count ?? null);
+        setActiveCrewMembers(dashboard.active_crew_members_count ?? null);
+        setUnreadMessages(dashboard.unread_messages_count ?? null);
+        setApplicationsReceived(dashboard.applications_received_count ?? null);
+        void loadDetails();
       } catch (loadError) {
         if (!isMounted) {
           return;
@@ -106,12 +191,12 @@ function ProducerHomeContent() {
         );
       } finally {
         if (isMounted) {
-          setIsLoading(false);
+          setIsQuickLoading(false);
         }
       }
     }
 
-    void loadDashboard();
+    void loadQuickDashboard();
 
     return () => {
       isMounted = false;
@@ -119,6 +204,66 @@ function ProducerHomeContent() {
   }, [token]);
 
   const displayName = profile?.name?.trim() || user?.displayName?.trim() || "Productor";
+  const metricCards: Array<{
+    label: string;
+    value: number | null;
+    icon: typeof FiFolder;
+    tone: string;
+    onClick?: () => void;
+  }> = [
+    {
+      label: "Proyectos",
+      value: projectsCount,
+      icon: FiFolder,
+      tone: "slate",
+      onClick: () => setDetailModal("projects"),
+    },
+    {
+      label: "Convocatorias",
+      value: opportunitiesCount,
+      icon: FiBriefcase,
+      tone: "blue",
+    },
+    {
+      label: "Activas",
+      value: activeOpportunities,
+      icon: FiActivity,
+      tone: "green",
+      onClick: () => setDetailModal("active"),
+    },
+    {
+      label: "Cerradas",
+      value: closedOpportunities,
+      icon: FiCheckCircle,
+      tone: "amber",
+      onClick: () => setDetailModal("closed"),
+    },
+    {
+      label: "Talentos",
+      value: talentsCount,
+      icon: FiUsers,
+      tone: "violet",
+    },
+    {
+      label: "Crew",
+      value: activeCrewMembers,
+      icon: FiUserCheck,
+      tone: "cyan",
+    },
+    {
+      label: "Mensajes",
+      value: unreadMessages,
+      icon: FiMessageSquare,
+      tone: "rose",
+    },
+    {
+      label: "Postulaciones",
+      value: applicationsReceived,
+      icon: FiTrendingUp,
+      tone: "indigo",
+    },
+  ].filter((metric) => metric.value !== null);
+  const hasRecentActivity = recentActivity.length > 0;
 
   return (
     <div className="home producer-page">
@@ -137,8 +282,8 @@ function ProducerHomeContent() {
 
         <div className="producer-hero__panel">
           <span className="producer-badge">Cuenta productora activa</span>
-          <strong>{projectsCount} proyectos registrados</strong>
-          <p>{opportunitiesCount} convocatorias creadas en total.</p>
+          <strong>{isQuickLoading ? "..." : projectsCount} proyectos registrados</strong>
+          <p>{isQuickLoading ? "..." : opportunitiesCount} convocatorias creadas en total.</p>
         </div>
       </section>
 
@@ -147,33 +292,53 @@ function ProducerHomeContent() {
           <p>{error}</p>
         </section>
       ) : null}
+      {!error && detailsError ? (
+        <section className="producer-card producer-feedback producer-feedback--warning">
+          <p>{detailsError}</p>
+        </section>
+      ) : null}
 
       <section className="home__section">
         <div className="section-heading">
           <h2 className="section-heading__title">Resumen general</h2>
           <p className="section-heading__text">
-            Una vista rapida del estado de tus proyectos y convocatorias.
+            Una vista rapida del estado de tus proyectos, convocatorias y operacion.
           </p>
         </div>
 
-        <div className="summary-grid">
-          <ClickableSummaryCard className="summary-card" onClick={() => setDetailModal("projects")}>
-            <span className="summary-card__value">{isLoading ? "..." : projectsCount}</span>
-            <p className="summary-card__label">Proyectos creados</p>
-          </ClickableSummaryCard>
-          <ClickableSummaryCard className="summary-card" onClick={() => setDetailModal("active")}>
-            <span className="summary-card__value">{isLoading ? "..." : activeOpportunities}</span>
-            <p className="summary-card__label">Convocatorias activas</p>
-          </ClickableSummaryCard>
-          <ClickableSummaryCard className="summary-card" onClick={() => setDetailModal("closed")}>
-            <span className="summary-card__value">{isLoading ? "..." : closedOpportunities}</span>
-            <p className="summary-card__label">Convocatorias cerradas</p>
-          </ClickableSummaryCard>
+        <div className="producer-kpi-grid">
+          {metricCards.map((metric) => {
+            const Icon = metric.icon;
+            const cardContent = (
+              <>
+                <span className={`producer-kpi__icon producer-kpi__icon--${metric.tone}`}>
+                  <Icon aria-hidden="true" />
+                </span>
+                <span className="producer-kpi__value">{isQuickLoading ? "..." : metric.value}</span>
+                <span className="producer-kpi__label">{metric.label}</span>
+                <span className="producer-kpi__signal">Operacion activa</span>
+              </>
+            );
+
+            return metric.onClick ? (
+              <ClickableSummaryCard
+                key={metric.label}
+                className="producer-kpi"
+                onClick={metric.onClick}
+              >
+                {cardContent}
+              </ClickableSummaryCard>
+            ) : (
+              <article key={metric.label} className="producer-kpi">
+                {cardContent}
+              </article>
+            );
+          })}
         </div>
       </section>
 
-      <section className="home__grid">
-        <article className="panel">
+      <section className="producer-operations-grid">
+        <article className="panel producer-project-panel">
           <div className="section-heading">
             <h2 className="section-heading__title">Proyectos recientes</h2>
             <p className="section-heading__text">
@@ -181,19 +346,27 @@ function ProducerHomeContent() {
             </p>
           </div>
 
-          {isLoading ? (
-            <p className="producer-muted">Cargando proyectos...</p>
+          {isDetailsLoading ? (
+            <ProducerDetailSkeleton />
           ) : latestProjects.length > 0 ? (
             <div className="producer-list">
               {latestProjects.map((project) => (
-                <article key={project.id} className="producer-list-card">
-                  <div>
+                <article key={project.id} className="producer-project-card">
+                  <span className="producer-project-card__icon">
+                    <FiFilm aria-hidden="true" />
+                  </span>
+                  <div className="producer-project-card__body">
                     <p className="producer-list-card__meta">{project.production_type}</p>
                     <h3 className="producer-list-card__title">{project.title}</h3>
+                    <p className="producer-list-card__text">
+                      <FiMapPin aria-hidden="true" /> {project.location} | {formatDisplayDate(project.start_date)}
+                    </p>
                   </div>
-                  <p className="producer-list-card__text">
-                    {project.location} | {formatDisplayDate(project.start_date)}
-                  </p>
+                  {project.status ? (
+                    <span className="producer-project-card__count">
+                      {project.status}
+                    </span>
+                  ) : null}
                 </article>
               ))}
             </div>
@@ -202,11 +375,58 @@ function ProducerHomeContent() {
           )}
         </article>
 
+        <article className="panel producer-calendar-card">
+          <div className="section-heading">
+            <h2 className="section-heading__title">Proximas actividades</h2>
+            <p className="section-heading__text">Produccion, casting y grabaciones por venir.</p>
+          </div>
+
+          <div className="producer-calendar-list">
+            {isDetailsLoading ? (
+              <ProducerCompactSkeleton />
+            ) : upcomingActivities.length ? upcomingActivities.map((event) => (
+              <article key={event.id ?? `${event.title}-${event.date}`} className="producer-calendar-item">
+                <span><FiCalendar aria-hidden="true" /></span>
+                <div>
+                  <strong>{event.title}</strong>
+                  <small>{event.type || "Actividad"} | {formatDisplayDate(event.date)}</small>
+                </div>
+              </article>
+            )) : (
+              <p className="producer-muted">No hay actividades programadas.</p>
+            )}
+          </div>
+        </article>
+      </section>
+
+      <section className={hasRecentActivity ? "producer-secondary-grid" : "producer-secondary-grid producer-secondary-grid--actions"}>
+        {hasRecentActivity ? (
+          <article className="panel producer-activity-card">
+            <div className="section-heading">
+              <h2 className="section-heading__title">Actividad reciente</h2>
+              <p className="section-heading__text">Feed de novedades reales de tus producciones.</p>
+            </div>
+
+            <div className="producer-activity-feed">
+              {recentActivity.map((activity, index) => (
+                <article key={activity.id ?? `${activity.title}-${index}`} className="producer-activity-item">
+                  <span><FiClock aria-hidden="true" /></span>
+                  <div>
+                    <small>{activity.time_label || formatDisplayDate(activity.created_at ?? null)}</small>
+                    <strong>{activity.title}</strong>
+                    {activity.description ? <p>{activity.description}</p> : null}
+                  </div>
+                </article>
+              ))}
+            </div>
+          </article>
+        ) : null}
+
         <article className="panel">
           <div className="section-heading">
             <h2 className="section-heading__title">Acciones rapidas</h2>
             <p className="section-heading__text">
-              Accesos directos para crear y administrar tu pipeline.
+              Accesos directos para crear y administrar tus proyectos.
             </p>
           </div>
 
@@ -235,49 +455,59 @@ function ProducerHomeContent() {
           </p>
         </div>
 
-        {isLoading ? (
-          <article className="panel">
-            <p className="producer-muted">Cargando talentos disponibles...</p>
-          </article>
-        ) : availableTalents.length > 0 ? (
+        {isDetailsLoading ? (
           <div className="producer-grid">
-            {availableTalents.map((talent) => (
-              <article
-                key={talent.id ?? talent.user_uid ?? talent.user_id ?? formatTalentName(talent)}
-                className="producer-card producer-record"
-              >
-                <div className="producer-record__header">
-                  <div>
-                    <p className="producer-record__eyebrow">{talent.email ?? "Sin correo"}</p>
-                    <h3 className="producer-record__title">{formatTalentName(talent)}</h3>
+            <ProducerTalentSkeleton />
+            <ProducerTalentSkeleton />
+          </div>
+        ) : availableTalents.length > 0 ? (
+          <div className="producer-talent-showcase">
+            {availableTalents.map((talent) => {
+              const avatar = getTalentPhoto(talent);
+
+              return (
+                <article
+                  key={talent.id ?? talent.user_uid ?? talent.user_id ?? formatTalentName(talent)}
+                  className="producer-card producer-talent-showcase-card"
+                >
+                  <div className="producer-talent-showcase-card__header">
+                    <span className="producer-talent-avatar">
+                      {avatar ? (
+                        <img src={avatar} alt={`Foto de ${formatTalentName(talent)}`} />
+                      ) : (
+                        getTalentInitial(talent)
+                      )}
+                    </span>
+                    <div className="producer-talent-showcase-card__identity">
+                      <p>{talent.email ?? "Sin correo"}</p>
+                      <h3>{formatTalentName(talent)}</h3>
+                      <small>{getTalentMainSpecialty(talent)}</small>
+                    </div>
+                    <span className="producer-status">
+                      {formatTalentStatus(talent.status)}
+                    </span>
                   </div>
-                  <span className="producer-status">
-                    {formatTalentStatus(talent.status)}
-                  </span>
-                </div>
 
-                <div className="producer-meta-list">
-                  <span>{formatTalentModality(talent.work_modality)}</span>
-                  <span>{talent.location ?? talent.work_location ?? "Ubicacion no informada"}</span>
-                  <span>{formatDisplayDate(talent.available_from)}</span>
-                  <span>{talent.travel_availability ? "Viaja: Si" : "Viaja: No"}</span>
-                </div>
-
-                {talent.notes ? (
-                  <p className="producer-record__text">{talent.notes}</p>
-                ) : null}
-
-                {getTalentSpecialties(talent).length ? (
-                  <div className="producer-chip-list">
-                    {getTalentSpecialties(talent).map((specialty) => (
-                      <span key={specialty} className="producer-chip">
-                        {specialty}
-                      </span>
+                  <div className="producer-talent-chips">
+                    {getTalentSpecialties(talent).slice(0, 2).map((specialty) => (
+                      <span key={specialty}>{specialty}</span>
                     ))}
+                    <span>{formatTalentModality(talent.work_modality)}</span>
+                    <span>{getTalentLocation(talent)}</span>
                   </div>
-                ) : null}
-              </article>
-            ))}
+
+                  <div className="producer-talent-showcase-card__footer">
+                    <div>
+                      <small>Disponible desde</small>
+                      <strong>{formatDisplayDate(talent.available_from)}</strong>
+                    </div>
+                    <Link className="producer-profile-link" to="/producer/talents">
+                      <FiEye aria-hidden="true" /> Ver perfil
+                    </Link>
+                  </div>
+                </article>
+              );
+            })}
           </div>
         ) : (
           <article className="panel">
@@ -293,7 +523,9 @@ function ProducerHomeContent() {
           onClose={() => setDetailModal(null)}
         >
           <div className="summary-detail-list">
-            {latestProjects.length ? latestProjects.map((project) => (
+            {isDetailsLoading ? (
+              <ProducerModalSkeleton />
+            ) : latestProjects.length ? latestProjects.map((project) => (
               <article key={project.id} className="summary-detail-list__item">
                 <h3>{project.title}</h3>
                 <p>{project.production_type} | {project.location} | {formatDisplayDate(project.start_date)}</p>
@@ -310,7 +542,9 @@ function ProducerHomeContent() {
           onClose={() => setDetailModal(null)}
         >
           <div className="summary-detail-list">
-            {(detailModal === "active" ? activeOpportunityDetails : closedOpportunityDetails).length
+            {isDetailsLoading
+              ? <ProducerModalSkeleton />
+              : (detailModal === "active" ? activeOpportunityDetails : closedOpportunityDetails).length
               ? (detailModal === "active" ? activeOpportunityDetails : closedOpportunityDetails).map((opportunity) => (
                 <article key={opportunity.id} className="summary-detail-list__item">
                   <h3>{opportunity.title}</h3>
@@ -322,6 +556,57 @@ function ProducerHomeContent() {
         </SummaryDetailModal>
       ) : null}
     </div>
+  );
+}
+
+function ProducerDetailSkeleton() {
+  return (
+    <div className="producer-list">
+      {[0, 1, 2].map((item) => (
+        <article key={item} className="producer-list-card producer-dashboard-skeleton">
+          <span></span>
+          <strong></strong>
+          <small></small>
+        </article>
+      ))}
+    </div>
+  );
+}
+
+function ProducerTalentSkeleton() {
+  return (
+    <article className="producer-card producer-record producer-dashboard-skeleton">
+      <span></span>
+      <strong></strong>
+      <small></small>
+      <em></em>
+    </article>
+  );
+}
+
+function ProducerCompactSkeleton() {
+  return (
+    <div className="producer-compact-skeleton">
+      {[0, 1, 2].map((item) => (
+        <article key={item} className="producer-dashboard-skeleton">
+          <span></span>
+          <strong></strong>
+        </article>
+      ))}
+    </div>
+  );
+}
+
+function ProducerModalSkeleton() {
+  return (
+    <>
+      {[0, 1, 2].map((item) => (
+        <article key={item} className="summary-detail-list__item producer-dashboard-skeleton">
+          <span></span>
+          <small></small>
+        </article>
+      ))}
+    </>
   );
 }
 

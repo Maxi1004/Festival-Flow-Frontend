@@ -68,6 +68,17 @@ export async function getMyOpportunities(authenticatedToken?: string): Promise<O
   );
 }
 
+export async function getMyOpportunitiesCrm(authenticatedToken?: string): Promise<Opportunity[]> {
+  const response = await fetch(`${API_URL}/opportunities/me/crm`, {
+    method: "GET",
+    headers: await getAuthenticatedHeaders(undefined, authenticatedToken),
+  });
+
+  return unwrapOpportunityListResponse(
+    await parseJsonResponse<Opportunity[] | OpportunityListEnvelope>(response)
+  );
+}
+
 export async function getOpportunityById(opportunityId: string, authenticatedToken?: string): Promise<Opportunity> {
   const response = await fetch(`${API_URL}/opportunities/${opportunityId}`, {
     method: "GET",

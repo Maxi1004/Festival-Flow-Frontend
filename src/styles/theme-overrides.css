@@ -38,6 +38,15 @@ body.dark-theme .summary-card {
 }
 
 body.dark-theme .producer-list-card,
+body.dark-theme .producer-kpi,
+body.dark-theme .producer-calendar-item,
+body.dark-theme .producer-activity-item,
+body.dark-theme .producer-project-card,
+body.dark-theme .producer-help-card__trigger,
+body.dark-theme .producer-profile-summary strong,
+body.dark-theme .producer-profile-summary span,
+body.dark-theme .producer-profile-detail,
+body.dark-theme .producer-project-detail-grid div,
 body.dark-theme .producer-meta-list span,
 body.dark-theme .producer-chip,
 body.dark-theme .producer-crew-project,
@@ -73,6 +82,17 @@ body.dark-theme .producer-card__title,
 body.dark-theme .producer-record__title,
 body.dark-theme .producer-applicants__title,
 body.dark-theme .producer-list-card__title,
+body.dark-theme .producer-kpi__value,
+body.dark-theme .producer-calendar-item strong,
+body.dark-theme .producer-activity-item strong,
+body.dark-theme .producer-talent-showcase-card__identity h3,
+body.dark-theme .producer-talent-showcase-card__footer strong,
+body.dark-theme .producer-profile-detail strong,
+body.dark-theme .producer-profile-modal__heading h2,
+body.dark-theme .producer-project-crm__heading h2,
+body.dark-theme .producer-project-table__title strong,
+body.dark-theme .producer-project-detail-modal__header h2,
+body.dark-theme .producer-project-detail-grid strong,
 body.dark-theme .producer-metric__value,
 body.dark-theme .producer-message-history h4,
 body.dark-theme .producer-talent-detail__section strong,
@@ -112,7 +132,11 @@ body.dark-theme .producer-page__subtitle,
 body.dark-theme .producer-card__text,
 body.dark-theme .producer-record__text,
 body.dark-theme .producer-muted,
+body.dark-theme .producer-kpi__label,
+body.dark-theme .producer-activity-item p,
 body.dark-theme .producer-list-card__text,
+body.dark-theme .producer-profile-detail p,
+body.dark-theme .producer-project-table__title span,
 body.dark-theme .producer-flow-card__steps,
 body.dark-theme .producer-message-history p,
 body.dark-theme .talent-page__subtitle,
@@ -147,7 +171,14 @@ body.dark-theme .summary-detail-list__item p {
 body.dark-theme .producer-page__eyebrow,
 body.dark-theme .producer-record__eyebrow,
 body.dark-theme .producer-list-card__meta,
+body.dark-theme .producer-calendar-item small,
+body.dark-theme .producer-activity-item small,
+body.dark-theme .producer-talent-showcase-card__identity p,
+body.dark-theme .producer-talent-showcase-card__identity small,
+body.dark-theme .producer-talent-showcase-card__footer small,
 body.dark-theme .producer-message-history span,
+body.dark-theme .producer-profile-photo-actions small,
+body.dark-theme .producer-profile-detail span,
 body.dark-theme .talent-page__eyebrow,
 body.dark-theme .talent-field__label,
 body.dark-theme .talent-application-kpi p,
@@ -257,6 +288,7 @@ body.dark-theme .register-input:focus {
 
 body.dark-theme .producer-button,
 body.dark-theme .producer-link-button,
+body.dark-theme .producer-profile-link,
 body.dark-theme .talent-button,
 body.dark-theme .actions__button,
 body.dark-theme .messages-button,
@@ -273,6 +305,7 @@ body.dark-theme .summary-detail-modal__close {
 
 body.dark-theme .producer-button:hover,
 body.dark-theme .producer-link-button:hover,
+body.dark-theme .producer-profile-link:hover,
 body.dark-theme .talent-button:hover,
 body.dark-theme .actions__button:hover,
 body.dark-theme .messages-button:hover,
@@ -306,6 +339,9 @@ body.dark-theme .register-button:hover:not(:disabled) {
 body.dark-theme .producer-badge,
 body.dark-theme .producer-status,
 body.dark-theme .producer-chip,
+body.dark-theme .producer-kpi__signal,
+body.dark-theme .producer-talent-chips span,
+body.dark-theme .producer-count-badge,
 body.dark-theme .talent-meta-list span,
 body.dark-theme .talent-badge,
 body.dark-theme .talent-status,
@@ -344,13 +380,26 @@ body.dark-theme .talent-button--danger {
   color: #fca5a5;
 }
 
+body.dark-theme .producer-button--danger {
+  border-color: rgba(248, 113, 113, 0.45);
+  background: rgba(127, 29, 29, 0.18);
+  color: #fca5a5;
+}
+
 body.dark-theme .talent-button--danger:hover {
+  background: rgba(127, 29, 29, 0.35);
+  border-color: rgba(248, 113, 113, 0.65);
+}
+
+body.dark-theme .producer-button--danger:hover:not(:disabled) {
   background: rgba(127, 29, 29, 0.35);
   border-color: rgba(248, 113, 113, 0.65);
 }
 
 body.dark-theme .producer-crew-project:hover,
 body.dark-theme .producer-crew-project--active,
+body.dark-theme .producer-project-card:hover,
+body.dark-theme .producer-project-table tbody tr:hover,
 body.dark-theme .talent-crew-project:hover,
 body.dark-theme .talent-crew-project--active,
 body.dark-theme .talent-availability-choice:has(input:checked),
@@ -391,17 +440,24 @@ body.dark-theme .talent-avatar__edit-icon {
   color: var(--text-primary);
 }
 
+body.dark-theme .producer-profile-avatar__icon {
+  background: var(--bg-card);
+  color: var(--text-primary);
+}
+
 body.dark-theme .talent-progress__track,
 body.dark-theme .talent-application-chart__track {
   background: #334155;
 }
 
 body.dark-theme .talent-application-table-wrap,
+body.dark-theme .producer-project-table-wrap,
 body.dark-theme .overflow-x-auto {
   background: var(--table-bg);
 }
 
 body.dark-theme .talent-application-table,
+body.dark-theme .producer-project-table,
 body.dark-theme table {
   background: var(--table-bg);
   color: var(--text-secondary);
@@ -409,6 +465,8 @@ body.dark-theme table {
 
 body.dark-theme .talent-application-table th,
 body.dark-theme .talent-application-table td,
+body.dark-theme .producer-project-table th,
+body.dark-theme .producer-project-table td,
 body.dark-theme table th,
 body.dark-theme table td {
   border-color: var(--border-color);
@@ -416,6 +474,7 @@ body.dark-theme table td {
 }
 
 body.dark-theme .talent-application-table th,
+body.dark-theme .producer-project-table th,
 body.dark-theme table thead,
 body.dark-theme table th {
   background: #111827;
@@ -423,6 +482,7 @@ body.dark-theme table th {
 }
 
 body.dark-theme .talent-application-table tbody tr:hover,
+body.dark-theme .producer-project-table tbody tr:hover,
 body.dark-theme table tbody tr:hover {
   background: var(--hover-bg);
 }
@@ -505,6 +565,18 @@ body.dark-theme .register-message.is-success {
   color: #bbf7d0;
 }
 
+body.dark-theme .talent-feedback--warning {
+  background: rgba(113, 63, 18, 0.36);
+  border-color: rgba(251, 191, 36, 0.42);
+  color: #fde68a;
+}
+
+body.dark-theme .producer-feedback--warning {
+  background: rgba(113, 63, 18, 0.36);
+  border-color: rgba(251, 191, 36, 0.42);
+  color: #fde68a;
+}
+
 body.dark-theme .login-divider::before,
 body.dark-theme .login-divider::after,
 body.dark-theme .register-divider::before,
@@ -524,7 +596,13 @@ body.dark-theme .messages-thread-skeleton strong,
 body.dark-theme .messages-thread-skeleton small,
 body.dark-theme .messages-bubble-skeleton strong,
 body.dark-theme .messages-bubble-skeleton span,
-body.dark-theme .messages-bubble-skeleton small {
+body.dark-theme .messages-bubble-skeleton small,
+body.dark-theme .talent-dashboard-detail-skeleton span,
+body.dark-theme .talent-dashboard-detail-skeleton small,
+body.dark-theme .producer-dashboard-skeleton span,
+body.dark-theme .producer-dashboard-skeleton strong,
+body.dark-theme .producer-dashboard-skeleton small,
+body.dark-theme .producer-dashboard-skeleton em {
   background: linear-gradient(90deg, #334155 25%, #475569 50%, #334155 75%);
   background-size: 200% 100%;
 }

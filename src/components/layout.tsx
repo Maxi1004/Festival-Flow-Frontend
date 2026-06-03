@@ -4,6 +4,7 @@ import { Outlet, useLocation, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import LanguageSelector from "./LanguageSelector";
 import { useAuth } from "../context/useAuth";
+import { useAutoTranslate, useFestivalFlowLanguage } from "../hooks/useAutoTranslate";
 import { useCurrentProfile } from "../host/useCurrentProfile";
 import {
   getCachedSidebarPhoto,
@@ -20,57 +21,91 @@ import "../styles/layout.css";
 
 type NavigationItem = {
   labelKey: string;
+  label: string;
   path: string;
 };
 
 const producerNav: NavigationItem[] = [
-  { labelKey: "layout.producerNav.home", path: "/producer" },
-  { labelKey: "layout.producerNav.projects", path: "/producer/projects" },
-  { labelKey: "layout.producerNav.opportunities", path: "/producer/opportunities" },
-  { labelKey: "layout.producerNav.talents", path: "/producer/talents" },
-  { labelKey: "layout.producerNav.crew", path: "/producer/crew" },
-  { labelKey: "layout.producerNav.messages", path: "/producer/messages" },
+  { labelKey: "layout.producerNav.home", label: "Inicio", path: "/producer" },
+  { labelKey: "layout.producerNav.profile", label: "Mi perfil", path: "/producer/profile" },
+  { labelKey: "layout.producerNav.projects", label: "Mis proyectos", path: "/producer/projects" },
+  { labelKey: "layout.producerNav.opportunities", label: "Convocatorias", path: "/producer/opportunities" },
+  { labelKey: "layout.producerNav.talents", label: "Talentos", path: "/producer/talents" },
+  { labelKey: "layout.producerNav.crew", label: "Crew", path: "/producer/crew" },
+  { labelKey: "layout.producerNav.messages", label: "Mensajes", path: "/producer/messages" },
 ];
 
 const talentNav: NavigationItem[] = [
-  { labelKey: "layout.talentNav.home", path: "/talent" },
-  { labelKey: "layout.talentNav.profile", path: "/talent/profile" },
-  { labelKey: "layout.talentNav.availability", path: "/talent/availability" },
-  { labelKey: "layout.talentNav.opportunities", path: "/talent/opportunities" },
-  { labelKey: "layout.talentNav.applications", path: "/talent/applications" },
-  { labelKey: "layout.talentNav.invitations", path: "/talent/invitations" },
-  { labelKey: "layout.talentNav.crew", path: "/talent/crew" },
-  { labelKey: "layout.talentNav.messages", path: "/talent/messages" },
+  { labelKey: "layout.talentNav.home", label: "Inicio", path: "/talent" },
+  { labelKey: "layout.talentNav.profile", label: "Mi perfil", path: "/talent/profile" },
+  { labelKey: "layout.talentNav.availability", label: "Disponibilidad", path: "/talent/availability" },
+  { labelKey: "layout.talentNav.opportunities", label: "Convocatorias", path: "/talent/opportunities" },
+  { labelKey: "layout.talentNav.applications", label: "Postulaciones", path: "/talent/applications" },
+  { labelKey: "layout.talentNav.invitations", label: "Invitaciones", path: "/talent/invitations" },
+  { labelKey: "layout.talentNav.crew", label: "Crew", path: "/talent/crew" },
+  { labelKey: "layout.talentNav.messages", label: "Mensajes", path: "/talent/messages" },
 ];
 
-const talentPageMeta: Record<string, { eyebrowKey: string; titleKey: string }> = {
-  "/talent": { eyebrowKey: "layout.talentMeta.homeEyebrow", titleKey: "layout.talentNav.home" },
-  "/talent/profile": { eyebrowKey: "layout.talentMeta.profileEyebrow", titleKey: "layout.talentNav.profile" },
-  "/talent/availability": { eyebrowKey: "layout.talentMeta.availabilityEyebrow", titleKey: "layout.talentNav.availability" },
-  "/talent/opportunities": { eyebrowKey: "layout.talentMeta.opportunitiesEyebrow", titleKey: "layout.talentNav.opportunities" },
-  "/talent/applications": { eyebrowKey: "layout.talentMeta.applicationsEyebrow", titleKey: "layout.talentNav.applications" },
-  "/talent/invitations": { eyebrowKey: "layout.talentMeta.invitationsEyebrow", titleKey: "layout.talentNav.invitations" },
-  "/talent/crew": { eyebrowKey: "layout.talentMeta.crewEyebrow", titleKey: "layout.talentNav.crew" },
-  "/talent/messages": { eyebrowKey: "layout.talentMeta.messagesEyebrow", titleKey: "layout.talentNav.messages" },
+const talentPageMeta: Record<string, { eyebrowKey: string; eyebrow: string; titleKey: string; title: string }> = {
+  "/talent": { eyebrowKey: "layout.talentMeta.homeEyebrow", eyebrow: "Panel de talento", titleKey: "layout.talentNav.home", title: "Inicio" },
+  "/talent/profile": { eyebrowKey: "layout.talentMeta.profileEyebrow", eyebrow: "Perfil", titleKey: "layout.talentNav.profile", title: "Mi perfil" },
+  "/talent/availability": { eyebrowKey: "layout.talentMeta.availabilityEyebrow", eyebrow: "Disponibilidad", titleKey: "layout.talentNav.availability", title: "Disponibilidad" },
+  "/talent/opportunities": { eyebrowKey: "layout.talentMeta.opportunitiesEyebrow", eyebrow: "Convocatorias", titleKey: "layout.talentNav.opportunities", title: "Convocatorias" },
+  "/talent/applications": { eyebrowKey: "layout.talentMeta.applicationsEyebrow", eyebrow: "Postulaciones", titleKey: "layout.talentNav.applications", title: "Postulaciones" },
+  "/talent/invitations": { eyebrowKey: "layout.talentMeta.invitationsEyebrow", eyebrow: "Invitaciones", titleKey: "layout.talentNav.invitations", title: "Invitaciones" },
+  "/talent/crew": { eyebrowKey: "layout.talentMeta.crewEyebrow", eyebrow: "Crew", titleKey: "layout.talentNav.crew", title: "Crew" },
+  "/talent/messages": { eyebrowKey: "layout.talentMeta.messagesEyebrow", eyebrow: "Mensajes", titleKey: "layout.talentNav.messages", title: "Mensajes" },
 };
 
-const producerPageMeta: Record<string, { eyebrowKey: string; titleKey: string }> = {
-  "/producer": { eyebrowKey: "layout.producerMeta.homeEyebrow", titleKey: "layout.producerNav.home" },
-  "/producer/projects": { eyebrowKey: "layout.producerMeta.productionEyebrow", titleKey: "layout.producerNav.projects" },
-  "/producer/projects/new": { eyebrowKey: "layout.producerMeta.productionEyebrow", titleKey: "layout.producerMeta.newProject" },
-  "/producer/opportunities": { eyebrowKey: "layout.producerMeta.opportunitiesEyebrow", titleKey: "layout.producerNav.opportunities" },
-  "/producer/opportunities/new": { eyebrowKey: "layout.producerMeta.opportunitiesEyebrow", titleKey: "layout.producerMeta.newOpportunity" },
-  "/producer/talents": { eyebrowKey: "layout.producerMeta.talentsEyebrow", titleKey: "layout.producerNav.talents" },
-  "/producer/crew": { eyebrowKey: "layout.producerMeta.crewEyebrow", titleKey: "layout.producerNav.crew" },
-  "/producer/messages": { eyebrowKey: "layout.producerMeta.messagesEyebrow", titleKey: "layout.producerNav.messages" },
+const producerPageMeta: Record<string, { eyebrowKey: string; eyebrow: string; titleKey: string; title: string }> = {
+  "/producer": { eyebrowKey: "layout.producerMeta.homeEyebrow", eyebrow: "Panel de producción", titleKey: "layout.producerNav.home", title: "Inicio" },
+  "/producer/profile": { eyebrowKey: "layout.producerMeta.profileEyebrow", eyebrow: "Perfil", titleKey: "layout.producerNav.profile", title: "Mi perfil" },
+  "/producer/projects": { eyebrowKey: "layout.producerMeta.productionEyebrow", eyebrow: "Producción", titleKey: "layout.producerNav.projects", title: "Mis proyectos" },
+  "/producer/projects/new": { eyebrowKey: "layout.producerMeta.productionEyebrow", eyebrow: "Producción", titleKey: "layout.producerMeta.newProject", title: "Nuevo proyecto" },
+  "/producer/opportunities": { eyebrowKey: "layout.producerMeta.opportunitiesEyebrow", eyebrow: "Convocatorias", titleKey: "layout.producerNav.opportunities", title: "Convocatorias" },
+  "/producer/opportunities/new": { eyebrowKey: "layout.producerMeta.opportunitiesEyebrow", eyebrow: "Convocatorias", titleKey: "layout.producerMeta.newOpportunity", title: "Nueva convocatoria" },
+  "/producer/talents": { eyebrowKey: "layout.producerMeta.talentsEyebrow", eyebrow: "Talentos", titleKey: "layout.producerNav.talents", title: "Talentos" },
+  "/producer/crew": { eyebrowKey: "layout.producerMeta.crewEyebrow", eyebrow: "Crew", titleKey: "layout.producerNav.crew", title: "Crew" },
+  "/producer/messages": { eyebrowKey: "layout.producerMeta.messagesEyebrow", eyebrow: "Mensajes", titleKey: "layout.producerNav.messages", title: "Mensajes" },
 };
+
+const layoutBaseTexts = [
+  "Inicio",
+  "Mi perfil",
+  "Mis proyectos",
+  "Convocatorias",
+  "Talentos",
+  "Crew",
+  "Mensajes",
+  "Nuevo proyecto",
+  "Cerrar sesión",
+  "Editar perfil",
+  "Panel de producción",
+  "Panel de talento",
+  "Sesión activa",
+  "Sesión inactiva",
+  "Cargando perfil",
+  "Acceso",
+  "Iniciar sesión",
+  "Navegación principal",
+  "Producción",
+  "Perfil",
+  "Disponibilidad",
+  "Postulaciones",
+  "Invitaciones",
+  "Nueva convocatoria",
+  "Editar proyecto",
+  "Editar convocatoria",
+];
 
 function Layout() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const location = useLocation();
   const { logout } = useAuth();
-  const { user, profile, isProfileLoading } = useCurrentProfile();
+  const { user, token, profile, isProfileLoading } = useCurrentProfile();
+  const language = useFestivalFlowLanguage();
+  const { tAuto } = useAutoTranslate(layoutBaseTexts, language, token);
   const [theme, setTheme] = useState<FestivalFlowTheme>(() => getStoredTheme());
 
   const isProducer = profile?.role === "PRODUCER";
@@ -94,10 +129,10 @@ function Layout() {
     ? talentPageMeta[location.pathname] ?? talentPageMeta["/talent"]
     : producerPageMeta[location.pathname] ??
       (location.pathname.includes("/producer/projects/")
-        ? { eyebrowKey: "layout.producerMeta.productionEyebrow", titleKey: "layout.producerMeta.editProject" }
+        ? { eyebrowKey: "layout.producerMeta.productionEyebrow", eyebrow: "Producción", titleKey: "layout.producerMeta.editProject", title: "Editar proyecto" }
         : location.pathname.includes("/producer/opportunities/")
-        ? { eyebrowKey: "layout.producerMeta.opportunitiesEyebrow", titleKey: "layout.producerMeta.editOpportunity" }
-        : { eyebrowKey: "layout.producerMeta.mainEyebrow", titleKey: "layout.producerNav.home" });
+        ? { eyebrowKey: "layout.producerMeta.opportunitiesEyebrow", eyebrow: "Convocatorias", titleKey: "layout.producerMeta.editOpportunity", title: "Editar convocatoria" }
+        : { eyebrowKey: "layout.producerMeta.mainEyebrow", eyebrow: "Panel de producción", titleKey: "layout.producerNav.home", title: "Inicio" });
 
   const handleLogout = async () => {
     try {
@@ -158,10 +193,10 @@ function Layout() {
                 {isProfileLoading
                   ? t("common.loading")
                   : isProducer
-                  ? t("layout.producerPanel")
+                  ? tAuto("Panel de producción")
                   : isTalent
-                  ? t("layout.talentPanel")
-                  : t("layout.access")}
+                  ? tAuto("Panel de talento")
+                  : tAuto("Acceso")}
               </p>
               <h1 className="sidebar__title">{t("app.name")}</h1>
             </div>
@@ -169,7 +204,7 @@ function Layout() {
 
           {!user ? (
             <button className="sidebar__action" type="button" onClick={() => navigate("/login")}>
-              {t("layout.login")}
+              {tAuto("Iniciar sesión")}
             </button>
           ) : (
             <>
@@ -179,10 +214,10 @@ function Layout() {
                 disabled={isProfileLoading}
                 onClick={handlePrimaryAction}
               >
-                {isProducer ? t("layout.producerMeta.newProject") : t("layout.editProfile")}
+                {isProducer ? tAuto("Nuevo proyecto") : tAuto("Editar perfil")}
               </button>
 
-              <nav className="sidebar__nav" aria-label={t("layout.primaryNavigation")}>
+              <nav className="sidebar__nav" aria-label={tAuto("Navegación principal")}>
                 {isProfileLoading ? (
                   <span className="sidebar__link">{t("common.loading")}</span>
                 ) : (
@@ -200,7 +235,7 @@ function Layout() {
                         type="button"
                         onClick={() => navigate(item.path)}
                       >
-                        {t(item.labelKey)}
+                        {tAuto(item.label)}
                       </button>
                     );
                   })
@@ -214,10 +249,10 @@ function Layout() {
           <span className="sidebar__status-dot" aria-hidden="true"></span>
           <span>
             {isProfileLoading
-              ? t("layout.loadingProfile")
+              ? tAuto("Cargando perfil")
               : user
-              ? t("layout.activeSession", { role: roleLabel })
-              : t("layout.inactiveSession")}
+              ? `${tAuto("Sesión activa")} | ${roleLabel}`
+              : tAuto("Sesión inactiva")}
           </span>
         </div>
       </aside>
@@ -225,12 +260,12 @@ function Layout() {
       <div className="layout__content">
         <header className="topbar">
           <div>
-            <p className="topbar__eyebrow">{t(topbarMeta.eyebrowKey)}</p>
-            <h2 className="topbar__title">{t(topbarMeta.titleKey)}</h2>
+            <p className="topbar__eyebrow">{tAuto(topbarMeta.eyebrow)}</p>
+            <h2 className="topbar__title">{tAuto(topbarMeta.title)}</h2>
             {user ? (
               <p className="topbar__meta">
                 {isProfileLoading
-                  ? t("layout.loadingProfile")
+                  ? tAuto("Cargando perfil")
                   : `${userName} | ${roleLabel}`}
               </p>
             ) : null}
@@ -251,7 +286,7 @@ function Layout() {
 
             {user ? (
               <button className="topbar__session" type="button" onClick={handleLogout}>
-                {t("layout.logout")}
+                {tAuto("Cerrar sesión")}
               </button>
             ) : (
               <button
@@ -259,7 +294,7 @@ function Layout() {
                 type="button"
                 onClick={() => navigate("/login")}
               >
-                {t("layout.login")}
+                {tAuto("Iniciar sesión")}
               </button>
             )}
           </div>

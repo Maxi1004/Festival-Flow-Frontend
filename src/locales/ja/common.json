@@ -66,6 +66,7 @@
   "layout": {
     "producerNav": {
       "home": "ホーム",
+      "profile": "プロフィール",
       "projects": "自分のプロジェクト",
       "opportunities": "募集",
       "talents": "Talents",
@@ -94,6 +95,7 @@
     },
     "producerMeta": {
       "homeEyebrow": "概要",
+      "profileEyebrow": "プロデューサープロフィール",
       "productionEyebrow": "制作",
       "opportunitiesEyebrow": "募集",
       "mainEyebrow": "メインパネル",

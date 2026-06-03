@@ -23,6 +23,32 @@ type CrewListEnvelope = {
   results?: CrewMember[];
 };
 
+export type CrewCrmProject = {
+  project_id: string;
+  project_title?: string | null;
+  title?: string | null;
+  status?: string | null;
+  members_count?: number;
+  member_count?: number;
+  membersCount?: number;
+  latest_activity?: string | null;
+  last_activity?: string | null;
+  latest_joined_at?: string | null;
+  joined_at?: string | null;
+  members?: CrewMember[];
+};
+
+type CrewCrmEnvelope = {
+  data?: CrewCrmProject[] | CrewMember[];
+  items?: CrewCrmProject[] | CrewMember[];
+  projects?: CrewCrmProject[];
+  teams?: CrewCrmProject[];
+  crew?: CrewMember[];
+  members?: CrewMember[];
+  records?: CrewCrmProject[] | CrewMember[];
+  results?: CrewCrmProject[] | CrewMember[];
+};
+
 type CrewMemberEnvelope = {
   crew_member?: CrewMember;
   data?: CrewMember;
@@ -89,6 +115,24 @@ function unwrapCrewList(payload: CrewMember[] | CrewListEnvelope): CrewMember[] 
   return (
     payload.crew ??
     payload.members ??
+    payload.data ??
+    payload.items ??
+    payload.records ??
+    payload.results ??
+    []
+  );
+}
+
+function unwrapCrewCrm(payload: CrewCrmProject[] | CrewMember[] | CrewCrmEnvelope): CrewCrmProject[] | CrewMember[] {
+  if (Array.isArray(payload)) {
+    return payload;
+  }
+
+  return (
+    payload.projects ??
+    payload.teams ??
+    payload.members ??
+    payload.crew ??
     payload.data ??
     payload.items ??
     payload.records ??
@@ -212,6 +256,27 @@ export async function getProducerCrew(authenticatedToken?: string): Promise<Crew
   return await getCrew("/producer/crew", authenticatedToken);
 }
 
+export async function getMyCrewCrm(
+  options: { summary?: boolean } = { summary: true },
+  authenticatedToken?: string
+): Promise<CrewCrmProject[] | CrewMember[]> {
+  const searchParams = new URLSearchParams({
+    summary: options.summary === false ? "false" : "true",
+  });
+  const response = await fetch(`${API_URL}/crew/me/crm?${searchParams.toString()}`, {
+    method: "GET",
+    headers: await getAuthenticatedHeaders(undefined, authenticatedToken),
+  });
+
+  if (!response.ok) {
+    throw new Error(await getErrorMessage(response));
+  }
+
+  return unwrapCrewCrm(
+    await parseJsonResponse<CrewCrmProject[] | CrewMember[] | CrewCrmEnvelope>(response)
+  );
+}
+
 export async function getTalentCrew(authenticatedToken?: string): Promise<CrewMember[]> {
   return await getCrew("/talent/crew", authenticatedToken);
 }
@@ -294,6 +359,57 @@ export async function updateCrewMember(
   }
 
   return unwrapCrewMember(await parseJsonResponse<CrewMember | CrewMemberEnvelope>(response));
+}
+
+export async function updateCrewProjectMember(
+  projectId: string,
+  memberId: string,
+  payload: CrewMemberUpdatePayload,
+  authenticatedToken?: string
+): Promise<CrewMember> {
+  const response = await fetch(
+    `${API_URL}/crew/projects/${encodeURIComponent(projectId)}/members/${encodeURIComponent(memberId)}`,
+    {
+      method: "PATCH",
+      headers: await getAuthenticatedHeaders(
+        { "Content-Type": "application/json" },
+        authenticatedToken
+      ),
+      body: JSON.stringify(payload),
+    }
+  );
+
+  if (!response.ok) {
+    throw new Error(await getErrorMessage(response));
+  }
+
+  if (response.status === 204) {
+    return {
+      id: memberId,
+      project_id: projectId,
+      ...payload,
+    };
+  }
+
+  return unwrapCrewMember(await parseJsonResponse<CrewMember | CrewMemberEnvelope>(response));
+}
+
+export async function removeCrewProjectMember(
+  projectId: string,
+  memberId: string,
+  authenticatedToken?: string
+): Promise<void> {
+  const response = await fetch(
+    `${API_URL}/crew/projects/${encodeURIComponent(projectId)}/members/${encodeURIComponent(memberId)}`,
+    {
+      method: "DELETE",
+      headers: await getAuthenticatedHeaders(undefined, authenticatedToken),
+    }
+  );
+
+  if (!response.ok) {
+    throw new Error(await getErrorMessage(response));
+  }
 }
 
 export async function sendCrewMessage(

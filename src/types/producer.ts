@@ -1,5 +1,36 @@
 export type ProjectStatus = "DRAFT" | "ACTIVE" | "PAUSED" | "COMPLETED" | "CANCELLED";
 
+export type ProducerProfile = {
+  id?: string;
+  user_uid?: string;
+  display_name: string;
+  company_name: string;
+  role_title: string;
+  bio: string;
+  location: string;
+  country: string;
+  phone: string;
+  website: string;
+  photo_url: string | null;
+  created_at?: string;
+  updated_at?: string;
+};
+
+export type ProducerProfileUpdatePayload = {
+  display_name: string;
+  company_name: string;
+  role_title: string;
+  bio: string;
+  location: string;
+  country: string;
+  phone: string;
+  website: string;
+};
+
+export type ProducerProfilePhotoResponse = {
+  photo_url: string;
+};
+
 export type OpportunityStatus =
   | "ACTIVE"
   | "CANCELLED"
@@ -21,6 +52,7 @@ export type Project = {
   start_date: string | null;
   end_date: string | null;
   status: ProjectStatus | string;
+  opportunities_count?: number;
   created_at?: string;
   updated_at?: string;
 };
@@ -51,6 +83,10 @@ export type Opportunity = {
   requirements: string[];
   status: OpportunityStatus | string;
   deadline: string | null;
+  applications_count?: number;
+  applicants_count?: number;
+  applicantsCount?: number;
+  project_title?: string;
   created_at?: string;
   updated_at?: string;
   project?: Project | null;

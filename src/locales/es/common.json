@@ -87,6 +87,7 @@
   "layout": {
     "producerNav": {
       "home": "Inicio",
+      "profile": "Mi perfil",
       "projects": "Mis proyectos",
       "opportunities": "Convocatorias",
       "talents": "Talentos",
@@ -115,6 +116,7 @@
     },
     "producerMeta": {
       "homeEyebrow": "Vista general",
+      "profileEyebrow": "Perfil de productor",
       "productionEyebrow": "Producción",
       "opportunitiesEyebrow": "Convocatorias",
       "mainEyebrow": "Panel principal",

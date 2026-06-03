@@ -66,6 +66,7 @@
   "layout": {
     "producerNav": {
       "home": "首页",
+      "profile": "我的资料",
       "projects": "我的项目",
       "opportunities": "招募",
       "talents": "Talents",
@@ -94,6 +95,7 @@
     },
     "producerMeta": {
       "homeEyebrow": "概览",
+      "profileEyebrow": "制作人资料",
       "productionEyebrow": "制作",
       "opportunitiesEyebrow": "招募",
       "mainEyebrow": "主面板",

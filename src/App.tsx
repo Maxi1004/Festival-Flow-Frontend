@@ -10,6 +10,7 @@ import ProducerEditProject from "./host/producer/ProducerEditProject";
 import ProducerHome from "./host/producer/ProducerHome";
 import ProducerMessages from "./host/producer/ProducerMessages";
 import ProducerOpportunities from "./host/producer/ProducerOpportunities";
+import ProducerProfile from "./host/producer/ProducerProfile";
 import ProducerProjects from "./host/producer/ProducerProjects";
 import ProducerTalents from "./host/producer/ProducerTalents";
 import Register from "./host/Register";
@@ -29,6 +30,7 @@ function App() {
         <Route element={<Layout />}>
           <Route path="/" element={<Home />} />
           <Route path="/producer" element={<ProducerHome />} />
+          <Route path="/producer/profile" element={<ProducerProfile />} />
           <Route path="/producer/projects" element={<ProducerProjects />} />
           <Route path="/producer/projects/new" element={<ProducerCreateProject />} />
           <Route path="/producer/projects/:projectId/edit" element={<ProducerEditProject />} />

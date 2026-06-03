@@ -182,7 +182,9 @@ export type AvailableTalent = {
   name?: string | null;
   display_name?: string | null;
   email?: string | null;
+  photo_url?: string | null;
   picture?: string | null;
+  avatar_url?: string | null;
   work_modality?: WorkModality | string | null;
   travel_availability?: boolean | null;
   location?: string | null;
@@ -251,6 +253,8 @@ export type CrewMessage = {
 
 export type CrewMemberUpdatePayload = {
   role: string;
+  category?: string;
+  status?: string;
   task_description: string;
   producer_note: string;
 };

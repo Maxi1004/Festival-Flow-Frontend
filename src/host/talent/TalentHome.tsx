@@ -6,11 +6,15 @@ import {
   SummaryDetailModal,
 } from "../../components/SummaryDetailModal";
 import { useCurrentProfile } from "../useCurrentProfile";
-import { getTalentDashboard } from "../../service/dashboardApi";
+import {
+  getTalentDashboardDetails,
+  getTalentDashboardQuick,
+} from "../../service/dashboardApi";
 import { reusePendingRequest } from "../../service/pendingRequest";
 import type {
   DashboardApplicationSummary,
   DashboardOpportunitySummary,
+  TalentDashboardDetails,
 } from "../../types/dashboard";
 import "../../styles/home.css";
 import "../../styles/talent.css";
@@ -36,34 +40,65 @@ function TalentHome() {
   const [availableOpportunities, setAvailableOpportunities] = useState<DashboardOpportunitySummary[]>([]);
   const [applications, setApplications] = useState<DashboardApplicationSummary[]>([]);
   const [detailModal, setDetailModal] = useState<"opportunities" | "applications" | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isQuickLoading, setIsQuickLoading] = useState(true);
+  const [isDetailsLoading, setIsDetailsLoading] = useState(false);
   const [error, setError] = useState("");
+  const [detailsError, setDetailsError] = useState("");
 
   const displayName = profile?.name?.trim() || user?.displayName?.trim() || t("common.talent");
   const email = profile?.email ?? user?.email ?? t("common.noEmail");
 
   useEffect(() => {
     if (isProfileLoading) {
-      setIsLoading(true);
+      setIsQuickLoading(true);
       return;
     }
 
     if (!user || !profile || !token) {
       setError("");
-      setIsLoading(false);
+      setDetailsError("");
+      setIsQuickLoading(false);
+      setIsDetailsLoading(false);
       return;
     }
 
     const dashboardToken = token;
     let isMounted = true;
 
-    async function loadDashboard() {
+    async function loadDetails() {
       try {
-        setIsLoading(true);
+        setIsDetailsLoading(true);
+        setDetailsError("");
+        const details = await reusePendingRequest<TalentDashboardDetails>(
+          `talent-dashboard-details:${dashboardToken}`,
+          () => getTalentDashboardDetails(dashboardToken)
+        );
+
+        if (!isMounted) {
+          return;
+        }
+
+        setAvailableOpportunities(details.available_opportunities);
+        setApplications(details.applications);
+      } catch {
+        if (isMounted) {
+          setDetailsError("No se pudieron cargar los detalles del dashboard.");
+        }
+      } finally {
+        if (isMounted) {
+          setIsDetailsLoading(false);
+        }
+      }
+    }
+
+    async function loadQuickDashboard() {
+      try {
+        setIsQuickLoading(true);
         setError("");
+        setDetailsError("");
         const dashboard = await reusePendingRequest(
-          `talent-dashboard:${dashboardToken}`,
-          () => getTalentDashboard(dashboardToken)
+          `talent-dashboard-quick:${dashboardToken}`,
+          () => getTalentDashboardQuick(dashboardToken)
         );
 
         if (!isMounted) {
@@ -75,8 +110,7 @@ function TalentHome() {
         setLocation(dashboard.location);
         setApplicationsCount(dashboard.applications_count);
         setOpportunitiesCount(dashboard.opportunities_count);
-        setAvailableOpportunities(dashboard.available_opportunities);
-        setApplications(dashboard.applications);
+        void loadDetails();
       } catch (loadError) {
         if (isMounted) {
           setError(
@@ -87,12 +121,12 @@ function TalentHome() {
         }
       } finally {
         if (isMounted) {
-          setIsLoading(false);
+          setIsQuickLoading(false);
         }
       }
     }
 
-    void loadDashboard();
+    void loadQuickDashboard();
 
     return () => {
       isMounted = false;
@@ -133,7 +167,7 @@ function TalentHome() {
 
         <div className="talent-hero__badge">
           <span className="talent-status talent-status--available">
-            {isLoading
+            {isQuickLoading
               ? t("common.loading")
               : `${profileCompletion}% ${t("common.completed")}`}
           </span>
@@ -143,6 +177,9 @@ function TalentHome() {
       </section>
 
       {error ? <p className="talent-feedback talent-feedback--error">{error}</p> : null}
+      {!error && detailsError ? (
+        <p className="talent-feedback talent-feedback--warning">{detailsError}</p>
+      ) : null}
 
       <section className="home__section">
         <div className="section-heading">
@@ -166,7 +203,7 @@ function TalentHome() {
                 setDetailModal(card.action);
               }}
             >
-              <span className="summary-card__value">{isLoading ? "..." : card.value}</span>
+              <span className="summary-card__value">{isQuickLoading ? "..." : card.value}</span>
               <p className="summary-card__label">{card.label}</p>
             </ClickableSummaryCard>
           ))}
@@ -183,7 +220,7 @@ function TalentHome() {
           </div>
 
           <ul className="activity-list">
-            {(isLoading ? [t("talent.home.loadingActivity")] : recentActivity).map((item) => (
+            {(isQuickLoading ? [t("talent.home.loadingActivity")] : recentActivity).map((item) => (
               <li key={item} className="activity-list__item">
                 {item}
               </li>
@@ -221,7 +258,9 @@ function TalentHome() {
           onClose={() => setDetailModal(null)}
         >
           <div className="summary-detail-list">
-            {availableOpportunities.length ? availableOpportunities.map((opportunity) => (
+            {isDetailsLoading ? (
+              <DashboardDetailSkeleton />
+            ) : availableOpportunities.length ? availableOpportunities.map((opportunity) => (
               <article key={opportunity.id} className="summary-detail-list__item">
                 <h3>{opportunity.title}</h3>
                 <p>{opportunity.role_needed || opportunity.specialty} | {opportunity.location}</p>
@@ -238,7 +277,9 @@ function TalentHome() {
           onClose={() => setDetailModal(null)}
         >
           <div className="summary-detail-list">
-            {applications.length ? applications.map((application) => (
+            {isDetailsLoading ? (
+              <DashboardDetailSkeleton />
+            ) : applications.length ? applications.map((application) => (
               <article key={application.id} className="summary-detail-list__item">
                 <h3>{application.opportunity_title || "Convocatoria sin titulo"}</h3>
                 <p>{application.status} | {application.message || "Sin mensaje."}</p>
@@ -248,6 +289,19 @@ function TalentHome() {
         </SummaryDetailModal>
       ) : null}
     </div>
+  );
+}
+
+function DashboardDetailSkeleton() {
+  return (
+    <>
+      {[0, 1, 2].map((item) => (
+        <article key={item} className="summary-detail-list__item talent-dashboard-detail-skeleton">
+          <span></span>
+          <small></small>
+        </article>
+      ))}
+    </>
   );
 }
 

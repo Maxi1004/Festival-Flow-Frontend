@@ -91,6 +91,33 @@ export async function getAvailableTalents(
   );
 }
 
+export async function getAvailableTalentsCrm(
+  filters: AvailableTalentFilters = {},
+  authenticatedToken?: string
+): Promise<AvailableTalent[]> {
+  const params = new URLSearchParams();
+
+  Object.entries(filters).forEach(([key, value]) => {
+    if (value?.trim()) {
+      params.set(key, value.trim());
+    }
+  });
+
+  const query = params.size ? `?${params.toString()}` : "";
+  const response = await fetch(`${API_URL}/talent/availability/crm${query}`, {
+    method: "GET",
+    headers: await getAuthenticatedHeaders(undefined, authenticatedToken),
+  });
+
+  if (response.status === 403) {
+    throw new Error("No tienes permisos para ver talentos disponibles.");
+  }
+
+  return unwrapAvailableTalents(
+    await parseJsonResponse<AvailableTalent[] | AvailableTalentListEnvelope>(response)
+  );
+}
+
 export async function getMyTalentProfile(
   authenticatedToken?: string,
   component = "unknown"

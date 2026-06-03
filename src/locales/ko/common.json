@@ -66,6 +66,7 @@
   "layout": {
     "producerNav": {
       "home": "홈",
+      "profile": "내 프로필",
       "projects": "내 프로젝트",
       "opportunities": "모집",
       "talents": "Talents",
@@ -94,6 +95,7 @@
     },
     "producerMeta": {
       "homeEyebrow": "개요",
+      "profileEyebrow": "프로듀서 프로필",
       "productionEyebrow": "제작",
       "opportunitiesEyebrow": "모집",
       "mainEyebrow": "메인 패널",
