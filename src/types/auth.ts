@@ -1,14 +1,14 @@
-export type UserRole = "PRODUCER" | "TALENT";
+export type UserRole = "PRODUCER" | "TALENT" | "ADMIN";
 
 export type AuthProfile = {
   uid: string;
   email: string;
   name: string;
   photo_url?: string | null;
-  picture: string | null;
+  picture?: string | null;
   role: UserRole;
-  provider: string;
-  created_at: string;
+  provider?: string | null;
+  created_at?: string | null;
 };
 
 export type GetProfileResponse = {
@@ -18,7 +18,7 @@ export type GetProfileResponse = {
 
 export const USER_ROLE_OPTIONS: Array<{
   label: string;
-  value: UserRole;
+  value: Exclude<UserRole, "ADMIN">;
 }> = [
   { label: "Productor / gestor de proyectos", value: "PRODUCER" },
   { label: "Talento / profesional audiovisual", value: "TALENT" },

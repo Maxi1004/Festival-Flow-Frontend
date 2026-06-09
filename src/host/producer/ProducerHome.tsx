@@ -16,6 +16,7 @@ import {
 } from "react-icons/fi";
 import { Link } from "react-router-dom";
 import ProducerGuard from "./ProducerGuard";
+import TalentAvatar from "../../components/TalentAvatar";
 import {
   ClickableSummaryCard,
   SummaryDetailModal,
@@ -140,10 +141,6 @@ function getTalentSpecialties(talent: DashboardAvailableTalentSummary): string[]
 
 function getTalentPhoto(talent: DashboardAvailableTalentSummary): string {
   return talent.photo_url?.trim() || talent.picture?.trim() || talent.avatar_url?.trim() || "";
-}
-
-function getTalentInitial(talent: DashboardAvailableTalentSummary): string {
-  return formatTalentName(talent).charAt(0).toUpperCase() || "T";
 }
 
 function getTalentMainSpecialty(talent: DashboardAvailableTalentSummary): string {
@@ -591,13 +588,11 @@ function ProducerHomeContent() {
                   className="producer-card producer-talent-showcase-card"
                 >
                   <div className="producer-talent-showcase-card__header">
-                    <span className="producer-talent-avatar">
-                      {avatar ? (
-                        <img src={avatar} alt={`Foto de ${formatTalentName(talent)}`} />
-                      ) : (
-                        getTalentInitial(talent)
-                      )}
-                    </span>
+                    <TalentAvatar
+                      src={avatar}
+                      name={formatTalentName(talent)}
+                      size="md"
+                    />
                     <div className="producer-talent-showcase-card__identity">
                       <p>{talent.email ?? tAuto("Sin correo")}</p>
                       <h3>{formatTalentName(talent)}</h3>

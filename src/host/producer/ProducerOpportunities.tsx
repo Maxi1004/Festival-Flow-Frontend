@@ -1,6 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import ProducerGuard from "./ProducerGuard";
+import TalentProfileModal from "../../components/TalentProfileModal";
+import TalentAvatar from "../../components/TalentAvatar";
+import DonutChart, { type DonutChartItem } from "../../components/DonutChart";
 import {
   ClickableSummaryCard,
   SummaryDetailModal,
@@ -36,6 +39,14 @@ import "../../styles/producer.css";
 import { useCurrentProfile } from "../useCurrentProfile";
 import { useAutoTranslate, useFestivalFlowLanguage } from "../../hooks/useAutoTranslate";
 import { combineTranslationTexts } from "../../utils/translationTexts";
+import {
+  getTalentIdentityEmail,
+  getTalentIdentityName,
+  getTalentIdentityPhoto,
+  resolveTalentUserId,
+  talentFallbackFromApplication,
+} from "../../utils/talentProfile";
+import { inferCrewCategoryFromText } from "../../utils/crewCategory";
 
 type OpportunityFormState = {
   project_id: string;
@@ -50,6 +61,20 @@ type OpportunityFormState = {
   deadline: string;
 };
 
+type OpportunityStatusGroup = {
+  key: string;
+  label: string;
+  statuses: string[];
+  colorClass: string;
+};
+
+type ApplicationStatusGroup = {
+  key: string;
+  label: string;
+  statuses: string[];
+  colorClass: string;
+};
+
 const OPPORTUNITY_STATUS_LABELS: Record<string, string> = {
   ACTIVE: "Activa",
   OPEN: "Activa",
@@ -59,6 +84,72 @@ const OPPORTUNITY_STATUS_LABELS: Record<string, string> = {
   COMPLETED: "Completada",
   PAUSED: "Pausada",
 };
+
+const OPPORTUNITY_STATUS_GROUPS: OpportunityStatusGroup[] = [
+  {
+    key: "active",
+    label: "Activas",
+    statuses: ["ACTIVE", "OPEN"],
+    colorClass: "donut-chart__segment--green",
+  },
+  {
+    key: "cancelled",
+    label: "Canceladas",
+    statuses: ["CANCELLED"],
+    colorClass: "donut-chart__segment--rose",
+  },
+  {
+    key: "closed",
+    label: "Cerradas",
+    statuses: ["CLOSED"],
+    colorClass: "donut-chart__segment--slate",
+  },
+  {
+    key: "completed",
+    label: "Completadas",
+    statuses: ["COMPLETED"],
+    colorClass: "donut-chart__segment--blue",
+  },
+  {
+    key: "draft",
+    label: "Borrador",
+    statuses: ["DRAFT"],
+    colorClass: "donut-chart__segment--amber",
+  },
+  {
+    key: "paused",
+    label: "Pausadas",
+    statuses: ["PAUSED"],
+    colorClass: "donut-chart__segment--violet",
+  },
+];
+
+const APPLICATION_STATUS_GROUPS: ApplicationStatusGroup[] = [
+  {
+    key: "accepted",
+    label: "Aceptadas",
+    statuses: ["ACCEPTED"],
+    colorClass: "donut-chart__segment--green",
+  },
+  {
+    key: "rejected",
+    label: "Rechazadas",
+    statuses: ["REJECTED"],
+    colorClass: "donut-chart__segment--rose",
+  },
+  {
+    key: "pending",
+    label: "Pendientes",
+    statuses: ["PENDING", "SUBMITTED", "IN_REVIEW", "PRESELECTED"],
+    colorClass: "donut-chart__segment--amber",
+  },
+  {
+    key: "cancelled",
+    label: "Canceladas",
+    statuses: ["CANCELLED"],
+    colorClass: "donut-chart__segment--slate",
+  },
+];
 
 const OPPORTUNITY_MODALITY_LABELS: Record<string, string> = {
   REMOTE: "Remota",
@@ -104,6 +195,28 @@ const producerOpportunitiesBaseTexts = [
   "Nueva convocatoria",
   "Total convocatorias",
   "Activas",
+  "Estado de convocatorias",
+  "Distribucion real por estado",
+  "Postulantes totales",
+  "Distribucion de convocatorias",
+  "Distribucion de postulaciones",
+  "Postulantes agrupados por convocatoria",
+  "Los detalles se cargan al abrir este resumen.",
+  "Cargando postulantes de las convocatorias...",
+  "No fue posible cargar todas las convocatorias. La distribucion considera solo postulaciones cargadas.",
+  "No hay postulaciones cargadas para mostrar.",
+  "No hay postulantes registrados.",
+  "Aceptadas",
+  "Rechazadas",
+  "Pendientes",
+  "Canceladas",
+  "Otros",
+  "Cerradas",
+  "Completadas",
+  "Borrador",
+  "Pausadas",
+  "convocatorias",
+  "postulaciones cargadas",
   "Postulantes por proyecto",
   "Proyecto seleccionado",
   "Revisa las convocatorias asociadas y abre sus postulantes para aceptar o rechazar.",
@@ -203,6 +316,35 @@ function isTerminalApplicationStatus(value?: string | null): boolean {
   return ["ACCEPTED", "REJECTED", "CANCELLED"].includes(normalizeUpper(value));
 }
 
+function getApplicationsByStatusGroup(
+  applications: TalentApplication[],
+  group: ApplicationStatusGroup
+): TalentApplication[] {
+  return applications.filter((application) =>
+    group.statuses.includes(normalizeUpper(application.status).replaceAll(" ", "_"))
+  );
+}
+
+function getOpportunityStatusGroupItems(
+  opportunities: Opportunity[]
+): Array<OpportunityStatusGroup & { opportunities: Opportunity[] }> {
+  return OPPORTUNITY_STATUS_GROUPS.map((group) => ({
+    ...group,
+    opportunities: opportunities.filter((opportunity) =>
+      group.statuses.includes(normalizeUpper(opportunity.status))
+    ),
+  })).filter((group) => group.opportunities.length > 0);
+}
+
+function formatPercentage(value: number, total: number): string {
+  if (total <= 0) {
+    return "0%";
+  }
+
+  const percentage = (value / total) * 100;
+  return `${percentage >= 10 ? percentage.toFixed(0) : percentage.toFixed(1)}%`;
+}
+
 function formatApplicationDate(value?: string | null): string {
   if (!value) return "Sin fecha";
 
@@ -217,26 +359,11 @@ function formatApplicationDate(value?: string | null): string {
 }
 
 function getApplicantName(application: TalentApplication): string {
-  return (
-    application.talent_name?.trim() ||
-    application.talent?.name?.trim() ||
-    application.talent?.display_name?.trim() ||
-    application.talent?.profile?.display_name?.trim() ||
-    application.user?.name?.trim() ||
-    application.user?.display_name?.trim() ||
-    application.talent_profile?.display_name?.trim() ||
-    application.profile?.display_name?.trim() ||
-    "Talento sin nombre"
-  );
+  return getTalentIdentityName(application);
 }
 
 function getApplicantEmail(application: TalentApplication): string {
-  return (
-    application.talent_email?.trim() ||
-    application.talent?.email?.trim() ||
-    application.user?.email?.trim() ||
-    "Sin correo"
-  );
+  return getTalentIdentityEmail(application);
 }
 
 function getApplicantSpecialties(application: TalentApplication): string[] {
@@ -298,6 +425,8 @@ function ProducerOpportunitiesContent() {
   const [editError, setEditError] = useState("");
   const [applicantsModalOpportunity, setApplicantsModalOpportunity] =
     useState<Opportunity | null>(null);
+  const [profileApplication, setProfileApplication] =
+    useState<TalentApplication | null>(null);
   const [filters, setFilters] = useState({
     search: "",
     projectId: "",
@@ -314,7 +443,10 @@ function ProducerOpportunitiesContent() {
     Record<string, string>
   >({});
   const [error, setError] = useState("");
-  const [summaryModal, setSummaryModal] = useState<"all" | "active" | null>(null);
+  const [summaryModal, setSummaryModal] = useState<
+    "all" | "active" | "status" | "applicants" | null
+  >(null);
+  const [isApplicantsSummaryLoading, setIsApplicantsSummaryLoading] = useState(false);
   const translationTexts = useMemo(
     () =>
       combineTranslationTexts(
@@ -399,6 +531,62 @@ function ProducerOpportunitiesContent() {
   }, [location.state, token]);
 
   const activeCount = opportunities.filter((item) => isActiveStatus(item.status)).length;
+  const opportunityStatusGroups = useMemo(
+    () => getOpportunityStatusGroupItems(opportunities),
+    [opportunities]
+  );
+  const opportunityStatusChartItems = useMemo<DonutChartItem[]>(
+    () =>
+      opportunityStatusGroups.map((group) => ({
+        label: tAuto(group.label),
+        value: group.opportunities.length,
+        colorClass: group.colorClass,
+      })),
+    [opportunityStatusGroups, tAuto]
+  );
+  const totalApplicantsCount = useMemo(
+    () =>
+      opportunities.reduce((total, opportunity) => {
+        const loadedApplicants = applicantsByOpportunity[opportunity.id];
+        return total + (loadedApplicants?.length ?? getOpportunityApplicantsCount(opportunity));
+      }, 0),
+    [applicantsByOpportunity, opportunities]
+  );
+  const loadedApplications = useMemo(
+    () => Object.values(applicantsByOpportunity).flat(),
+    [applicantsByOpportunity]
+  );
+  const applicationStatusChartItems = useMemo<DonutChartItem[]>(
+    () => {
+      const groupedItems = APPLICATION_STATUS_GROUPS.map((group) => ({
+        label: tAuto(group.label),
+        value: getApplicationsByStatusGroup(loadedApplications, group).length,
+        colorClass: group.colorClass,
+      }));
+      const groupedStatuses = new Set(
+        APPLICATION_STATUS_GROUPS.flatMap((group) => group.statuses)
+      );
+      const otherCount = loadedApplications.filter(
+        (application) =>
+          !groupedStatuses.has(
+            normalizeUpper(application.status).replaceAll(" ", "_")
+          )
+      ).length;
+
+      return [
+        ...groupedItems,
+        {
+          label: tAuto("Otros"),
+          value: otherCount,
+          colorClass: "donut-chart__segment--violet",
+        },
+      ].filter((item) => item.value > 0);
+    },
+    [loadedApplications, tAuto]
+  );
+  const hasApplicantsSummaryErrors = opportunities.some(
+    (opportunity) => Boolean(applicantsErrorByOpportunity[opportunity.id])
+  );
   const focusedProjectTitle =
     opportunities.find((opportunity) => opportunity.project_id === focusedProjectId)?.project_title ??
     opportunities.find((opportunity) => opportunity.project_id === focusedProjectId)?.project?.title ??
@@ -582,7 +770,7 @@ function ProducerOpportunitiesContent() {
       return nextValue;
     });
 
-    if (applicantsByOpportunity[opportunity.id] || applicantsErrorByOpportunity[opportunity.id]) {
+    if (Object.hasOwn(applicantsByOpportunity, opportunity.id)) {
       return;
     }
 
@@ -613,6 +801,65 @@ function ProducerOpportunitiesContent() {
     }
   };
 
+  const handleOpenApplicantsSummary = async () => {
+    setSummaryModal("applicants");
+
+    const opportunitiesToLoad = opportunities.filter(
+      (opportunity) => !Object.hasOwn(applicantsByOpportunity, opportunity.id)
+    );
+
+    if (!opportunitiesToLoad.length || isApplicantsSummaryLoading) {
+      return;
+    }
+
+    try {
+      setIsApplicantsSummaryLoading(true);
+      const results = await Promise.all(
+        opportunitiesToLoad.map(async (opportunity) => {
+          try {
+            const applications = await getOpportunityApplications(
+              opportunity.id,
+              token ?? undefined
+            );
+            return { opportunityId: opportunity.id, applications, error: "" };
+          } catch (loadError) {
+            return {
+              opportunityId: opportunity.id,
+              applications: null,
+              error:
+                loadError instanceof Error
+                  ? loadError.message
+                  : tAuto("No se pudieron cargar los postulantes."),
+            };
+          }
+        })
+      );
+
+      setApplicantsByOpportunity((current) => {
+        const nextValue = { ...current };
+        results.forEach((result) => {
+          if (result.applications) {
+            nextValue[result.opportunityId] = result.applications;
+          }
+        });
+        return nextValue;
+      });
+      setApplicantsErrorByOpportunity((current) => {
+        const nextValue = { ...current };
+        results.forEach((result) => {
+          if (result.error) {
+            nextValue[result.opportunityId] = result.error;
+          } else {
+            delete nextValue[result.opportunityId];
+          }
+        });
+        return nextValue;
+      });
+    } finally {
+      setIsApplicantsSummaryLoading(false);
+    }
+  };
+
   const handleUpdateApplicantStatus = async (
     opportunityId: string,
     applicationId: string,
@@ -629,7 +876,13 @@ function ProducerOpportunitiesContent() {
       const updatedApplication = await updateApplicationStatus(
         applicationId,
         status,
-        token ?? undefined
+        token ?? undefined,
+        status === "ACCEPTED"
+          ? inferCrewCategoryFromText(
+              opportunities.find((opportunity) => opportunity.id === opportunityId)?.role_needed,
+              opportunities.find((opportunity) => opportunity.id === opportunityId)?.specialty
+            )
+          : undefined
       );
 
       setApplicantsByOpportunity((current) => ({
@@ -713,6 +966,33 @@ function ProducerOpportunitiesContent() {
         >
           <span className="producer-metric__value">{isLoading ? "..." : activeCount}</span>
           <p className="producer-metric__label">{tAuto("Activas")}</p>
+        </ClickableSummaryCard>
+
+        <ClickableSummaryCard
+          className="producer-card producer-metric producer-opportunity-chart-metric"
+          onClick={() => setSummaryModal("status")}
+        >
+          <p className="producer-metric__label">{tAuto("Estado de convocatorias")}</p>
+          <DonutChart
+            items={opportunityStatusChartItems}
+            size={132}
+            thickness={18}
+            centerValue={isLoading ? "..." : opportunities.length}
+            centerLabel={tAuto("convocatorias")}
+          />
+        </ClickableSummaryCard>
+
+        <ClickableSummaryCard
+          className="producer-card producer-metric"
+          onClick={() => void handleOpenApplicantsSummary()}
+        >
+          <span className="producer-metric__value">
+            {isLoading ? "..." : totalApplicantsCount}
+          </span>
+          <p className="producer-metric__label">{tAuto("Postulantes")}</p>
+          <p className="producer-opportunity-metric__caption">
+            {tAuto("Los detalles se cargan al abrir este resumen.")}
+          </p>
         </ClickableSummaryCard>
       </section>
 
@@ -1235,16 +1515,36 @@ function ProducerOpportunitiesContent() {
                     const isTerminalStatus = isTerminalApplicationStatus(application.status);
 
                     return (
-                    <article key={application.id} className="producer-list-card">
+                    <article
+                      key={application.id}
+                      className="producer-list-card producer-applicant-card"
+                    >
                       <div className="producer-record__header">
-                        <div>
-                          <p className="producer-list-card__meta">
-                            {getApplicantEmail(application)}
-                          </p>
-                          <h4 className="producer-list-card__title">
-                            {getApplicantName(application)}
-                          </h4>
-                        </div>
+                        <button
+                          className="producer-profile-trigger producer-applicant-inline"
+                          type="button"
+                          disabled={!resolveTalentUserId(application)}
+                          title={
+                            resolveTalentUserId(application)
+                              ? "Ver ficha"
+                              : "No se pudo identificar el user_id del talento."
+                          }
+                          onClick={() => setProfileApplication(application)}
+                        >
+                          <TalentAvatar
+                            src={getTalentIdentityPhoto(application)}
+                            name={getApplicantName(application)}
+                            size="sm"
+                          />
+                          <div>
+                            <p className="producer-list-card__meta">
+                              {getApplicantEmail(application)}
+                            </p>
+                            <strong className="producer-list-card__title">
+                              {getApplicantName(application)}
+                            </strong>
+                          </div>
+                        </button>
                         <span className={`producer-status producer-status--${applicationStatus.toLowerCase() || "default"}`}>
                           {tAuto(formatApplicationStatus(application.status))}
                         </span>
@@ -1273,8 +1573,24 @@ function ProducerOpportunitiesContent() {
                         </div>
                       ) : null}
 
-                      {isTerminalStatus ? null : (
-                        <div className="producer-actions producer-actions--inline">
+                      <div className="producer-actions producer-actions--inline">
+                        <button
+                          className="producer-button"
+                          type="button"
+                          disabled={!resolveTalentUserId(application)}
+                          title={
+                            resolveTalentUserId(application)
+                              ? undefined
+                              : "No se pudo identificar el user_id del talento."
+                          }
+                          onClick={() => setProfileApplication(application)}
+                        >
+                          {resolveTalentUserId(application)
+                            ? "Ver ficha"
+                            : "Ficha no disponible: falta user_id"}
+                        </button>
+                        {isTerminalStatus ? null : (
+                          <>
                           <button
                             className="producer-button producer-button--primary"
                             type="button"
@@ -1305,8 +1621,9 @@ function ProducerOpportunitiesContent() {
                           >
                             {tAuto("Rechazar")}
                           </button>
-                        </div>
-                      )}
+                          </>
+                        )}
+                      </div>
                     </article>
                   );
                 }
@@ -1321,7 +1638,205 @@ function ProducerOpportunitiesContent() {
         </div>
       ) : null}
 
-      {summaryModal ? (
+      {summaryModal === "status" ? (
+        <SummaryDetailModal
+          title={tAuto("Estado de convocatorias")}
+          description={tAuto("Distribucion real por estado")}
+          onClose={() => setSummaryModal(null)}
+        >
+          <div className="producer-opportunity-summary-chart">
+            <DonutChart
+              items={opportunityStatusChartItems}
+              size={240}
+              thickness={32}
+              centerValue={opportunities.length}
+              centerLabel={tAuto("convocatorias")}
+            />
+          </div>
+
+          <div className="producer-opportunity-status-groups">
+            {opportunityStatusGroups.length ? (
+              opportunityStatusGroups.map((group) => (
+                <section
+                  className="summary-detail-list__item producer-opportunity-status-group"
+                  key={group.key}
+                >
+                  <header>
+                    <div>
+                      <h3>{tAuto(group.label)}</h3>
+                      <p>
+                        {group.opportunities.length}{" "}
+                        {tAuto("convocatorias")} |{" "}
+                        {formatPercentage(group.opportunities.length, opportunities.length)}
+                      </p>
+                    </div>
+                    <span
+                      className={`donut-chart__legend-color ${group.colorClass}`}
+                      aria-hidden="true"
+                    />
+                  </header>
+                  <div className="producer-opportunity-status-group__items">
+                    {group.opportunities.map((opportunity) => (
+                      <article key={opportunity.id}>
+                        <strong>{tAuto(opportunity.title)}</strong>
+                        <span>{getVisibleOpportunityProjectLabel(opportunity)}</span>
+                      </article>
+                    ))}
+                  </div>
+                </section>
+              ))
+            ) : (
+              <p className="summary-detail-empty">
+                {tAuto("No hay convocatorias para mostrar.")}
+              </p>
+            )}
+          </div>
+        </SummaryDetailModal>
+      ) : null}
+
+      {summaryModal === "applicants" ? (
+        <SummaryDetailModal
+          title={tAuto("Postulantes agrupados por convocatoria")}
+          description={tAuto("Distribucion de postulaciones")}
+          onClose={() => setSummaryModal(null)}
+        >
+          {isApplicantsSummaryLoading ? (
+            <div className="producer-opportunity-applicants-skeleton" aria-hidden="true">
+              <div />
+              <span />
+              <span />
+              <span />
+            </div>
+          ) : loadedApplications.length ? (
+            <div className="producer-opportunity-summary-chart">
+              <DonutChart
+                items={applicationStatusChartItems}
+                size={220}
+                thickness={30}
+                centerValue={loadedApplications.length}
+                centerLabel={tAuto("postulaciones cargadas")}
+              />
+            </div>
+          ) : null}
+
+          {isApplicantsSummaryLoading ? (
+            <p className="producer-muted">
+              {tAuto("Cargando postulantes de las convocatorias...")}
+            </p>
+          ) : null}
+          {!isApplicantsSummaryLoading && hasApplicantsSummaryErrors ? (
+            <p className="producer-feedback producer-feedback--warning">
+              {tAuto(
+                "No fue posible cargar todas las convocatorias. La distribucion considera solo postulaciones cargadas."
+              )}
+            </p>
+          ) : null}
+
+          <div className="producer-opportunity-applicant-groups">
+            {!isApplicantsSummaryLoading && opportunities.length ? (
+              opportunities.map((opportunity) => {
+                const applications = applicantsByOpportunity[opportunity.id];
+                const reportedTotal = getOpportunityApplicantsCount(opportunity);
+                const acceptedCount = applications
+                  ? getApplicationsByStatusGroup(applications, APPLICATION_STATUS_GROUPS[0]).length
+                  : 0;
+                const rejectedCount = applications
+                  ? getApplicationsByStatusGroup(applications, APPLICATION_STATUS_GROUPS[1]).length
+                  : 0;
+                const pendingCount = applications
+                  ? getApplicationsByStatusGroup(applications, APPLICATION_STATUS_GROUPS[2]).length
+                  : 0;
+                const cancelledCount = applications
+                  ? getApplicationsByStatusGroup(applications, APPLICATION_STATUS_GROUPS[3]).length
+                  : 0;
+                const opportunityError = applicantsErrorByOpportunity[opportunity.id];
+
+                return (
+                  <section
+                    className="summary-detail-list__item producer-opportunity-applicant-group"
+                    key={opportunity.id}
+                  >
+                    <header>
+                      <div>
+                        <h3>{tAuto(opportunity.title)}</h3>
+                        <p>{getVisibleOpportunityProjectLabel(opportunity)}</p>
+                      </div>
+                      <strong>{applications?.length ?? reportedTotal}</strong>
+                    </header>
+
+                    {applications ? (
+                      <>
+                        <div className="producer-opportunity-applicant-group__counts">
+                          <span>{tAuto("Aceptadas")}: {acceptedCount}</span>
+                          <span>{tAuto("Rechazadas")}: {rejectedCount}</span>
+                          <span>{tAuto("Pendientes")}: {pendingCount}</span>
+                          {cancelledCount ? (
+                            <span>{tAuto("Canceladas")}: {cancelledCount}</span>
+                          ) : null}
+                        </div>
+
+                        {applications.length ? (
+                          <div className="producer-opportunity-applicant-group__list">
+                            {applications.map((application) => (
+                              <article key={application.id}>
+                                <TalentAvatar
+                                  src={getTalentIdentityPhoto(application)}
+                                  name={getApplicantName(application)}
+                                  size="sm"
+                                />
+                                <div>
+                                  <strong>{getApplicantName(application)}</strong>
+                                  <span>{getApplicantEmail(application)}</span>
+                                  <small>
+                                    {tAuto(formatApplicationStatus(application.status))}
+                                  </small>
+                                  <p>
+                                    {application.message?.trim()
+                                      ? tAuto(application.message.trim())
+                                      : tAuto("No disponible todavia.")}
+                                  </p>
+                                </div>
+                                <button
+                                  className="producer-button"
+                                  type="button"
+                                  disabled={!resolveTalentUserId(application)}
+                                  onClick={() => setProfileApplication(application)}
+                                >
+                                  {resolveTalentUserId(application)
+                                    ? tAuto("Ver ficha")
+                                    : tAuto("Ficha no disponible")}
+                                </button>
+                              </article>
+                            ))}
+                          </div>
+                        ) : (
+                          <p className="producer-muted">
+                            {tAuto("No hay postulantes para esta convocatoria.")}
+                          </p>
+                        )}
+                      </>
+                    ) : opportunityError ? (
+                      <p className="producer-feedback producer-feedback--error">
+                        {opportunityError}
+                      </p>
+                    ) : (
+                      <p className="producer-muted">
+                        {tAuto("No hay postulantes registrados.")}
+                      </p>
+                    )}
+                  </section>
+                );
+              })
+            ) : !isApplicantsSummaryLoading ? (
+              <p className="summary-detail-empty">
+                {tAuto("No hay postulaciones cargadas para mostrar.")}
+              </p>
+            ) : null}
+          </div>
+        </SummaryDetailModal>
+      ) : null}
+
+      {summaryModal === "all" || summaryModal === "active" ? (
         <SummaryDetailModal
           title={
             summaryModal === "active"
@@ -1348,6 +1863,15 @@ function ProducerOpportunitiesContent() {
             )}
           </div>
         </SummaryDetailModal>
+      ) : null}
+
+      {profileApplication ? (
+        <TalentProfileModal
+          userId={resolveTalentUserId(profileApplication)}
+          fallback={talentFallbackFromApplication(profileApplication)}
+          token={token ?? undefined}
+          onClose={() => setProfileApplication(null)}
+        />
       ) : null}
     </div>
   );

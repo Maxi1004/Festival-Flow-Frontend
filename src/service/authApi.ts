@@ -1,6 +1,8 @@
 import type { GetProfileResponse, UserRole } from "../types/auth";
 import API_URL from "../config/api";
 import { getFirebaseToken } from "./auth";
+import { normalizeRole } from "../utils/authRole";
+import type { AuthProfile } from "../types/auth";
 
 type ApiErrorDetailObject = {
   message?: string;
@@ -30,6 +32,85 @@ type SyncGoogleUserPayload = {
   provider: "google";
   role: UserRole;
 };
+
+type RawAuthProfile = {
+  uid?: unknown;
+  email?: unknown;
+  name?: unknown;
+  photo_url?: unknown;
+  picture?: unknown;
+  role?: unknown;
+  provider?: unknown;
+  created_at?: unknown;
+};
+
+type RawGetProfileResponse = {
+  message?: unknown;
+  user?: RawAuthProfile;
+  data?: RawAuthProfile | { user?: RawAuthProfile };
+  profile?: RawAuthProfile;
+  role?: unknown;
+  uid?: unknown;
+  email?: unknown;
+  name?: unknown;
+};
+
+function optionalString(value: unknown): string | null {
+  return typeof value === "string" && value.trim() ? value.trim() : null;
+}
+
+function getRawProfile(payload: RawGetProfileResponse): RawAuthProfile {
+  if (payload.user) {
+    return payload.user;
+  }
+
+  if (payload.profile) {
+    return payload.profile;
+  }
+
+  if (payload.data && "user" in payload.data && payload.data.user) {
+    return payload.data.user;
+  }
+
+  if (payload.data && !("user" in payload.data)) {
+    return payload.data as RawAuthProfile;
+  }
+
+  return payload;
+}
+
+function normalizeAuthProfile(payload: RawGetProfileResponse): GetProfileResponse {
+  const rawProfile = getRawProfile(payload);
+  const role = normalizeRole(
+    typeof rawProfile.role === "string" ? rawProfile.role : null
+  );
+
+  if (!role) {
+    throw new Error("El usuario autenticado no tiene un rol válido.");
+  }
+
+  const uid = optionalString(rawProfile.uid);
+
+  if (!uid) {
+    throw new Error("La respuesta de /auth/me no incluye el uid del usuario.");
+  }
+
+  const user: AuthProfile = {
+    uid,
+    email: optionalString(rawProfile.email) ?? "",
+    name: optionalString(rawProfile.name) ?? "",
+    photo_url: optionalString(rawProfile.photo_url),
+    picture: optionalString(rawProfile.picture),
+    role,
+    provider: optionalString(rawProfile.provider),
+    created_at: optionalString(rawProfile.created_at),
+  };
+
+  return {
+    message: optionalString(payload.message) ?? "Perfil autenticado",
+    user,
+  };
+}
 
 export async function getErrorMessage(response: Response): Promise<string> {
   try {
@@ -123,5 +204,6 @@ export async function getProfile(token?: string): Promise<GetProfileResponse> {
     headers: token ? { Authorization: `Bearer ${token}` } : await getAuthenticatedHeaders(),
   });
 
-  return await parseJsonResponse(response);
+  const payload = await parseJsonResponse<RawGetProfileResponse>(response);
+  return normalizeAuthProfile(payload);
 }

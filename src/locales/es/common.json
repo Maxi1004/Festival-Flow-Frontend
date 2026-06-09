@@ -49,6 +49,7 @@
     "RECRUITED": "Reclutado"
   },
   "roles": {
+    "ADMIN": "ADMIN",
     "PRODUCER": "Productor / gestor de proyectos",
     "TALENT": "Talento / profesional audiovisual"
   },

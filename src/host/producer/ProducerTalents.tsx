@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useRef, useState, type ChangeEvent, type FormEvent } from "react";
 import { useTranslation } from "react-i18next";
 import ProducerGuard from "./ProducerGuard";
+import TalentProfileModal from "../../components/TalentProfileModal";
+import TalentAvatar from "../../components/TalentAvatar";
 import { getMyOpportunitiesCrm } from "../../service/opportunityApi";
 import { getMyProjects } from "../../service/projectApi";
 import { createRecruitment } from "../../service/recruitmentApi";
@@ -13,6 +15,13 @@ import { formatDisplayDate } from "./utils";
 import { translateStatus } from "../../utils/translateStatus";
 import { useAutoTranslate, useFestivalFlowLanguage } from "../../hooks/useAutoTranslate";
 import { combineTranslationTexts } from "../../utils/translationTexts";
+import {
+  getTalentIdentityEmail,
+  getTalentIdentityName,
+  getTalentIdentityPhoto,
+  resolveTalentUserId,
+  talentFallbackFromAvailableTalent,
+} from "../../utils/talentProfile";
 import "../../styles/producer.css";
 
 type RecruitmentFormState = {
@@ -119,20 +128,15 @@ const producerTalentsBaseTexts = [
 ];
 
 function formatTalentName(talent: AvailableTalent, fallback: string): string {
-  return (
-    talent.display_name?.trim() ||
-    talent.profile?.display_name?.trim() ||
-    talent.name?.trim() ||
-    fallback
-  );
+  return getTalentIdentityName(talent, fallback);
 }
 
 function getTalentEmail(talent: AvailableTalent, fallback: string): string {
-  return talent.email?.trim() || fallback;
+  return getTalentIdentityEmail(talent, fallback);
 }
 
 function getTalentId(talent: AvailableTalent): string {
-  return talent.user_uid ?? talent.user_id ?? talent.id ?? "";
+  return resolveTalentUserId(talent);
 }
 
 function getTalentSpecialties(talent: AvailableTalent): string[] {
@@ -176,18 +180,7 @@ function getTalentLanguages(talent: AvailableTalent): string[] {
 }
 
 function getTalentPhotoUrl(talent: AvailableTalent): string {
-  const nestedUser = talent as AvailableTalent & {
-    user?: { photoURL?: string | null } | null;
-  };
-
-  return (
-    talent.profile?.photo_url?.trim() ||
-    talent.picture?.trim() ||
-    talent.avatar_url?.trim() ||
-    nestedUser.user?.photoURL?.trim() ||
-    talent.photo_url?.trim() ||
-    ""
-  );
+  return getTalentIdentityPhoto(talent);
 }
 
 function getTalentLocation(talent: AvailableTalent, fallback: string): string {
@@ -225,28 +218,6 @@ function getPortfolioLinks(talent: AvailableTalent): Array<{ label: string; url:
       };
     })
     .filter((link) => link.url?.trim());
-}
-
-function TalentAvatar({
-  talent,
-  fallback,
-  large = false,
-}: {
-  talent: AvailableTalent;
-  fallback: string;
-  large?: boolean;
-}) {
-  const displayName = formatTalentName(talent, fallback);
-  const photoUrl = getTalentPhotoUrl(talent);
-  const className = `producer-talent-avatar${large ? " producer-talent-avatar--large" : ""}`;
-
-  return photoUrl ? (
-    <img className={className} src={photoUrl} alt={`Foto de perfil de ${displayName}`} />
-  ) : (
-    <span className={className} aria-hidden="true">
-      {displayName.charAt(0).toUpperCase()}
-    </span>
-  );
 }
 
 function TalentTableSkeleton() {
@@ -583,13 +554,23 @@ function ProducerTalentsContent() {
                   return (
                     <tr key={talentId || talentName}>
                       <td>
-                        <div className="producer-talent-table__identity">
-                          <TalentAvatar talent={talent} fallback={t("producer.talents.unnamed")} />
+                        <button
+                          className="producer-profile-trigger producer-talent-table__identity"
+                          type="button"
+                          disabled={!talentId}
+                          title={talentId ? tAuto("Ver perfil") : "No se pudo identificar el user_id del talento."}
+                          onClick={() => setDetailTalent(talent)}
+                        >
+                          <TalentAvatar
+                            src={getTalentPhotoUrl(talent)}
+                            name={talentName}
+                            size="md"
+                          />
                           <div className="producer-project-table__title">
                             <strong>{talentName}</strong>
                             <span>{tAuto(getTalentCategory(talent))}</span>
                           </div>
-                        </div>
+                        </button>
                       </td>
                       <td>{getTalentEmail(talent, t("common.noEmail"))}</td>
                       <td>{tAuto(getTalentCategory(talent))}</td>
@@ -615,8 +596,14 @@ function ProducerTalentsContent() {
                       </td>
                       <td>
                         <div className="producer-table-actions producer-talent-table__actions">
-                          <button className="producer-button" type="button" onClick={() => setDetailTalent(talent)}>
-                            {tAuto("Ver perfil")}
+                          <button
+                            className="producer-button"
+                            type="button"
+                            disabled={!talentId}
+                            title={talentId ? undefined : "No se pudo identificar el user_id del talento."}
+                            onClick={() => setDetailTalent(talent)}
+                          >
+                            {talentId ? tAuto("Ver perfil") : "Ficha no disponible: falta user_id"}
                           </button>
                           <button
                             className="producer-button producer-button--primary"
@@ -638,129 +625,12 @@ function ProducerTalentsContent() {
       </section>
 
       {detailTalent ? (
-        <div className="producer-modal" role="presentation">
-          <article className="producer-modal__panel producer-project-detail-modal producer-talent-profile-modal" role="dialog" aria-modal="true">
-            <div className="producer-project-detail-modal__header">
-              <div className="producer-talent-detail__identity">
-                <TalentAvatar talent={detailTalent} fallback={t("producer.talents.unnamed")} large />
-                <div>
-                  <p className="producer-record__eyebrow">{tAuto("Ficha de talento")}</p>
-                  <h2 className="producer-record__title">
-                    {formatTalentName(detailTalent, t("producer.talents.unnamed"))}
-                  </h2>
-                  <p className="producer-record__eyebrow">{getTalentEmail(detailTalent, t("common.noEmail"))}</p>
-                </div>
-              </div>
-              <button className="producer-button" type="button" onClick={() => setDetailTalent(null)}>
-                {t("common.close")}
-              </button>
-            </div>
-
-            <div className="producer-meta-list">
-              <span>{tAuto(getTalentCategory(detailTalent))}</span>
-              <span>{tAuto(getTalentLocation(detailTalent, tAuto("Ubicacion no informada")))}</span>
-              <span>{tAuto(formatTalentModality(detailTalent))}</span>
-              <span>{tAuto(translateStatus(t, detailTalent.status))}</span>
-              <span>{formatDisplayDate(detailTalent.available_from)}</span>
-            </div>
-
-            <p className="producer-record__text">
-              {detailTalent.profile?.bio?.trim()
-                ? tAuto(detailTalent.profile.bio.trim())
-                : detailTalent.notes?.trim()
-                ? tAuto(detailTalent.notes.trim())
-                : tAuto("Sin bio disponible.")}
-            </p>
-
-            <div className="producer-project-detail-grid">
-              <div>
-                <span>{tAuto("Especialidad principal")}</span>
-                <strong>{tAuto(getTalentCategory(detailTalent))}</strong>
-              </div>
-              <div>
-                <span>{tAuto("Anos de experiencia")}</span>
-                <strong>
-                  {detailTalent.profile?.experience_years !== undefined
-                    ? `${detailTalent.profile.experience_years} ${tAuto("anos")}`
-                    : tAuto("No informado")}
-                </strong>
-              </div>
-              <div>
-                <span>{tAuto("Ubicacion")}</span>
-                <strong>{tAuto(getTalentLocation(detailTalent, tAuto("No informada")))}</strong>
-              </div>
-              <div>
-                <span>{tAuto("Modalidad")}</span>
-                <strong>{tAuto(formatTalentModality(detailTalent))}</strong>
-              </div>
-              <div>
-                <span>{tAuto("Disponibilidad")}</span>
-                <strong>{formatDisplayDate(detailTalent.available_from)}</strong>
-              </div>
-              <div>
-                <span>{tAuto("Estado")}</span>
-                <strong>{tAuto(translateStatus(t, detailTalent.status))}</strong>
-              </div>
-            </div>
-
-            <div className="producer-talent-detail__section">
-              <strong>{tAuto("Habilidades")}</strong>
-              <div className="producer-chip-list">
-                {getTalentSkills(detailTalent).length ? (
-                  getTalentSkills(detailTalent).map((skill) => (
-                    <span key={skill} className="producer-chip">{tAuto(skill)}</span>
-                  ))
-                ) : (
-                  <span className="producer-muted">{tAuto("Sin habilidades informadas.")}</span>
-                )}
-              </div>
-            </div>
-
-            <div className="producer-talent-detail__section">
-              <strong>{tAuto("Idiomas")}</strong>
-              <div className="producer-chip-list">
-                {getTalentLanguages(detailTalent).length ? (
-                  getTalentLanguages(detailTalent).map((language) => (
-                    <span key={language} className="producer-chip">{tAuto(language)}</span>
-                  ))
-                ) : (
-                  <span className="producer-muted">{tAuto("Sin idiomas informados.")}</span>
-                )}
-              </div>
-            </div>
-
-            <div className="producer-talent-detail__section">
-              <strong>{tAuto("Portafolio")}</strong>
-              {getPortfolioLinks(detailTalent).length || detailTalent.profile?.portfolio_pdf_url ? (
-                <div className="producer-talent-portfolio">
-                  {getPortfolioLinks(detailTalent).map((link) => (
-                    <a key={link.url} href={link.url} target="_blank" rel="noreferrer">
-                      {tAuto(link.label)}
-                    </a>
-                  ))}
-                  {detailTalent.profile?.portfolio_pdf_url ? (
-                    <a href={detailTalent.profile.portfolio_pdf_url} target="_blank" rel="noreferrer">
-                      Portfolio PDF
-                    </a>
-                  ) : null}
-                </div>
-              ) : (
-                <span className="producer-muted">{tAuto("Sin portafolio informado.")}</span>
-              )}
-            </div>
-
-            <div className="producer-actions">
-              <button
-                className="producer-button producer-button--primary"
-                type="button"
-                disabled={!getTalentId(detailTalent)}
-                onClick={() => void openRecruitmentModal(detailTalent)}
-              >
-                {tAuto("Reclutar")}
-              </button>
-            </div>
-          </article>
-        </div>
+        <TalentProfileModal
+          userId={getTalentId(detailTalent)}
+          fallback={talentFallbackFromAvailableTalent(detailTalent)}
+          token={token ?? undefined}
+          onClose={() => setDetailTalent(null)}
+        />
       ) : null}
 
       {selectedTalent ? (
@@ -768,7 +638,11 @@ function ProducerTalentsContent() {
           <article className="producer-modal__panel producer-project-detail-modal" role="dialog" aria-modal="true">
             <div className="producer-project-detail-modal__header">
               <div className="producer-talent-detail__identity">
-                <TalentAvatar talent={selectedTalent} fallback={t("producer.talents.unnamed")} />
+                <TalentAvatar
+                  src={getTalentPhotoUrl(selectedTalent)}
+                  name={formatTalentName(selectedTalent, t("producer.talents.unnamed"))}
+                  size="md"
+                />
                 <div>
                   <p className="producer-record__eyebrow">{t("producer.talents.recruitTalent")}</p>
                   <h2 className="producer-record__title">

@@ -2,6 +2,12 @@ import { useEffect, useMemo, useRef, useState, type ChangeEvent, type FormEvent 
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import ProducerGuard from "./ProducerGuard";
+import TalentProfileModal from "../../components/TalentProfileModal";
+import TalentAvatar from "../../components/TalentAvatar";
+import {
+  ClickableSummaryCard,
+  SummaryDetailModal,
+} from "../../components/SummaryDetailModal";
 import {
   getMyCrewCrm,
   removeCrewProjectMember,
@@ -13,6 +19,20 @@ import { useCurrentProfile } from "../useCurrentProfile";
 import type { CrewMember, CrewMemberUpdatePayload } from "../../types/talent";
 import { useAutoTranslate, useFestivalFlowLanguage } from "../../hooks/useAutoTranslate";
 import { combineTranslationTexts } from "../../utils/translationTexts";
+import {
+  getCrewMemberEmail,
+  getCrewMemberName,
+  getCrewMemberPhoto,
+  resolveTalentUserId,
+  talentFallbackFromCrewMember,
+} from "../../utils/talentProfile";
+import {
+  CREW_CATEGORIES,
+  getCrewCategoryLabel,
+  getCrewMemberCategory,
+  inferCrewCategoryFromText,
+  type CrewCategory,
+} from "../../utils/crewCategory";
 import "../../styles/producer.css";
 
 type CrewProjectGroup = {
@@ -28,28 +48,24 @@ type CrewFilters = {
   search: string;
   status: string;
   memberCount: string;
+  category: "" | CrewCategory;
 };
 
-const ALL_FILTER = "";
+type CrewSummaryModal =
+  | "members"
+  | "projects"
+  | "activeTeams"
+  | "categories"
+  | "activeMembers"
+  | null;
 
-const CREW_CATEGORY_OPTIONS = [
-  "Actor",
-  "Actress",
-  "Camera",
-  "FX",
-  "Stunt",
-  "Maquillaje",
-  "Peluqueria",
-  "Catering",
-  "Produccion",
-  "Sonido",
-  "Direccion",
-  "Otro",
-] as const;
+const ALL_FILTER = "";
+const ACTIVE_MEMBER_STATUSES = new Set(["ACTIVE", "ACCEPTED"]);
+const ACTIVE_PROJECT_STATUSES = new Set(["ACTIVE", "OPEN", "ACCEPTED"]);
 
 const emptyEditForm: CrewMemberUpdatePayload = {
   role: "",
-  category: "",
+  category: "OTHER",
   status: "",
   task_description: "",
   producer_note: "",
@@ -72,6 +88,25 @@ const producerCrewBaseTexts = [
   "Integrantes",
   "Proyectos con equipo",
   "Equipos activos",
+  "Categorias activas",
+  "Miembros activos/aceptados",
+  "Integrantes del crew",
+  "Todos los integrantes cargados en el crew.",
+  "Proyectos con integrantes asignados.",
+  "Proyectos activos que actualmente tienen crew.",
+  "Categorias presentes entre los integrantes cargados.",
+  "Miembros activos / aceptados",
+  "Integrantes cuyo estado es activo o aceptado.",
+  "No hay integrantes para mostrar.",
+  "No hay proyectos con equipo para mostrar.",
+  "No hay equipos activos para mostrar.",
+  "No hay categorias activas para mostrar.",
+  "No hay miembros activos o aceptados para mostrar.",
+  "Categorias principales",
+  "Vista tabla",
+  "Agrupar por categoria",
+  "Vista de integrantes",
+  "No hay integrantes en la categoria seleccionada.",
   "Equipos por proyecto",
   "Cargando registros...",
   "proyectos",
@@ -79,7 +114,9 @@ const producerCrewBaseTexts = [
   "Nombre del proyecto",
   "Estado",
   "Todos",
+  "Todas",
   "Cantidad de integrantes",
+  "Categoria",
   "1 integrante",
   "2 a 5 integrantes",
   "6 o mas integrantes",
@@ -125,18 +162,19 @@ const producerCrewBaseTexts = [
   "En revisión",
   "Borrador",
   "Pausada",
-  "Actor",
-  "Actress",
+  "Actor / Actress",
   "Camera",
+  "Sound",
+  "Lighting",
+  "Production",
+  "Art",
   "FX",
+  "Makeup",
+  "Hair",
+  "Wardrobe",
   "Stunt",
-  "Maquillaje",
-  "Peluqueria",
   "Catering",
-  "Produccion",
-  "Sonido",
-  "Direccion",
-  "Otro",
+  "Other",
 ];
 
 function formatCrewStatusLabel(value?: string | null): string {
@@ -174,46 +212,6 @@ function formatDate(value: string | null | undefined, locale: string, fallback: 
   }).format(parsedDate);
 }
 
-function getTalentName(member: CrewMember, fallback: string): string {
-  return (
-    member.talent_name?.trim() ||
-    member.talent?.name?.trim() ||
-    member.talent?.display_name?.trim() ||
-    member.talent?.profile?.display_name?.trim() ||
-    member.user?.name?.trim() ||
-    member.user?.display_name?.trim() ||
-    fallback
-  );
-}
-
-function getTalentEmail(member: CrewMember, fallback: string): string {
-  return (
-    member.talent_email?.trim() ||
-    member.talent?.email?.trim() ||
-    member.user?.email?.trim() ||
-    fallback
-  );
-}
-
-function getTalentPhotoUrl(member: CrewMember): string {
-  const nestedMember = member as CrewMember & {
-    photo_url?: string | null;
-    avatar_url?: string | null;
-    picture?: string | null;
-    user?: (CrewMember["user"] & { photoURL?: string | null; photo_url?: string | null }) | null;
-  };
-
-  return (
-    nestedMember.talent?.profile?.photo_url?.trim() ||
-    nestedMember.picture?.trim() ||
-    nestedMember.avatar_url?.trim() ||
-    nestedMember.user?.photoURL?.trim() ||
-    nestedMember.user?.photo_url?.trim() ||
-    nestedMember.photo_url?.trim() ||
-    ""
-  );
-}
-
 function getMemberRole(member: CrewMember, fallback = "Rol no informado"): string {
   return member.role?.trim() || member.role_needed?.trim() || member.specialty?.trim() || fallback;
 }
@@ -228,51 +226,6 @@ function normalizeText(value?: string | null): string {
 
 function normalizeStatus(value?: string | null): string {
   return value?.trim().toUpperCase() ?? "";
-}
-
-function inferCrewCategory(member: CrewMember): string {
-  const profile = member.talent?.profile;
-  const explicitCategory = member.category?.trim() || member.task_category?.trim();
-
-  if (explicitCategory) {
-    return explicitCategory;
-  }
-
-  const candidates = [
-    member.specialty,
-    member.role_needed,
-    member.opportunity?.specialty,
-    profile?.main_specialty,
-    ...(profile?.specialties ?? []),
-    member.role,
-    member.task_description,
-  ];
-  const rules: Array<[string, string[]]> = [
-    ["Actress", ["actress", "actriz", "actrices"]],
-    ["Actor", ["actor", "actores"]],
-    ["Camera", ["camera", "camara", "fotografia", "cinematografia", "dop"]],
-    ["FX", ["fx", "vfx", "sfx", "efectos especiales"]],
-    ["Stunt", ["stunt", "doble de riesgo", "especialista de riesgo"]],
-    ["Maquillaje", ["maquillaje", "makeup"]],
-    ["Peluqueria", ["peluqueria", "hair"]],
-    ["Catering", ["catering", "cocina", "alimentacion"]],
-    ["Produccion", ["produccion", "productor", "production"]],
-    ["Sonido", ["sonido", "audio", "sound"]],
-    ["Direccion", ["direccion", "director", "realizacion"]],
-  ];
-
-  for (const candidate of candidates) {
-    const normalizedCandidate = normalizeText(candidate);
-    const match = rules.find(([, keywords]) =>
-      keywords.some((keyword) => normalizedCandidate.includes(keyword))
-    );
-
-    if (match) {
-      return match[0];
-    }
-  }
-
-  return "Otro";
 }
 
 function getProjectId(member: CrewMember): string {
@@ -432,19 +385,6 @@ function matchesMemberCountFilter(group: CrewProjectGroup, filter: string): bool
   return true;
 }
 
-function CrewAvatar({ member }: { member: CrewMember }) {
-  const name = getTalentName(member, "T");
-  const photoUrl = getTalentPhotoUrl(member);
-
-  return photoUrl ? (
-    <img className="producer-talent-avatar" src={photoUrl} alt={`Foto de perfil de ${name}`} />
-  ) : (
-    <span className="producer-talent-avatar" aria-hidden="true">
-      {name.charAt(0).toUpperCase()}
-    </span>
-  );
-}
-
 function CrewTableSkeleton() {
   return (
     <div className="producer-project-table-wrap">
@@ -474,9 +414,13 @@ function ProducerCrewContent() {
     search: "",
     status: ALL_FILTER,
     memberCount: ALL_FILTER,
+    category: ALL_FILTER,
   });
+  const [membersView, setMembersView] = useState<"table" | "grouped">("table");
+  const [crewSummaryModal, setCrewSummaryModal] = useState<CrewSummaryModal>(null);
   const [projectMembersModal, setProjectMembersModal] = useState<CrewProjectGroup | null>(null);
   const [detailMember, setDetailMember] = useState<CrewMember | null>(null);
+  const [profileMember, setProfileMember] = useState<CrewMember | null>(null);
   const [editingMember, setEditingMember] = useState<CrewMember | null>(null);
   const [editForm, setEditForm] = useState<CrewMemberUpdatePayload>(emptyEditForm);
   const [isLoading, setIsLoading] = useState(true);
@@ -496,7 +440,7 @@ function ProducerCrewContent() {
             getProjectTitle(member),
             getMemberRole(member),
             getMemberTask(member),
-            inferCrewCategory(member),
+            getCrewCategoryLabel(getCrewMemberCategory(member)),
             member.producer_note,
             formatCrewStatusLabel(member.status),
           ]),
@@ -506,7 +450,7 @@ function ProducerCrewContent() {
             getProjectTitle(member),
             getMemberRole(member),
             getMemberTask(member),
-            inferCrewCategory(member),
+            getCrewCategoryLabel(getCrewMemberCategory(member)),
             member.producer_note,
             formatCrewStatusLabel(member.status),
           ])
@@ -525,17 +469,42 @@ function ProducerCrewContent() {
       try {
         setError("");
         setIsLoading(true);
-        const crmProjects = await reusePendingRequest(
-          `producer-crew-crm-summary:${token}`,
-          () => getMyCrewCrm({ summary: true }, token ?? undefined)
-        );
+        const [crmProjects, crmMembers] = await Promise.all([
+          reusePendingRequest(
+            `producer-crew-crm-summary:${token}`,
+            () => getMyCrewCrm({ summary: true }, token ?? undefined)
+          ),
+          reusePendingRequest(
+            `producer-crew-crm-members:${token}`,
+            () => getMyCrewCrm({ summary: false }, token ?? undefined)
+          ),
+        ]);
 
         if (isMounted) {
-          const nextProjectGroups = crmProjects
+          const allMembers = crmMembers.flatMap((item) =>
+            isCrewCrmProject(item) ? item.members ?? [] : [item]
+          );
+          const detailedGroups = groupCrewByProject(allMembers, tRef.current("crew.projectMissing"));
+          const detailedGroupsById = new Map(detailedGroups.map((group) => [group.id, group]));
+          const summaryGroups = crmProjects
             .filter(isCrewCrmProject)
             .map(normalizeCrewCrmProject);
+          const nextProjectGroups = summaryGroups.map((group) => ({
+            ...group,
+            members: detailedGroupsById.get(group.id)?.members ?? group.members,
+          }));
+          const groupsMissingFromSummary = detailedGroups.filter(
+            (group) => !nextProjectGroups.some((summaryGroup) => summaryGroup.id === group.id)
+          );
+          const completeGroups = [...nextProjectGroups, ...groupsMissingFromSummary];
 
-          setProjectGroups(nextProjectGroups);
+          setProjectGroups(completeGroups);
+          setMembersByProject(
+            completeGroups.reduce<Record<string, CrewMember[]>>((records, group) => {
+              records[group.id] = group.members;
+              return records;
+            }, {})
+          );
         }
       } catch (loadError) {
         if (isMounted) {
@@ -563,14 +532,70 @@ function ProducerCrewContent() {
     () => Array.from(new Set(projectGroups.map((group) => normalizeStatus(getProjectGroupStatus(group))).filter(Boolean))).sort(),
     [projectGroups]
   );
-  const activeProjectCount = useMemo(
-    () => projectGroups.filter((group) => ["ACTIVE", "OPEN", "ACCEPTED"].includes(normalizeStatus(group.status))).length,
+  const allCrewMembers = useMemo(
+    () => Object.values(membersByProject).flat(),
+    [membersByProject]
+  );
+  const crewProjectGroups = useMemo(
+    () => projectGroups.filter((group) => group.membersCount > 0),
     [projectGroups]
   );
-  const totalMembersCount = useMemo(
-    () => projectGroups.reduce((total, group) => total + group.membersCount, 0),
-    [projectGroups]
+  const activeProjectGroups = useMemo(
+    () =>
+      crewProjectGroups.filter(
+        (group) =>
+          ACTIVE_PROJECT_STATUSES.has(normalizeStatus(getProjectGroupStatus(group)))
+      ),
+    [crewProjectGroups]
   );
+  const activeProjectCount = activeProjectGroups.length;
+  const activeMembers = useMemo(
+    () =>
+      allCrewMembers.filter((member) =>
+        ACTIVE_MEMBER_STATUSES.has(normalizeStatus(member.status))
+      ),
+    [allCrewMembers]
+  );
+  const categoryStats = useMemo(() => {
+    const counts = new Map<CrewCategory, number>();
+
+    allCrewMembers.forEach((member) => {
+      const category = getCrewMemberCategory(member);
+      counts.set(category, (counts.get(category) ?? 0) + 1);
+    });
+
+    return CREW_CATEGORIES.map((category) => ({
+      category,
+      count: counts.get(category) ?? 0,
+    })).filter(({ count }) => count > 0);
+  }, [allCrewMembers]);
+
+  const getProjectCategories = (group: CrewProjectGroup) => {
+    const counts = new Map<CrewCategory, number>();
+    const members = membersByProject[group.id] ?? group.members;
+
+    members.forEach((member) => {
+      const category = getCrewMemberCategory(member);
+      counts.set(category, (counts.get(category) ?? 0) + 1);
+    });
+
+    return CREW_CATEGORIES.map((category) => ({
+      category,
+      count: counts.get(category) ?? 0,
+    }))
+      .filter(({ count }) => count > 0)
+      .sort((left, right) => right.count - left.count);
+  };
+
+  const openCachedProjectMembers = (group: CrewProjectGroup) => {
+    const members = membersByProject[group.id] ?? group.members;
+    setCrewSummaryModal(null);
+    setProjectMembersModal({
+      ...group,
+      members,
+      membersCount: members.length || group.membersCount,
+    });
+  };
 
   const filteredProjectGroups = useMemo(() => {
     const search = normalizeText(filters.search);
@@ -579,8 +604,11 @@ function ProducerCrewContent() {
       const matchesSearch = !search || normalizeText(group.title).includes(search);
       const matchesStatus = !filters.status || normalizeStatus(getProjectGroupStatus(group)) === filters.status;
       const matchesCount = matchesMemberCountFilter(group, filters.memberCount);
+      const matchesCategory =
+        !filters.category ||
+        group.members.some((member) => getCrewMemberCategory(member) === filters.category);
 
-      return matchesSearch && matchesStatus && matchesCount;
+      return matchesSearch && matchesStatus && matchesCount && matchesCategory;
     });
   }, [filters, projectGroups]);
 
@@ -596,7 +624,7 @@ function ProducerCrewContent() {
     setSuccessMessage("");
     setEditForm({
       role: member.role?.trim() || "",
-      category: inferCrewCategory(member),
+      category: getCrewMemberCategory(member),
       status: member.status?.trim() || "",
       task_description: member.task_description?.trim() || "",
       producer_note: member.producer_note?.trim() || "",
@@ -612,7 +640,11 @@ function ProducerCrewContent() {
 
   const handleEditChange = (event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = event.target;
-    setEditForm((current) => ({ ...current, [name]: value }));
+    setEditForm((current) => ({
+      ...current,
+      [name]: value,
+      ...(name === "role" ? { category: inferCrewCategoryFromText(value) } : {}),
+    }));
   };
 
   const mergeUpdatedMember = (memberId: string, projectId: string, updatedMember: CrewMember) => {
@@ -770,6 +802,25 @@ function ProducerCrewContent() {
     }
   };
 
+  const visibleModalMembers = useMemo(
+    () =>
+      (projectMembersModal?.members ?? []).filter(
+        (member) =>
+          !filters.category || getCrewMemberCategory(member) === filters.category
+      ),
+    [filters.category, projectMembersModal]
+  );
+  const groupedModalMembers = useMemo(
+    () =>
+      CREW_CATEGORIES.map((category) => ({
+        category,
+        members: visibleModalMembers.filter(
+          (member) => getCrewMemberCategory(member) === category
+        ),
+      })).filter((group) => group.members.length > 0),
+    [visibleModalMembers]
+  );
+
   return (
     <div className="producer-shell">
       <section className="producer-card producer-banner producer-banner--compact">
@@ -783,18 +834,54 @@ function ProducerCrewContent() {
       </section>
 
       <section className="producer-metrics">
-        <article className="producer-card producer-metric">
-          <span className="producer-metric__value">{isLoading ? "..." : totalMembersCount}</span>
+        <ClickableSummaryCard
+          className="producer-card producer-metric"
+          onClick={() => setCrewSummaryModal("members")}
+        >
+          <span className="producer-metric__value">{isLoading ? "..." : allCrewMembers.length}</span>
           <p className="producer-metric__label">{tAuto("Integrantes")}</p>
-        </article>
-        <article className="producer-card producer-metric">
-          <span className="producer-metric__value">{isLoading ? "..." : projectGroups.length}</span>
+        </ClickableSummaryCard>
+        <ClickableSummaryCard
+          className="producer-card producer-metric"
+          onClick={() => setCrewSummaryModal("projects")}
+        >
+          <span className="producer-metric__value">{isLoading ? "..." : crewProjectGroups.length}</span>
           <p className="producer-metric__label">{tAuto("Proyectos con equipo")}</p>
-        </article>
-        <article className="producer-card producer-metric">
+        </ClickableSummaryCard>
+        <ClickableSummaryCard
+          className="producer-card producer-metric"
+          onClick={() => setCrewSummaryModal("activeTeams")}
+        >
           <span className="producer-metric__value">{isLoading ? "..." : activeProjectCount}</span>
           <p className="producer-metric__label">{tAuto("Equipos activos")}</p>
-        </article>
+        </ClickableSummaryCard>
+        <ClickableSummaryCard
+          className="producer-card producer-metric producer-crew-category-metric"
+          onClick={() => setCrewSummaryModal("categories")}
+        >
+          <span className="producer-metric__value">
+            {isLoading ? "..." : categoryStats.length}
+          </span>
+          <p className="producer-metric__label">{tAuto("Categorias activas")}</p>
+          {categoryStats.length ? (
+            <div className="producer-crew-category-metric__list">
+              {categoryStats.slice(0, 4).map(({ category, count }) => (
+                <span key={category}>
+                  {tAuto(getCrewCategoryLabel(category))} ({count})
+                </span>
+              ))}
+            </div>
+          ) : null}
+        </ClickableSummaryCard>
+        <ClickableSummaryCard
+          className="producer-card producer-metric"
+          onClick={() => setCrewSummaryModal("activeMembers")}
+        >
+          <span className="producer-metric__value">
+            {isLoading ? "..." : activeMembers.length}
+          </span>
+          <p className="producer-metric__label">{tAuto("Miembros activos/aceptados")}</p>
+        </ClickableSummaryCard>
       </section>
 
       {error ? (
@@ -846,6 +933,17 @@ function ProducerCrewContent() {
               <option value="1">{tAuto("1 integrante")}</option>
               <option value="2-5">{tAuto("2 a 5 integrantes")}</option>
               <option value="6+">{tAuto("6 o mas integrantes")}</option>
+            </select>
+          </label>
+          <label className="producer-field">
+            <span>{tAuto("Categoria")}</span>
+            <select name="category" value={filters.category} onChange={handleFilterChange}>
+              <option value="">{tAuto("Todas")}</option>
+              {CREW_CATEGORIES.map((category) => (
+                <option key={category} value={category}>
+                  {tAuto(getCrewCategoryLabel(category))}
+                </option>
+              ))}
             </select>
           </label>
         </div>
@@ -923,6 +1021,179 @@ function ProducerCrewContent() {
         )}
       </section>
 
+      {crewSummaryModal === "members" || crewSummaryModal === "activeMembers" ? (
+        <SummaryDetailModal
+          title={
+            crewSummaryModal === "activeMembers"
+              ? tAuto("Miembros activos / aceptados")
+              : tAuto("Integrantes del crew")
+          }
+          description={
+            crewSummaryModal === "activeMembers"
+              ? tAuto("Integrantes cuyo estado es activo o aceptado.")
+              : tAuto("Todos los integrantes cargados en el crew.")
+          }
+          onClose={() => setCrewSummaryModal(null)}
+        >
+          <div className="summary-detail-list producer-crew-summary-list">
+            {(crewSummaryModal === "activeMembers" ? activeMembers : allCrewMembers).length ? (
+              (crewSummaryModal === "activeMembers" ? activeMembers : allCrewMembers).map(
+                (member, index) => (
+                  <article
+                    key={getMemberKey(member, index)}
+                    className="summary-detail-list__item producer-crew-summary-member"
+                  >
+                    <div className="producer-crew-summary-member__identity">
+                      <TalentAvatar
+                        src={getCrewMemberPhoto(member)}
+                        name={getCrewMemberName(member)}
+                        size="sm"
+                      />
+                      <div>
+                        <h3>{getCrewMemberName(member)}</h3>
+                        {crewSummaryModal === "members" ? (
+                          <p>{getCrewMemberEmail(member)}</p>
+                        ) : null}
+                      </div>
+                    </div>
+                    <div className="producer-crew-summary-grid">
+                      <span>
+                        <small>{tAuto("Proyecto")}</small>
+                        <strong>{tAuto(getProjectTitle(member))}</strong>
+                      </span>
+                      <span>
+                        <small>{tAuto("Categoria")}</small>
+                        <strong>{tAuto(getCrewCategoryLabel(getCrewMemberCategory(member)))}</strong>
+                      </span>
+                      <span>
+                        <small>{tAuto("Rol")}</small>
+                        <strong>{tAuto(getMemberRole(member))}</strong>
+                      </span>
+                      <span>
+                        <small>{tAuto("Estado")}</small>
+                        <strong>{tAuto(formatCrewStatusLabel(member.status))}</strong>
+                      </span>
+                    </div>
+                    <button
+                      className="producer-button"
+                      type="button"
+                      disabled={!resolveTalentUserId(member)}
+                      onClick={() => setProfileMember(member)}
+                    >
+                      {resolveTalentUserId(member)
+                        ? tAuto("Ver ficha")
+                        : tAuto("Ficha no disponible")}
+                    </button>
+                  </article>
+                )
+              )
+            ) : (
+              <p className="summary-detail-empty">
+                {crewSummaryModal === "activeMembers"
+                  ? tAuto("No hay miembros activos o aceptados para mostrar.")
+                  : tAuto("No hay integrantes para mostrar.")}
+              </p>
+            )}
+          </div>
+        </SummaryDetailModal>
+      ) : null}
+
+      {crewSummaryModal === "projects" || crewSummaryModal === "activeTeams" ? (
+        <SummaryDetailModal
+          title={
+            crewSummaryModal === "activeTeams"
+              ? tAuto("Equipos activos")
+              : tAuto("Proyectos con equipo")
+          }
+          description={
+            crewSummaryModal === "activeTeams"
+              ? tAuto("Proyectos activos que actualmente tienen crew.")
+              : tAuto("Proyectos con integrantes asignados.")
+          }
+          onClose={() => setCrewSummaryModal(null)}
+        >
+          <div className="summary-detail-list producer-crew-summary-list">
+            {(crewSummaryModal === "activeTeams" ? activeProjectGroups : crewProjectGroups).length ? (
+              (crewSummaryModal === "activeTeams" ? activeProjectGroups : crewProjectGroups).map(
+                (group) => {
+                  const projectCategories = getProjectCategories(group);
+
+                  return (
+                    <article
+                      key={group.id}
+                      className="summary-detail-list__item producer-crew-summary-project"
+                    >
+                      <div>
+                        <h3>{getVisibleProjectTitle(group.title)}</h3>
+                        <p>
+                          {group.membersCount}{" "}
+                          {group.membersCount === 1
+                            ? tAuto("integrante")
+                            : tAuto("integrantes")}{" "}
+                          | {tAuto(formatCrewStatusLabel(getProjectGroupStatus(group)))}
+                        </p>
+                      </div>
+                      <div className="producer-crew-summary-project__categories">
+                        <small>{tAuto("Categorias principales")}</small>
+                        <div className="producer-chip-list">
+                          {projectCategories.length ? (
+                            projectCategories.slice(0, 3).map(({ category, count }) => (
+                              <span key={category} className="producer-chip">
+                                {tAuto(getCrewCategoryLabel(category))} ({count})
+                              </span>
+                            ))
+                          ) : (
+                            <span className="producer-muted">{tAuto("Sin categoria")}</span>
+                          )}
+                        </div>
+                      </div>
+                      <button
+                        className="producer-button"
+                        type="button"
+                        onClick={() => openCachedProjectMembers(group)}
+                      >
+                        {tAuto("Ver integrantes")}
+                      </button>
+                    </article>
+                  );
+                }
+              )
+            ) : (
+              <p className="summary-detail-empty">
+                {crewSummaryModal === "activeTeams"
+                  ? tAuto("No hay equipos activos para mostrar.")
+                  : tAuto("No hay proyectos con equipo para mostrar.")}
+              </p>
+            )}
+          </div>
+        </SummaryDetailModal>
+      ) : null}
+
+      {crewSummaryModal === "categories" ? (
+        <SummaryDetailModal
+          title={tAuto("Categorias activas")}
+          description={tAuto("Categorias presentes entre los integrantes cargados.")}
+          onClose={() => setCrewSummaryModal(null)}
+        >
+          <div className="producer-crew-summary-categories">
+            {categoryStats.length ? (
+              categoryStats.map(({ category, count }) => (
+                <article key={category} className="summary-detail-list__item">
+                  <h3>{tAuto(getCrewCategoryLabel(category))}</h3>
+                  <p>
+                    {count} {count === 1 ? tAuto("integrante") : tAuto("integrantes")}
+                  </p>
+                </article>
+              ))
+            ) : (
+              <p className="summary-detail-empty">
+                {tAuto("No hay categorias activas para mostrar.")}
+              </p>
+            )}
+          </div>
+        </SummaryDetailModal>
+      ) : null}
+
       {projectMembersModal ? (
         <div className="producer-modal" role="presentation">
           <article className="producer-modal__panel producer-project-detail-modal producer-crew-members-modal" role="dialog" aria-modal="true">
@@ -935,10 +1206,26 @@ function ProducerCrewContent() {
                 {tAuto("Cerrar")}
               </button>
             </div>
+            <div className="producer-crew-view-toggle" aria-label={tAuto("Vista de integrantes")}>
+              <button
+                className={`producer-button${membersView === "table" ? " producer-button--primary" : ""}`}
+                type="button"
+                onClick={() => setMembersView("table")}
+              >
+                {tAuto("Vista tabla")}
+              </button>
+              <button
+                className={`producer-button${membersView === "grouped" ? " producer-button--primary" : ""}`}
+                type="button"
+                onClick={() => setMembersView("grouped")}
+              >
+                {tAuto("Agrupar por categoria")}
+              </button>
+            </div>
 
             {modalError ? <p className="producer-feedback producer-feedback--error">{modalError}</p> : null}
 
-            {projectMembersModal.members.length ? (
+            {visibleModalMembers.length && membersView === "table" ? (
               <div className="producer-project-table-wrap">
                 <table className="producer-project-table producer-crew-members-table">
                   <thead>
@@ -946,6 +1233,7 @@ function ProducerCrewContent() {
                       <th>{tAuto("Integrante")}</th>
                       <th>{tAuto("Email")}</th>
                       <th>{tAuto("Rol")}</th>
+                      <th>{tAuto("Categoria")}</th>
                       <th>{tAuto("Tarea")}</th>
                       <th>{tAuto("Estado")}</th>
                       <th>{tAuto("Fecha ingreso")}</th>
@@ -953,19 +1241,38 @@ function ProducerCrewContent() {
                     </tr>
                   </thead>
                   <tbody>
-                    {projectMembersModal.members.map((member, index) => (
+                    {visibleModalMembers.map((member, index) => (
                       <tr key={getMemberKey(member, index)}>
                         <td>
-                          <div className="producer-talent-table__identity">
-                            <CrewAvatar member={member} />
+                          <button
+                            className="producer-profile-trigger producer-talent-table__identity"
+                            type="button"
+                            disabled={!resolveTalentUserId(member)}
+                            title={
+                              resolveTalentUserId(member)
+                                ? "Ver ficha"
+                                : "No se pudo identificar el user_id del talento."
+                            }
+                            onClick={() => setProfileMember(member)}
+                          >
+                            <TalentAvatar
+                              src={getCrewMemberPhoto(member)}
+                              name={getCrewMemberName(member)}
+                              size="sm"
+                            />
                             <div className="producer-project-table__title">
-                              <strong>{getTalentName(member, t("producer.talents.unnamed"))}</strong>
-                              <span>{tAuto(inferCrewCategory(member))}</span>
+                              <strong>{getCrewMemberName(member)}</strong>
+                              <span>{tAuto(getCrewCategoryLabel(getCrewMemberCategory(member)))}</span>
                             </div>
-                          </div>
+                          </button>
                         </td>
-                        <td>{getTalentEmail(member, t("common.noEmail"))}</td>
+                        <td>{getCrewMemberEmail(member)}</td>
                         <td>{tAuto(getMemberRole(member))}</td>
+                        <td>
+                          <span className="producer-count-badge">
+                            {tAuto(getCrewCategoryLabel(getCrewMemberCategory(member)))}
+                          </span>
+                        </td>
                         <td>{tAuto(getMemberTask(member))}</td>
                         <td>
                           <span className={`producer-status producer-status--${normalizeStatus(member.status).toLowerCase() || "default"}`}>
@@ -975,6 +1282,21 @@ function ProducerCrewContent() {
                         <td>{getMemberDate(member, i18n.language, t("common.noDate"))}</td>
                         <td>
                           <div className="producer-table-actions producer-crew-table__actions">
+                            <button
+                              className="producer-button"
+                              type="button"
+                              disabled={!resolveTalentUserId(member)}
+                              title={
+                                resolveTalentUserId(member)
+                                  ? undefined
+                                  : "No se pudo identificar el user_id del talento."
+                              }
+                              onClick={() => setProfileMember(member)}
+                            >
+                              {resolveTalentUserId(member)
+                                ? "Ver ficha"
+                                : "Ficha no disponible: falta user_id"}
+                            </button>
                             <button className="producer-button" type="button" onClick={() => openEditModal(member)}>
                               {tAuto("Editar rol/tarea")}
                             </button>
@@ -995,8 +1317,43 @@ function ProducerCrewContent() {
                   </tbody>
                 </table>
               </div>
+            ) : visibleModalMembers.length ? (
+              <div className="producer-crew-category-groups">
+                {groupedModalMembers.map((group) => (
+                  <section key={group.category} className="producer-crew-category-group">
+                    <h3>
+                      {tAuto(getCrewCategoryLabel(group.category))} ({group.members.length})
+                    </h3>
+                    <div>
+                      {group.members.map((member, index) => (
+                        <button
+                          key={getMemberKey(member, index)}
+                          className="producer-profile-trigger producer-crew-category-member"
+                          type="button"
+                          disabled={!resolveTalentUserId(member)}
+                          onClick={() => setProfileMember(member)}
+                        >
+                          <TalentAvatar
+                            src={getCrewMemberPhoto(member)}
+                            name={getCrewMemberName(member)}
+                            size="sm"
+                          />
+                          <span>
+                            <strong>{getCrewMemberName(member)}</strong>
+                            <small>{tAuto(getMemberRole(member))}</small>
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+                  </section>
+                ))}
+              </div>
             ) : (
-              <p className="producer-muted">{tAuto("Este proyecto no tiene integrantes.")}</p>
+              <p className="producer-muted">
+                {filters.category
+                  ? tAuto("No hay integrantes en la categoria seleccionada.")
+                  : tAuto("Este proyecto no tiene integrantes.")}
+              </p>
             )}
           </article>
         </div>
@@ -1007,11 +1364,15 @@ function ProducerCrewContent() {
           <article className="producer-modal__panel producer-project-detail-modal" role="dialog" aria-modal="true">
             <div className="producer-project-detail-modal__header">
               <div className="producer-talent-detail__identity">
-                <CrewAvatar member={detailMember} />
+                <TalentAvatar
+                  src={getCrewMemberPhoto(detailMember)}
+                  name={getCrewMemberName(detailMember)}
+                  size="md"
+                />
                 <div>
                   <p className="producer-page__eyebrow">{tAuto("Detalle de integrante")}</p>
-                  <h2>{getTalentName(detailMember, t("producer.talents.unnamed"))}</h2>
-                  <p className="producer-record__eyebrow">{getTalentEmail(detailMember, t("common.noEmail"))}</p>
+                  <h2>{getCrewMemberName(detailMember)}</h2>
+                  <p className="producer-record__eyebrow">{getCrewMemberEmail(detailMember)}</p>
                 </div>
               </div>
               <button className="producer-button producer-button--primary" type="button" onClick={() => setDetailMember(null)}>
@@ -1029,7 +1390,7 @@ function ProducerCrewContent() {
               </div>
               <div>
                 <span>{tAuto("Categoria")}</span>
-                <strong>{tAuto(inferCrewCategory(detailMember))}</strong>
+                <strong>{tAuto(getCrewCategoryLabel(getCrewMemberCategory(detailMember)))}</strong>
               </div>
               <div>
                 <span>{tAuto("Estado")}</span>
@@ -1062,7 +1423,7 @@ function ProducerCrewContent() {
             <div className="producer-project-detail-modal__header">
               <div>
                 <p className="producer-record__eyebrow">{tAuto("Editar rol/tarea")}</p>
-                <h2>{getTalentName(editingMember, t("producer.talents.unnamed"))}</h2>
+                <h2>{getCrewMemberName(editingMember)}</h2>
               </div>
               <button className="producer-button" type="button" onClick={closeEditModal}>
                 {t("common.close")}
@@ -1087,9 +1448,10 @@ function ProducerCrewContent() {
               <label className="producer-field">
                 <span>{tAuto("Categoria")}</span>
                 <select name="category" value={editForm.category ?? ""} onChange={handleEditChange}>
-                  <option value="">{tAuto("Sin categoria")}</option>
-                  {CREW_CATEGORY_OPTIONS.map((category) => (
-                    <option key={category} value={category}>{tAuto(category)}</option>
+                  {CREW_CATEGORIES.map((category) => (
+                    <option key={category} value={category}>
+                      {tAuto(getCrewCategoryLabel(category))}
+                    </option>
                   ))}
                 </select>
               </label>
@@ -1132,6 +1494,15 @@ function ProducerCrewContent() {
             </form>
           </article>
         </div>
+      ) : null}
+
+      {profileMember ? (
+        <TalentProfileModal
+          userId={resolveTalentUserId(profileMember)}
+          fallback={talentFallbackFromCrewMember(profileMember)}
+          token={token ?? undefined}
+          onClose={() => setProfileMember(null)}
+        />
       ) : null}
     </div>
   );

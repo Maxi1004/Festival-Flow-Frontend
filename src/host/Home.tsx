@@ -5,7 +5,7 @@ import "../styles/home.css";
 
 function Home() {
   const { t } = useTranslation();
-  const { user, profile, isProfileLoading } = useCurrentProfile();
+  const { user, role, isProfileLoading } = useCurrentProfile();
 
   if (isProfileLoading) {
     return (
@@ -33,12 +33,16 @@ function Home() {
     );
   }
 
-  if (profile?.role === "TALENT") {
+  if (role === "TALENT") {
     return <Navigate to="/talent" replace />;
   }
 
-  if (profile?.role === "PRODUCER") {
+  if (role === "PRODUCER") {
     return <Navigate to="/producer" replace />;
+  }
+
+  if (role === "ADMIN") {
+    return <Navigate to="/admin/festivals" replace />;
   }
 
   return (

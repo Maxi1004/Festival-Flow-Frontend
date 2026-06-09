@@ -1,6 +1,9 @@
 @layer theme, base, components, utilities;
 @import "tailwindcss/theme.css" layer(theme);
 @import "tailwindcss/utilities.css" layer(utilities) source("./host/talent");
+@source "./host/admin";
+@source "./components";
+@custom-variant dark (&:where(.dark-theme, .dark-theme *));
 
 :root,
 body.light-theme {

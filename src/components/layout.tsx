@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { FiMoon, FiSun } from "react-icons/fi";
+import { FiFilm, FiGrid, FiMoon, FiSun } from "react-icons/fi";
+import type { IconType } from "react-icons";
 import { Outlet, useLocation, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import LanguageSelector from "./LanguageSelector";
@@ -23,6 +24,7 @@ type NavigationItem = {
   labelKey: string;
   label: string;
   path: string;
+  icon?: IconType;
 };
 
 const producerNav: NavigationItem[] = [
@@ -46,6 +48,21 @@ const talentNav: NavigationItem[] = [
   { labelKey: "layout.talentNav.messages", label: "Mensajes", path: "/talent/messages" },
 ];
 
+const adminNav: NavigationItem[] = [
+  {
+    labelKey: "layout.adminNav.dashboard",
+    label: "Dashboard",
+    path: "/admin",
+    icon: FiGrid,
+  },
+  {
+    labelKey: "layout.adminNav.festivals",
+    label: "Festivales",
+    path: "/admin/festivals",
+    icon: FiFilm,
+  },
+];
+
 const talentPageMeta: Record<string, { eyebrowKey: string; eyebrow: string; titleKey: string; title: string }> = {
   "/talent": { eyebrowKey: "layout.talentMeta.homeEyebrow", eyebrow: "Panel de talento", titleKey: "layout.talentNav.home", title: "Inicio" },
   "/talent/profile": { eyebrowKey: "layout.talentMeta.profileEyebrow", eyebrow: "Perfil", titleKey: "layout.talentNav.profile", title: "Mi perfil" },
@@ -67,6 +84,21 @@ const producerPageMeta: Record<string, { eyebrowKey: string; eyebrow: string; ti
   "/producer/talents": { eyebrowKey: "layout.producerMeta.talentsEyebrow", eyebrow: "Talentos", titleKey: "layout.producerNav.talents", title: "Talentos" },
   "/producer/crew": { eyebrowKey: "layout.producerMeta.crewEyebrow", eyebrow: "Crew", titleKey: "layout.producerNav.crew", title: "Crew" },
   "/producer/messages": { eyebrowKey: "layout.producerMeta.messagesEyebrow", eyebrow: "Mensajes", titleKey: "layout.producerNav.messages", title: "Mensajes" },
+};
+
+const adminPageMeta: Record<string, { eyebrowKey: string; eyebrow: string; titleKey: string; title: string }> = {
+  "/admin": {
+    eyebrowKey: "layout.adminMeta.eyebrow",
+    eyebrow: "ADMIN",
+    titleKey: "layout.adminNav.dashboard",
+    title: "Dashboard",
+  },
+  "/admin/festivals": {
+    eyebrowKey: "layout.adminMeta.eyebrow",
+    eyebrow: "ADMIN",
+    titleKey: "layout.adminNav.festivals",
+    title: "Festivales",
+  },
 };
 
 const layoutBaseTexts = [
@@ -96,6 +128,9 @@ const layoutBaseTexts = [
   "Nueva convocatoria",
   "Editar proyecto",
   "Editar convocatoria",
+  "ADMIN",
+  "Dashboard",
+  "Festivales",
 ];
 
 function Layout() {
@@ -103,16 +138,25 @@ function Layout() {
   const navigate = useNavigate();
   const location = useLocation();
   const { logout } = useAuth();
-  const { user, token, profile, isProfileLoading } = useCurrentProfile();
+  const { user, token, profile, role, isProfileLoading } = useCurrentProfile();
   const language = useFestivalFlowLanguage();
   const { tAuto } = useAutoTranslate(layoutBaseTexts, language, token);
   const [theme, setTheme] = useState<FestivalFlowTheme>(() => getStoredTheme());
 
-  const isProducer = profile?.role === "PRODUCER";
-  const isTalent = profile?.role === "TALENT";
-  const navItems = isProducer ? producerNav : talentNav;
+  const isProducer = role === "PRODUCER";
+  const isTalent = role === "TALENT";
+  const isAdmin = role === "ADMIN";
+  const navItems = isAdmin
+    ? adminNav
+    : isProducer
+    ? producerNav
+    : isTalent
+    ? talentNav
+    : [];
   const userId = profile?.uid ?? user?.uid ?? "";
-  const userName = profile?.name?.trim() || user?.displayName?.trim() || t("common.user");
+  const userName = isAdmin
+    ? "Festival Admin"
+    : profile?.name?.trim() || user?.displayName?.trim() || t("common.user");
   const userInitial = userName.charAt(0).toUpperCase() || "T";
   const authPhotoUrl = profile?.photo_url?.trim() || profile?.picture?.trim() || "";
   const sidebarPhotoUrl =
@@ -121,11 +165,13 @@ function Layout() {
     getCachedSidebarPhoto(userId) ||
     (!userId && isProfileLoading ? getLastCachedSidebarPhoto() : "") ||
     "";
-  const roleLabel = profile?.role
-    ? t(`roles.${profile.role}`, { defaultValue: profile.role })
+  const roleLabel = role
+    ? t(`roles.${role}`, { defaultValue: role })
     : t("common.noRole");
 
-  const topbarMeta = isTalent
+  const topbarMeta = isAdmin
+    ? adminPageMeta[location.pathname] ?? adminPageMeta["/admin/festivals"]
+    : isTalent
     ? talentPageMeta[location.pathname] ?? talentPageMeta["/talent"]
     : producerPageMeta[location.pathname] ??
       (location.pathname.includes("/producer/projects/")
@@ -196,6 +242,8 @@ function Layout() {
                   ? tAuto("Panel de producción")
                   : isTalent
                   ? tAuto("Panel de talento")
+                  : isAdmin
+                  ? tAuto("ADMIN")
                   : tAuto("Acceso")}
               </p>
               <h1 className="sidebar__title">{t("app.name")}</h1>
@@ -208,33 +256,38 @@ function Layout() {
             </button>
           ) : (
             <>
-              <button
-                className="sidebar__action"
-                type="button"
-                disabled={isProfileLoading}
-                onClick={handlePrimaryAction}
-              >
-                {isProducer ? tAuto("Nuevo proyecto") : tAuto("Editar perfil")}
-              </button>
+              {!isAdmin ? (
+                <button
+                  className="sidebar__action"
+                  type="button"
+                  disabled={isProfileLoading}
+                  onClick={handlePrimaryAction}
+                >
+                  {isProducer ? tAuto("Nuevo proyecto") : tAuto("Editar perfil")}
+                </button>
+              ) : null}
 
               <nav className="sidebar__nav" aria-label={tAuto("Navegación principal")}>
                 {isProfileLoading ? (
                   <span className="sidebar__link">{t("common.loading")}</span>
                 ) : (
                   navItems.map((item) => {
+                    const Icon = item.icon;
                     const isActive =
                       location.pathname === item.path ||
-                      (item.path !== "/producer" &&
+                      (item.path !== "/admin" &&
+                        item.path !== "/producer" &&
                         item.path !== "/talent" &&
                         location.pathname.startsWith(`${item.path}/`));
 
                     return (
                       <button
                         key={item.path}
-                        className={`sidebar__link ${isActive ? "sidebar__link--active" : ""}`}
+                        className={`sidebar__link flex items-center gap-3 ${isActive ? "sidebar__link--active" : ""}`}
                         type="button"
                         onClick={() => navigate(item.path)}
                       >
+                        {Icon ? <Icon aria-hidden="true" /> : null}
                         {tAuto(item.label)}
                       </button>
                     );

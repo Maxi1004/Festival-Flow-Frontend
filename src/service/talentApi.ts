@@ -10,6 +10,7 @@ import type {
   TalentCommitment,
   AvailableTalent,
   TalentProfile,
+  TalentPublicProfile,
   TalentProfilePhotoResponse,
   TalentProfilePortfolioPdfResponse,
   TalentProfileUpdatePayload,
@@ -34,7 +35,26 @@ type TalentCommitmentListEnvelope = {
   commitments?: TalentCommitment[];
 };
 
+type TalentPublicProfileEnvelope = {
+  data?: TalentPublicProfile | TalentPublicProfileEnvelope;
+  profile?: TalentPublicProfile | null;
+  availability?: TalentPublicProfile["availability"];
+  email?: string | null;
+  name?: string | null;
+  user?: {
+    email?: string | null;
+    name?: string | null;
+    display_name?: string | null;
+    photo_url?: string | null;
+    photoURL?: string | null;
+  } | null;
+};
+
 export const AVAILABLE_TALENTS_ENDPOINT = "/talent/availability";
+export const TALENT_PUBLIC_PROFILE_ENDPOINT = (userId: string) =>
+  `/talent/${encodeURIComponent(userId)}/profile-public`;
+
+const publicProfileCache = new Map<string, Promise<TalentPublicProfile>>();
 
 export type AvailableTalentFilters = {
   search?: string;
@@ -62,6 +82,34 @@ function unwrapAvailableTalents(
   }
 
   return payload.talents ?? payload.data ?? payload.items ?? payload.records ?? payload.results ?? [];
+}
+
+function unwrapTalentPublicProfile(
+  payload: TalentPublicProfile | TalentPublicProfileEnvelope
+): TalentPublicProfile {
+  const envelope = payload as TalentPublicProfileEnvelope;
+
+  if (envelope.data) {
+    return unwrapTalentPublicProfile(envelope.data);
+  }
+
+  if (envelope.profile || envelope.availability || envelope.user) {
+    return {
+      ...(envelope.profile ?? {}),
+      availability: envelope.availability,
+      email: envelope.email ?? envelope.user?.email,
+      name:
+        envelope.name ??
+        envelope.user?.display_name ??
+        envelope.user?.name,
+      photo_url:
+        envelope.profile?.photo_url ??
+        envelope.user?.photo_url ??
+        envelope.user?.photoURL,
+    };
+  }
+
+  return payload as TalentPublicProfile;
 }
 
 export async function getAvailableTalents(
@@ -135,6 +183,44 @@ export async function getMyTalentProfile(
   return unwrapSingleResource(
     await parseJsonResponse<TalentProfile | SingleResourceEnvelope<TalentProfile>>(response)
   );
+}
+
+export function getTalentPublicProfile(
+  userId: string,
+  authenticatedToken?: string
+): Promise<TalentPublicProfile> {
+  const normalizedUserId = userId.trim();
+
+  if (!normalizedUserId) {
+    return Promise.reject(new Error("No se pudo identificar el talento."));
+  }
+
+  const cachedRequest = publicProfileCache.get(normalizedUserId);
+
+  if (cachedRequest) {
+    return cachedRequest;
+  }
+
+  const request = (async () => {
+    const response = await fetch(
+      `${API_URL}${TALENT_PUBLIC_PROFILE_ENDPOINT(normalizedUserId)}`,
+      {
+        method: "GET",
+        headers: await getAuthenticatedHeaders(undefined, authenticatedToken),
+      }
+    );
+
+    return unwrapTalentPublicProfile(
+      await parseJsonResponse<TalentPublicProfile | TalentPublicProfileEnvelope>(
+        response
+      )
+    );
+  })();
+
+  publicProfileCache.set(normalizedUserId, request);
+  request.catch(() => publicProfileCache.delete(normalizedUserId));
+
+  return request;
 }
 
 export async function updateMyTalentProfile(

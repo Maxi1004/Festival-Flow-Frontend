@@ -11,6 +11,7 @@ import type {
   TalentApplicationFeed,
   TalentApplicationFeedSummary,
 } from "../types/talent";
+import type { CrewCategory } from "../utils/crewCategory";
 
 type ApplicationEnvelope = {
   application?: TalentApplication;
@@ -206,7 +207,8 @@ export async function getOpportunityApplications(
 export async function updateApplicationStatus(
   applicationId: string,
   status: "ACCEPTED" | "REJECTED",
-  authenticatedToken?: string
+  authenticatedToken?: string,
+  category?: CrewCategory
 ): Promise<TalentApplication> {
   const response = await fetch(`${API_URL}/applications/${applicationId}/status`, {
     method: "PATCH",
@@ -214,7 +216,10 @@ export async function updateApplicationStatus(
       { "Content-Type": "application/json" },
       authenticatedToken
     ),
-    body: JSON.stringify({ status }),
+    body: JSON.stringify({
+      status,
+      ...(status === "ACCEPTED" && category ? { category } : {}),
+    }),
   });
 
   if (!response.ok) {

@@ -1,4 +1,5 @@
 import type { Opportunity } from "./producer";
+import type { CrewCategory } from "../utils/crewCategory";
 
 export type AvailabilityStatus = "AVAILABLE" | "UNAVAILABLE";
 
@@ -20,6 +21,7 @@ export type PortfolioItem = {
 export type TalentProfile = {
   id?: string;
   user_id?: string;
+  user_uid?: string;
   display_name: string;
   bio: string;
   main_specialty: string;
@@ -36,6 +38,23 @@ export type TalentProfile = {
   portfolio_items?: PortfolioItem[];
   created_at?: string;
   updated_at?: string;
+};
+
+export type TalentPublicProfile = Partial<TalentProfile> & {
+  email?: string | null;
+  name?: string | null;
+  picture?: string | null;
+  portfolio_url?: string | null;
+  availability?: Partial<TalentAvailability> | null;
+  availability_status?: AvailabilityStatus | string | null;
+  work_modality?: WorkModality | string | null;
+  available_from?: string | null;
+  availability_notes?: string | null;
+  notes?: string | null;
+};
+
+export type TalentProfileFallback = Partial<TalentPublicProfile> & {
+  user_id?: string;
 };
 
 export type TalentProfileUpdatePayload = {
@@ -127,11 +146,23 @@ export type TalentApplication = {
   opportunity_id: string;
   project_id?: string | null;
   producer_uid?: string;
+  user_id?: string;
+  user_uid?: string;
   talent_id?: string;
   talent_uid?: string;
+  talent_user_id?: string;
+  name?: string | null;
+  display_name?: string | null;
+  email?: string | null;
+  photo_url?: string | null;
+  picture?: string | null;
+  avatar_url?: string | null;
   talent_name?: string | null;
   talent_email?: string | null;
   talent?: {
+    id?: string;
+    user_id?: string;
+    user_uid?: string;
     name?: string | null;
     display_name?: string | null;
     email?: string | null;
@@ -178,6 +209,9 @@ export type AvailableTalent = {
   id?: string;
   user_id?: string;
   user_uid?: string;
+  talent_id?: string;
+  talent_uid?: string;
+  talent_user_id?: string;
   status?: AvailabilityStatus | string | null;
   name?: string | null;
   display_name?: string | null;
@@ -198,12 +232,29 @@ export type AvailableTalent = {
 
 export type CrewMember = {
   id?: string;
+  name?: string | null;
+  display_name?: string | null;
+  email?: string | null;
+  photo_url?: string | null;
+  picture?: string | null;
+  avatar_url?: string | null;
+  main_specialty?: string | null;
+  specialties?: string[];
   application_id?: string | null;
   recruitment_id?: string | null;
   talent_user_id?: string | null;
+  talent_id?: string | null;
+  talent_uid?: string | null;
+  user_id?: string | null;
+  user_uid?: string | null;
   talent_name?: string | null;
   talent_email?: string | null;
+  profile?: Partial<TalentProfile> | null;
+  talent_profile?: Partial<TalentProfile> | null;
   talent?: {
+    id?: string;
+    user_id?: string;
+    user_uid?: string;
     name?: string | null;
     display_name?: string | null;
     email?: string | null;
@@ -222,7 +273,7 @@ export type CrewMember = {
     email?: string | null;
   } | null;
   role?: string | null;
-  category?: string | null;
+  category?: CrewCategory | string | null;
   task_category?: string | null;
   role_needed?: string | null;
   specialty?: string | null;
@@ -253,7 +304,7 @@ export type CrewMessage = {
 
 export type CrewMemberUpdatePayload = {
   role: string;
-  category?: string;
+  category?: CrewCategory;
   status?: string;
   task_description: string;
   producer_note: string;
@@ -271,6 +322,7 @@ export type CrewProjectMember = {
   email: string | null;
   photo_url: string | null;
   role: string;
+  category?: CrewCategory | string | null;
   task_description: string | null;
   status: string;
   joined_at: string | null;

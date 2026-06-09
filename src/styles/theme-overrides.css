@@ -42,7 +42,6 @@ body.dark-theme .producer-kpi,
 body.dark-theme .producer-calendar-item,
 body.dark-theme .producer-activity-item,
 body.dark-theme .producer-project-card,
-body.dark-theme .producer-help-card__trigger,
 body.dark-theme .producer-profile-summary strong,
 body.dark-theme .producer-profile-summary span,
 body.dark-theme .producer-profile-detail,
@@ -50,6 +49,7 @@ body.dark-theme .producer-project-detail-grid div,
 body.dark-theme .producer-meta-list span,
 body.dark-theme .producer-chip,
 body.dark-theme .producer-crew-project,
+body.dark-theme .producer-crew-category-group,
 body.dark-theme .producer-message-history,
 body.dark-theme .talent-field,
 body.dark-theme .talent-list__item,
@@ -95,6 +95,8 @@ body.dark-theme .producer-project-detail-modal__header h2,
 body.dark-theme .producer-project-detail-grid strong,
 body.dark-theme .producer-metric__value,
 body.dark-theme .producer-message-history h4,
+body.dark-theme .producer-crew-category-group h3,
+body.dark-theme .producer-crew-category-member strong,
 body.dark-theme .producer-talent-detail__section strong,
 body.dark-theme .talent-page__title,
 body.dark-theme .talent-list__title,
@@ -351,6 +353,65 @@ body.dark-theme .messages-type {
   color: var(--text-primary);
 }
 
+body.dark-theme .producer-crew-category-metric__list span {
+  background: var(--badge-bg);
+  color: #93c5fd;
+}
+
+body.dark-theme .producer-crew-summary-grid strong {
+  color: var(--text-primary);
+}
+
+body.dark-theme .producer-crew-summary-grid small,
+body.dark-theme .producer-crew-summary-project__categories > small {
+  color: var(--text-secondary);
+}
+
+body.dark-theme .donut-chart__track {
+  stroke: #334155;
+}
+
+body.dark-theme .donut-chart__center strong,
+body.dark-theme .donut-chart__legend-item strong,
+body.dark-theme .producer-opportunity-applicant-group > header > strong,
+body.dark-theme .producer-opportunity-applicant-group__list strong {
+  color: var(--text-primary);
+}
+
+body.dark-theme .donut-chart__center span,
+body.dark-theme .donut-chart__legend-item,
+body.dark-theme .donut-chart__empty,
+body.dark-theme .producer-opportunity-metric__caption,
+body.dark-theme .producer-opportunity-status-group__items span,
+body.dark-theme .producer-opportunity-applicant-group__list span,
+body.dark-theme .producer-opportunity-applicant-group__list small,
+body.dark-theme .producer-opportunity-applicant-group__list p {
+  color: var(--text-secondary);
+}
+
+body.dark-theme .producer-opportunity-summary-chart {
+  background: var(--bg-secondary);
+  border-color: var(--border-color);
+}
+
+body.dark-theme .producer-opportunity-status-group__items article,
+body.dark-theme .producer-opportunity-applicant-group__list > article {
+  border-color: var(--border-color);
+}
+
+body.dark-theme .producer-opportunity-applicant-group__counts span {
+  background: var(--badge-bg);
+  color: #93c5fd;
+}
+
+body.dark-theme .producer-opportunity-applicants-skeleton div {
+  border-color: #334155;
+}
+
+body.dark-theme .producer-opportunity-applicants-skeleton span {
+  background: #334155;
+}
+
 body.dark-theme .talent-status--available,
 body.dark-theme .talent-availability-status--available,
 body.dark-theme .talent-application-status--accepted,
@@ -398,6 +459,7 @@ body.dark-theme .producer-button--danger:hover:not(:disabled) {
 
 body.dark-theme .producer-crew-project:hover,
 body.dark-theme .producer-crew-project--active,
+body.dark-theme .producer-crew-category-member:not(:disabled):hover,
 body.dark-theme .producer-project-card:hover,
 body.dark-theme .producer-project-table tbody tr:hover,
 body.dark-theme .talent-crew-project:hover,

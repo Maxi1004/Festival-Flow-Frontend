@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import ProducerGuard from "./ProducerGuard";
+import TalentProfileModal from "../../components/TalentProfileModal";
+import TalentAvatar from "../../components/TalentAvatar";
 import { getMyProjects } from "../../service/projectApi";
 import { getMyOpportunities } from "../../service/opportunityApi";
 import { getOpportunityApplications } from "../../service/applicationApi";
@@ -11,6 +13,13 @@ import type { TalentApplication } from "../../types/talent";
 import { formatDisplayDate, formatStatusLabel } from "./utils";
 import { useAutoTranslate, useFestivalFlowLanguage } from "../../hooks/useAutoTranslate";
 import { combineTranslationTexts } from "../../utils/translationTexts";
+import {
+  getTalentIdentityEmail,
+  getTalentIdentityName,
+  getTalentIdentityPhoto,
+  resolveTalentUserId,
+  talentFallbackFromApplication,
+} from "../../utils/talentProfile";
 import "../../styles/producer.css";
 
 type ProjectFilters = {
@@ -83,14 +92,6 @@ const producerProjectsBaseTexts = [
   "Gestiona tus producciones",
   "Consulta el estado de cada proyecto y crea convocatorias asociadas cuando lo necesites.",
   "Nuevo proyecto",
-  "Como funciona?",
-  "Ocultar",
-  "Ver pasos",
-  "Primero crea un proyecto.",
-  "Luego crea una convocatoria asociada al proyecto.",
-  "Los talentos postulan a esa convocatoria.",
-  "Revisa postulantes y acepta o rechaza.",
-  "Al aceptar un talento, pasa al crew del proyecto.",
   "Proyectos",
   "proyectos",
   "Cargando registros...",
@@ -194,39 +195,15 @@ function getProjectOpportunityCount(project: Project): number {
 }
 
 function getApplicantName(application: TalentApplication): string {
-  return (
-    application.talent_name?.trim() ||
-    application.talent?.name?.trim() ||
-    application.talent?.display_name?.trim() ||
-    application.talent?.profile?.display_name?.trim() ||
-    application.user?.name?.trim() ||
-    application.user?.display_name?.trim() ||
-    application.talent_profile?.display_name?.trim() ||
-    application.profile?.display_name?.trim() ||
-    "Talento sin nombre"
-  );
+  return getTalentIdentityName(application);
 }
 
 function getApplicantEmail(application: TalentApplication): string {
-  return (
-    application.talent_email?.trim() ||
-    application.talent?.email?.trim() ||
-    application.user?.email?.trim() ||
-    "Sin correo"
-  );
+  return getTalentIdentityEmail(application);
 }
 
 function getApplicantPhoto(application: TalentApplication): string {
-  return (
-    application.talent?.profile?.photo_url?.trim() ||
-    application.talent_profile?.photo_url?.trim() ||
-    application.profile?.photo_url?.trim() ||
-    ""
-  );
-}
-
-function getApplicantInitial(application: TalentApplication): string {
-  return getApplicantName(application).charAt(0).toUpperCase() || "T";
+  return getTalentIdentityPhoto(application);
 }
 
 function getApplicantSpecialties(application: TalentApplication): string[] {
@@ -245,9 +222,10 @@ function ProducerProjectsContent() {
 
   const [projects, setProjects] = useState<Project[]>([]);
   const [filters, setFilters] = useState<ProjectFilters>(initialFilters);
-  const [isHelpOpen, setIsHelpOpen] = useState(false);
   const [detailProject, setDetailProject] = useState<Project | null>(null);
   const [applicationsProject, setApplicationsProject] = useState<Project | null>(null);
+  const [profileApplication, setProfileApplication] =
+    useState<TalentApplication | null>(null);
   const [applicationsByProject, setApplicationsByProject] = useState<
     Record<string, ProjectApplicationGroup[]>
   >({});
@@ -443,27 +421,6 @@ function ProducerProjectsContent() {
           <p>{error}</p>
         </section>
       ) : null}
-
-      <section className="producer-card producer-help-card">
-        <button
-          className="producer-help-card__trigger"
-          type="button"
-          aria-expanded={isHelpOpen}
-          onClick={() => setIsHelpOpen((current) => !current)}
-        >
-          <span>{tAuto("Como funciona?")}</span>
-          <strong>{isHelpOpen ? tAuto("Ocultar") : tAuto("Ver pasos")}</strong>
-        </button>
-        {isHelpOpen ? (
-          <ol className="producer-flow-card__steps producer-help-card__steps">
-            <li>{tAuto("Primero crea un proyecto.")}</li>
-            <li>{tAuto("Luego crea una convocatoria asociada al proyecto.")}</li>
-            <li>{tAuto("Los talentos postulan a esa convocatoria.")}</li>
-            <li>{tAuto("Revisa postulantes y acepta o rechaza.")}</li>
-            <li>{tAuto("Al aceptar un talento, pasa al crew del proyecto.")}</li>
-          </ol>
-        ) : null}
-      </section>
 
       <section className="producer-card producer-project-crm">
         <div className="producer-project-crm__heading">
@@ -763,14 +720,22 @@ function ProducerProjectsContent() {
                     return (
                       <article key={application.id} className="producer-list-card">
                         <div className="producer-record__header">
-                          <div className="producer-applicant-inline">
-                            <span className="producer-avatar producer-avatar--small">
-                              {photoUrl ? (
-                                <img src={photoUrl} alt={getApplicantName(application)} />
-                              ) : (
-                                <span>{getApplicantInitial(application)}</span>
-                              )}
-                            </span>
+                          <button
+                            className="producer-profile-trigger producer-applicant-inline"
+                            type="button"
+                            disabled={!resolveTalentUserId(application)}
+                            title={
+                              resolveTalentUserId(application)
+                                ? "Ver ficha"
+                                : "No se pudo identificar el user_id del talento."
+                            }
+                            onClick={() => setProfileApplication(application)}
+                          >
+                            <TalentAvatar
+                              src={photoUrl}
+                              name={getApplicantName(application)}
+                              size="sm"
+                            />
                             <div>
                               <p className="producer-list-card__meta">
                                 {tAuto("Convocatoria")}: {tAuto(group.opportunity.title)}
@@ -782,7 +747,7 @@ function ProducerProjectsContent() {
                                 {getApplicantEmail(application)}
                               </p>
                             </div>
-                          </div>
+                          </button>
 
                           <span
                             className={`producer-status producer-status--${normalizeStatus(
@@ -816,6 +781,23 @@ function ProducerProjectsContent() {
                             ))}
                           </div>
                         ) : null}
+                        <div className="producer-actions producer-actions--inline">
+                          <button
+                            className="producer-button"
+                            type="button"
+                            disabled={!resolveTalentUserId(application)}
+                            title={
+                              resolveTalentUserId(application)
+                                ? undefined
+                                : "No se pudo identificar el user_id del talento."
+                            }
+                            onClick={() => setProfileApplication(application)}
+                          >
+                            {resolveTalentUserId(application)
+                              ? "Ver ficha"
+                              : "Ficha no disponible: falta user_id"}
+                          </button>
+                        </div>
                       </article>
                     );
                   })
@@ -824,6 +806,15 @@ function ProducerProjectsContent() {
             )}
           </article>
         </div>
+      ) : null}
+
+      {profileApplication ? (
+        <TalentProfileModal
+          userId={resolveTalentUserId(profileApplication)}
+          fallback={talentFallbackFromApplication(profileApplication)}
+          token={token ?? undefined}
+          onClose={() => setProfileApplication(null)}
+        />
       ) : null}
     </div>
   );

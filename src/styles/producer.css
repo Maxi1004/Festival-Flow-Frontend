@@ -427,40 +427,6 @@
   align-items: center;
 }
 
-.producer-help-card {
-  padding: 16px 18px;
-}
-
-.producer-help-card__trigger {
-  width: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 14px;
-  padding: 0;
-  border: 0;
-  background: transparent;
-  color: #0f172a;
-  cursor: pointer;
-  font: inherit;
-  text-align: left;
-}
-
-.producer-help-card__trigger span {
-  font-weight: 800;
-}
-
-.producer-help-card__trigger strong {
-  color: #1d4ed8;
-  font-size: 0.86rem;
-}
-
-.producer-help-card__steps {
-  margin-top: 12px;
-  padding-top: 12px;
-  border-top: 1px solid #e2e8f0;
-}
-
 .producer-project-crm {
   display: flex;
   flex-direction: column;
@@ -1044,6 +1010,185 @@
   color: #475569;
 }
 
+.producer-opportunity-chart-metric {
+  display: grid;
+  gap: 14px;
+}
+
+.producer-opportunity-chart-metric .donut-chart {
+  align-items: center;
+}
+
+.producer-opportunity-chart-metric .donut-chart__legend {
+  gap: 6px;
+}
+
+.producer-opportunity-metric__caption {
+  margin: 10px 0 0;
+  color: #64748b;
+  font-size: 0.82rem;
+  line-height: 1.4;
+}
+
+.producer-opportunity-summary-chart {
+  margin-bottom: 22px;
+  padding: 18px;
+  border: 1px solid #e2e8f0;
+  border-radius: 18px;
+  background: #f8fafc;
+}
+
+.producer-opportunity-summary-chart .donut-chart {
+  justify-content: center;
+}
+
+.producer-opportunity-status-groups,
+.producer-opportunity-applicant-groups {
+  display: grid;
+  gap: 14px;
+}
+
+.producer-opportunity-status-group,
+.producer-opportunity-applicant-group {
+  display: grid;
+  gap: 14px;
+}
+
+.producer-opportunity-status-group > header,
+.producer-opportunity-applicant-group > header {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: flex-start;
+}
+
+.producer-opportunity-status-group > header .donut-chart__legend-color {
+  flex: 0 0 auto;
+  margin-top: 5px;
+}
+
+.producer-opportunity-status-group__items {
+  display: grid;
+  gap: 8px;
+}
+
+.producer-opportunity-status-group__items article {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding-top: 8px;
+  border-top: 1px solid #e2e8f0;
+}
+
+.producer-opportunity-status-group__items span {
+  color: #64748b;
+  font-size: 0.82rem;
+  text-align: right;
+}
+
+.producer-opportunity-applicants-skeleton {
+  display: grid;
+  justify-items: center;
+  gap: 12px;
+  margin-bottom: 20px;
+  padding: 20px;
+}
+
+.producer-opportunity-applicants-skeleton div {
+  width: 160px;
+  height: 160px;
+  border: 22px solid #e2e8f0;
+  border-radius: 999px;
+  animation: producer-skeleton-pulse 1.4s ease-in-out infinite;
+}
+
+.producer-opportunity-applicants-skeleton span {
+  width: min(320px, 80%);
+  height: 12px;
+  border-radius: 999px;
+  background: #e2e8f0;
+  animation: producer-skeleton-pulse 1.4s ease-in-out infinite;
+}
+
+.producer-opportunity-applicant-group > header > strong {
+  color: #0f172a;
+  font-size: 1.4rem;
+}
+
+.producer-opportunity-applicant-group__counts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.producer-opportunity-applicant-group__counts span {
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: #eff6ff;
+  color: #1d4ed8;
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.producer-opportunity-applicant-group__list {
+  display: grid;
+  gap: 10px;
+}
+
+.producer-opportunity-applicant-group__list > article {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+  padding-top: 12px;
+  border-top: 1px solid #e2e8f0;
+}
+
+.producer-opportunity-applicant-group__list strong,
+.producer-opportunity-applicant-group__list span,
+.producer-opportunity-applicant-group__list small {
+  display: block;
+}
+
+.producer-opportunity-applicant-group__list span,
+.producer-opportunity-applicant-group__list small,
+.producer-opportunity-applicant-group__list p {
+  color: #64748b;
+}
+
+.producer-opportunity-applicant-group__list small {
+  margin-top: 4px;
+  font-weight: 700;
+}
+
+.producer-opportunity-applicant-group__list p {
+  margin: 6px 0 0;
+  line-height: 1.4;
+}
+
+@media (max-width: 640px) {
+  .producer-opportunity-chart-metric .donut-chart {
+    align-items: stretch;
+  }
+
+  .producer-opportunity-status-group__items article,
+  .producer-opportunity-applicant-group__list > article {
+    grid-template-columns: 1fr;
+  }
+
+  .producer-opportunity-status-group__items article {
+    display: grid;
+  }
+
+  .producer-opportunity-status-group__items span {
+    text-align: left;
+  }
+
+  .producer-opportunity-applicant-group__list > article > .producer-button {
+    justify-self: start;
+  }
+}
+
 .producer-empty {
   display: flex;
   flex-direction: column;
@@ -1191,6 +1336,133 @@
   box-shadow: 0 30px 90px -40px rgba(15, 23, 42, 0.65);
 }
 
+.talent-profile-modal {
+  z-index: 1200;
+}
+
+.talent-profile-modal__panel {
+  width: min(920px, calc(100vw - 32px));
+  max-height: calc(100vh - 32px);
+  overflow-y: auto;
+}
+
+.talent-profile-modal__identity {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+}
+
+.talent-profile-modal__sections {
+  display: grid;
+  gap: 18px;
+  margin-top: 22px;
+}
+
+.talent-profile-modal__sections section,
+.talent-profile-modal__portfolio,
+.talent-profile-modal__notes {
+  display: grid;
+  gap: 10px;
+}
+
+.talent-profile-modal__notes {
+  margin-top: 18px;
+}
+
+.talent-profile-modal__notes p {
+  margin: 0;
+  white-space: pre-wrap;
+}
+
+.talent-profile-modal__portfolio {
+  margin-top: 22px;
+}
+
+.talent-profile-modal__warning {
+  margin: 0;
+  color: var(--producer-muted, #64748b);
+  font-size: 0.9rem;
+}
+
+.producer-profile-trigger {
+  appearance: none;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.producer-profile-trigger:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.producer-profile-trigger:not(:disabled):hover strong {
+  text-decoration: underline;
+}
+
+.producer-applicant-inline {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.producer-applicant-card {
+  position: relative;
+  padding-left: 86px;
+}
+
+.producer-applicant-card .producer-applicant-inline .talent-avatar {
+  position: absolute;
+  top: 50%;
+  left: 18px;
+  transform: translateY(-50%);
+}
+
+.talent-avatar {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #dbeafe;
+}
+
+.talent-avatar--sm {
+  width: 52px;
+  height: 52px;
+}
+
+.talent-avatar--md {
+  width: 64px;
+  height: 64px;
+}
+
+.talent-avatar--lg {
+  width: 112px;
+  height: 112px;
+}
+
+.talent-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center center;
+  display: block;
+  border-radius: inherit;
+}
+
+.talent-avatar span {
+  color: #2563eb;
+  font-size: 1.1rem;
+  font-weight: 800;
+}
+
 .producer-talent-filters {
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
@@ -1208,7 +1480,7 @@
   min-width: 230px;
 }
 
-.producer-talent-table__identity .producer-talent-avatar {
+.producer-talent-table__identity .talent-avatar {
   flex: 0 0 auto;
 }
 
@@ -1244,32 +1516,6 @@
   display: flex;
   align-items: center;
   gap: 14px;
-}
-
-.producer-talent-avatar {
-  width: 64px;
-  height: 64px;
-  display: grid;
-  place-items: center;
-  border-radius: 50%;
-  object-fit: cover;
-  background: #e0f2fe;
-  color: #075985;
-  font-size: 1.5rem;
-  font-weight: 700;
-}
-
-.producer-talent-avatar img {
-  width: 100%;
-  height: 100%;
-  border-radius: inherit;
-  object-fit: cover;
-}
-
-.producer-talent-avatar--large {
-  width: 104px;
-  height: 104px;
-  font-size: 2rem;
 }
 
 .producer-talent-detail__section {
@@ -1392,7 +1638,7 @@
 
 .producer-crew-crm .producer-crew-filters {
   display: grid;
-  grid-template-columns: minmax(220px, 1.2fr) repeat(2, minmax(170px, 1fr));
+  grid-template-columns: minmax(220px, 1.2fr) repeat(3, minmax(160px, 1fr));
 }
 
 .producer-crew-crm .producer-crew-filters .producer-field {
@@ -1404,7 +1650,7 @@
 }
 
 .producer-crew-members-table {
-  min-width: 980px;
+  min-width: 1120px;
 }
 
 .producer-crew-table__actions {
@@ -1420,7 +1666,145 @@
 }
 
 .producer-crew-members-modal {
-  width: min(1040px, 100%);
+  width: min(1180px, 100%);
+}
+
+.producer-crew-category-metric__list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.producer-crew-category-metric__list span {
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: #eff6ff;
+  color: #1d4ed8;
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.producer-crew-view-toggle {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 18px;
+}
+
+.producer-crew-category-groups {
+  display: grid;
+  gap: 16px;
+}
+
+.producer-crew-category-group {
+  padding: 18px;
+  border: 1px solid #e2e8f0;
+  border-radius: 16px;
+  background: #f8fafc;
+}
+
+.producer-crew-category-group h3 {
+  margin: 0 0 14px;
+  color: #0f172a;
+}
+
+.producer-crew-category-group > div {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 10px;
+}
+
+.producer-crew-category-member {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 10px;
+  border-radius: 12px;
+}
+
+.producer-crew-category-member:not(:disabled):hover {
+  background: #ffffff;
+}
+
+.producer-crew-summary-list {
+  gap: 14px;
+}
+
+.producer-crew-summary-member,
+.producer-crew-summary-project {
+  display: grid;
+  gap: 14px;
+}
+
+.producer-crew-summary-member__identity {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.producer-crew-summary-member__identity p {
+  overflow-wrap: anywhere;
+}
+
+.producer-crew-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.producer-crew-summary-grid span {
+  display: grid;
+  gap: 4px;
+}
+
+.producer-crew-summary-grid small,
+.producer-crew-summary-project__categories > small {
+  color: #64748b;
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.producer-crew-summary-grid strong {
+  color: #0f172a;
+  font-size: 0.92rem;
+}
+
+.producer-crew-summary-member > .producer-button,
+.producer-crew-summary-project > .producer-button {
+  justify-self: start;
+}
+
+.producer-crew-summary-project__categories {
+  display: grid;
+  gap: 8px;
+}
+
+.producer-crew-summary-categories {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+@media (max-width: 640px) {
+  .producer-crew-summary-grid,
+  .producer-crew-summary-categories {
+    grid-template-columns: 1fr;
+  }
+}
+
+.producer-crew-category-member > span,
+.producer-crew-category-member strong,
+.producer-crew-category-member small {
+  display: block;
+}
+
+.producer-crew-category-member small {
+  margin-top: 3px;
+  color: #64748b;
 }
 
 .producer-message-history {

@@ -2,6 +2,8 @@ import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import Layout from "./components/layout";
 import Home from "./host/Home";
 import Login from "./host/Login";
+import AdminDashboard from "./host/admin/AdminDashboard";
+import AdminFestivals from "./host/admin/AdminFestivals";
 import ProducerCreateOpportunity from "./host/producer/ProducerCreateOpportunity";
 import ProducerCreateProject from "./host/producer/ProducerCreateProject";
 import ProducerCrew from "./host/producer/ProducerCrew";
@@ -29,6 +31,8 @@ function App() {
       <Routes>
         <Route element={<Layout />}>
           <Route path="/" element={<Home />} />
+          <Route path="/admin" element={<AdminDashboard />} />
+          <Route path="/admin/festivals" element={<AdminFestivals />} />
           <Route path="/producer" element={<ProducerHome />} />
           <Route path="/producer/profile" element={<ProducerProfile />} />
           <Route path="/producer/projects" element={<ProducerProjects />} />

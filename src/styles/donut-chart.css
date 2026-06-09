@@ -1,0 +1,150 @@
+.donut-chart {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  min-width: 0;
+}
+
+.donut-chart__visual {
+  position: relative;
+  flex: 0 0 auto;
+  max-width: 100%;
+}
+
+.donut-chart__visual svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.donut-chart__track {
+  stroke: #e2e8f0;
+}
+
+.donut-chart__segment {
+  transition: opacity 0.2s ease;
+}
+
+.donut-chart__segment:hover {
+  opacity: 0.78;
+}
+
+.donut-chart__center {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-content: center;
+  text-align: center;
+  pointer-events: none;
+}
+
+.donut-chart__center strong,
+.donut-chart__center span {
+  display: block;
+}
+
+.donut-chart__center strong {
+  color: #0f172a;
+  font-size: 1.45rem;
+  line-height: 1;
+}
+
+.donut-chart__center span {
+  max-width: 90px;
+  margin-top: 5px;
+  color: #64748b;
+  font-size: 0.72rem;
+  line-height: 1.2;
+}
+
+.donut-chart__legend {
+  display: grid;
+  flex: 1;
+  gap: 8px;
+  min-width: 0;
+}
+
+.donut-chart__legend-item {
+  display: grid;
+  grid-template-columns: 10px minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: center;
+  color: #475569;
+  font-size: 0.82rem;
+}
+
+.donut-chart__legend-item strong {
+  color: #0f172a;
+  font-size: 0.78rem;
+}
+
+.donut-chart__legend-color {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+}
+
+.donut-chart__empty {
+  margin: 0;
+  color: #64748b;
+}
+
+.donut-chart__segment--blue {
+  stroke: #2563eb;
+}
+
+.donut-chart__segment--blue.donut-chart__legend-color {
+  background: #2563eb;
+}
+
+.donut-chart__segment--green {
+  stroke: #16a34a;
+}
+
+.donut-chart__segment--green.donut-chart__legend-color {
+  background: #16a34a;
+}
+
+.donut-chart__segment--amber {
+  stroke: #d97706;
+}
+
+.donut-chart__segment--amber.donut-chart__legend-color {
+  background: #d97706;
+}
+
+.donut-chart__segment--rose {
+  stroke: #e11d48;
+}
+
+.donut-chart__segment--rose.donut-chart__legend-color {
+  background: #e11d48;
+}
+
+.donut-chart__segment--violet {
+  stroke: #7c3aed;
+}
+
+.donut-chart__segment--violet.donut-chart__legend-color {
+  background: #7c3aed;
+}
+
+.donut-chart__segment--slate {
+  stroke: #64748b;
+}
+
+.donut-chart__segment--slate.donut-chart__legend-color {
+  background: #64748b;
+}
+
+@media (max-width: 520px) {
+  .donut-chart {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .donut-chart__visual {
+    align-self: center;
+  }
+}
