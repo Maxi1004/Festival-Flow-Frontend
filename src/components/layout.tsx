@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { FiFilm, FiGrid, FiMoon, FiSun } from "react-icons/fi";
+import { FiFilm, FiGrid, FiMoon, FiSend, FiSun } from "react-icons/fi";
 import type { IconType } from "react-icons";
 import { Outlet, useLocation, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
@@ -31,6 +31,7 @@ const producerNav: NavigationItem[] = [
   { labelKey: "layout.producerNav.home", label: "Inicio", path: "/producer" },
   { labelKey: "layout.producerNav.profile", label: "Mi perfil", path: "/producer/profile" },
   { labelKey: "layout.producerNav.projects", label: "Mis proyectos", path: "/producer/projects" },
+  { labelKey: "layout.producerNav.festivals", label: "Postular a Festivales", path: "/producer/festivals", icon: FiSend },
   { labelKey: "layout.producerNav.opportunities", label: "Convocatorias", path: "/producer/opportunities" },
   { labelKey: "layout.producerNav.talents", label: "Talentos", path: "/producer/talents" },
   { labelKey: "layout.producerNav.crew", label: "Crew", path: "/producer/crew" },
@@ -79,6 +80,7 @@ const producerPageMeta: Record<string, { eyebrowKey: string; eyebrow: string; ti
   "/producer/profile": { eyebrowKey: "layout.producerMeta.profileEyebrow", eyebrow: "Perfil", titleKey: "layout.producerNav.profile", title: "Mi perfil" },
   "/producer/projects": { eyebrowKey: "layout.producerMeta.productionEyebrow", eyebrow: "Producción", titleKey: "layout.producerNav.projects", title: "Mis proyectos" },
   "/producer/projects/new": { eyebrowKey: "layout.producerMeta.productionEyebrow", eyebrow: "Producción", titleKey: "layout.producerMeta.newProject", title: "Nuevo proyecto" },
+  "/producer/festivals": { eyebrowKey: "layout.producerMeta.festivalsEyebrow", eyebrow: "Circuito de festivales", titleKey: "layout.producerNav.festivals", title: "Postular a Festivales" },
   "/producer/opportunities": { eyebrowKey: "layout.producerMeta.opportunitiesEyebrow", eyebrow: "Convocatorias", titleKey: "layout.producerNav.opportunities", title: "Convocatorias" },
   "/producer/opportunities/new": { eyebrowKey: "layout.producerMeta.opportunitiesEyebrow", eyebrow: "Convocatorias", titleKey: "layout.producerMeta.newOpportunity", title: "Nueva convocatoria" },
   "/producer/talents": { eyebrowKey: "layout.producerMeta.talentsEyebrow", eyebrow: "Talentos", titleKey: "layout.producerNav.talents", title: "Talentos" },

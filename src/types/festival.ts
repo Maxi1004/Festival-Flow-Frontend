@@ -5,6 +5,35 @@ export type FestivalStatus =
   | "ARCHIVED"
   | "UNKNOWN";
 
+export type ProducerFestival = {
+  id: string | number;
+  name: string;
+  country?: string | null;
+  website?: string | null;
+  submission_url?: string | null;
+  platform?: string | null;
+  opening_date?: string | null;
+  deadline?: string | null;
+  event_date?: string | null;
+  fee?: string | number | null;
+  status: FestivalStatus | string;
+  edition_year?: string | number | null;
+  notes?: string | null;
+  source?: string | null;
+  days_until_deadline?: number | null;
+  selected_by_me: boolean;
+};
+
+export type FestivalSelection = {
+  id: string | number;
+  producer_uid: string;
+  festival_id: string | number;
+  status: string;
+  created_at: string;
+  updated_at: string;
+  festival?: ProducerFestival;
+};
+
 export type Festival = {
   id: string | number;
   name: string;
