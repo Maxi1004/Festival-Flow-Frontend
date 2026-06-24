@@ -15,13 +15,16 @@ type SummaryDetailModalProps = {
   children: ReactNode;
 };
 
+const CLICKABLE_CARD_TEXTS = ["Ver detalle"];
+const SUMMARY_MODAL_TEXTS = ["Cerrar"];
+
 export function ClickableSummaryCard({
   className,
   onClick,
   children,
 }: ClickableSummaryCardProps) {
   const language = useFestivalFlowLanguage();
-  const { tAuto } = useAutoTranslate(["Ver detalle"], language);
+  const { tAuto } = useAutoTranslate(CLICKABLE_CARD_TEXTS, language);
 
   return (
     <article
@@ -49,7 +52,7 @@ export function SummaryDetailModal({
   children,
 }: SummaryDetailModalProps) {
   const language = useFestivalFlowLanguage();
-  const { tAuto } = useAutoTranslate(["Cerrar"], language);
+  const { tAuto } = useAutoTranslate(SUMMARY_MODAL_TEXTS, language);
 
   return (
     <div className="summary-detail-modal" role="dialog" aria-modal="true" aria-label={title}>

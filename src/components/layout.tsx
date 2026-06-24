@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { FiFilm, FiGrid, FiMoon, FiSend, FiSun, FiZap } from "react-icons/fi";
+import { FiFilm, FiGrid, FiMoon, FiSun } from "react-icons/fi";
 import type { IconType } from "react-icons";
 import { Outlet, useLocation, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
@@ -31,12 +31,11 @@ const producerNav: NavigationItem[] = [
   { labelKey: "layout.producerNav.home", label: "Inicio", path: "/producer" },
   { labelKey: "layout.producerNav.profile", label: "Mi perfil", path: "/producer/profile" },
   { labelKey: "layout.producerNav.projects", label: "Mis proyectos", path: "/producer/projects" },
-  { labelKey: "layout.producerNav.festivals", label: "Postular a Festivales", path: "/producer/festivals", icon: FiSend },
+  { labelKey: "layout.producerNav.festivals", label: "Postular a Festivales", path: "/producer/festivals" },
   { labelKey: "layout.producerNav.opportunities", label: "Convocatorias", path: "/producer/opportunities" },
   { labelKey: "layout.producerNav.talents", label: "Talentos", path: "/producer/talents" },
   { labelKey: "layout.producerNav.crew", label: "Crew", path: "/producer/crew" },
   { labelKey: "layout.producerNav.messages", label: "Mensajes", path: "/producer/messages" },
-  { labelKey: "layout.producerNav.formAutomation", label: "Automatización", path: "/producer/form-automation", icon: FiZap },
 ];
 
 const talentNav: NavigationItem[] = [
@@ -87,7 +86,6 @@ const producerPageMeta: Record<string, { eyebrowKey: string; eyebrow: string; ti
   "/producer/talents": { eyebrowKey: "layout.producerMeta.talentsEyebrow", eyebrow: "Talentos", titleKey: "layout.producerNav.talents", title: "Talentos" },
   "/producer/crew": { eyebrowKey: "layout.producerMeta.crewEyebrow", eyebrow: "Crew", titleKey: "layout.producerNav.crew", title: "Crew" },
   "/producer/messages": { eyebrowKey: "layout.producerMeta.messagesEyebrow", eyebrow: "Mensajes", titleKey: "layout.producerNav.messages", title: "Mensajes" },
-  "/producer/form-automation": { eyebrowKey: "layout.producerMeta.automationEyebrow", eyebrow: "Automatización", titleKey: "layout.producerNav.formAutomation", title: "Automatización de Formularios" },
 };
 
 const adminPageMeta: Record<string, { eyebrowKey: string; eyebrow: string; titleKey: string; title: string }> = {
@@ -135,8 +133,6 @@ const layoutBaseTexts = [
   "ADMIN",
   "Dashboard",
   "Festivales",
-  "Automatización",
-  "Automatización de Formularios",
 ];
 
 function Layout() {

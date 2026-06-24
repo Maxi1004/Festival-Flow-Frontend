@@ -2,6 +2,8 @@ import { useState } from "react";
 import {
   FiAlertTriangle,
   FiCheck,
+  FiChevronDown,
+  FiChevronRight,
   FiCode,
   FiCopy,
   FiGlobe,
@@ -15,15 +17,18 @@ import {
 } from "react-icons/fi";
 import {
   scraperExtractForm,
+  scraperGenerateUnifiedForm,
   scraperLogin,
 } from "../../service/scraperApi";
-import type { ExtractFormResponse } from "../../service/scraperApi";
+import type { ExtractFormResponse, UnifiedFormResponse } from "../../service/scraperApi";
+import { useCurrentProfile } from "../useCurrentProfile";
 import ProducerGuard from "./ProducerGuard";
 
 type LoginStatus = "idle" | "ok" | "captcha" | "failed";
 type ExtractStatus = "idle" | "done" | "error";
 
 function ProducerFormAutomationContent() {
+  const { token } = useCurrentProfile();
   const [loginUrl, setLoginUrl] = useState("");
   const [targetUrl, setTargetUrl] = useState("");
   const [username, setUsername] = useState("");
@@ -38,6 +43,10 @@ function ProducerFormAutomationContent() {
   const [extractLoading, setExtractLoading] = useState(false);
   const [extractedForm, setExtractedForm] = useState<ExtractFormResponse | null>(null);
   const [copied, setCopied] = useState(false);
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiError, setAiError] = useState("");
+  const [unifiedForm, setUnifiedForm] = useState<UnifiedFormResponse | null>(null);
+  const [expandedSections, setExpandedSections] = useState<Set<number>>(new Set());
 
   const handleTestAccess = async () => {
     if (!loginUrl || !targetUrl || !username || !password) return;
@@ -104,14 +113,36 @@ function ProducerFormAutomationContent() {
     setTimeout(() => setCopied(false), 2000);
   };
 
-  // TODO: connect to AI endpoint when available
-  const handleSendToAI = () => {
-    if (!extractedForm) return;
-    const _payload = {
-      url: extractedForm.url,
-      fields: extractedForm.fields,
-    };
-    // TODO: POST _payload to AI endpoint
+  const handleSendToAI = async () => {
+    if (!extractedForm || !token) return;
+    setAiLoading(true);
+    setAiError("");
+    setUnifiedForm(null);
+    setExpandedSections(new Set());
+    try {
+      const result = await scraperGenerateUnifiedForm(
+        { source_url: extractedForm.url, fields: extractedForm.fields },
+        token
+      );
+      setUnifiedForm(result);
+      setExpandedSections(new Set(result.form.sections.map((_, i) => i)));
+    } catch (err) {
+      setAiError(err instanceof Error ? err.message : "Error al generar formulario con IA.");
+    } finally {
+      setAiLoading(false);
+    }
+  };
+
+  const toggleSection = (index: number) => {
+    setExpandedSections((current) => {
+      const next = new Set(current);
+      if (next.has(index)) {
+        next.delete(index);
+      } else {
+        next.add(index);
+      }
+      return next;
+    });
   };
 
   return (
@@ -288,12 +319,13 @@ function ProducerFormAutomationContent() {
                 </p>
               </div>
               <button
-                className="inline-flex shrink-0 items-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-bold text-white transition hover:bg-blue-700"
+                className="inline-flex shrink-0 items-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-bold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
                 type="button"
-                onClick={handleSendToAI}
+                disabled={aiLoading || !token}
+                onClick={() => void handleSendToAI()}
               >
-                <FiZap />
-                Enviar a IA
+                {aiLoading ? <FiLoader className="animate-spin" /> : <FiZap />}
+                {aiLoading ? "Generando..." : "Enviar a IA"}
               </button>
             </div>
             <div className="overflow-x-auto">
@@ -387,6 +419,101 @@ function ProducerFormAutomationContent() {
             </pre>
           </section>
         </>
+      ) : null}
+
+      {aiError ? (
+        <div className="flex items-start gap-3 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm font-semibold text-red-800 dark:border-red-800/50 dark:bg-red-950/30 dark:text-red-300">
+          <FiAlertTriangle className="mt-0.5 shrink-0" />
+          <span>Error al generar formulario con IA: {aiError}</span>
+        </div>
+      ) : null}
+
+      {unifiedForm ? (
+        <section className="overflow-hidden rounded-2xl border border-[var(--border-color)] bg-[var(--bg-card)] shadow-[var(--shadow-soft)]">
+          <div className="border-b border-[var(--border-color)] p-5">
+            <div className="flex items-center gap-2">
+              <FiZap className="text-blue-600 dark:text-blue-300" />
+              <h2 className="text-lg font-extrabold">{unifiedForm.form.title}</h2>
+            </div>
+            {unifiedForm.form.description ? (
+              <p className="mt-1 text-sm text-[var(--text-muted)]">{unifiedForm.form.description}</p>
+            ) : null}
+          </div>
+
+          <div className="divide-y divide-[var(--border-color)]">
+            {unifiedForm.form.sections.map((section, sectionIndex) => (
+              <div key={sectionIndex}>
+                <button
+                  type="button"
+                  className="flex w-full items-center justify-between gap-3 px-5 py-4 text-left transition hover:bg-[var(--hover-bg)]"
+                  onClick={() => toggleSection(sectionIndex)}
+                >
+                  <span className="text-sm font-bold">{section.title}</span>
+                  <span className="flex shrink-0 items-center gap-1.5 text-xs text-[var(--text-muted)]">
+                    {section.fields.length} campo{section.fields.length !== 1 ? "s" : ""}
+                    {expandedSections.has(sectionIndex) ? (
+                      <FiChevronDown className="text-[var(--text-secondary)]" />
+                    ) : (
+                      <FiChevronRight className="text-[var(--text-secondary)]" />
+                    )}
+                  </span>
+                </button>
+
+                {expandedSections.has(sectionIndex) ? (
+                  <div className="overflow-x-auto border-t border-[var(--border-color)]">
+                    <table className="w-full min-w-[640px] border-collapse text-left text-sm">
+                      <thead className="bg-[var(--bg-secondary)] text-xs uppercase tracking-wider text-[var(--text-muted)]">
+                        <tr>
+                          <th className="px-4 py-3">Label</th>
+                          <th className="px-4 py-3">Key</th>
+                          <th className="px-4 py-3">Tipo</th>
+                          <th className="px-4 py-3">Requerido</th>
+                          <th className="px-4 py-3">Opciones</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-[var(--border-color)]">
+                        {section.fields.map((field, fieldIndex) => (
+                          <tr
+                            key={`${field.key}-${fieldIndex}`}
+                            className="transition hover:bg-[var(--hover-bg)]"
+                          >
+                            <td className="px-4 py-3 font-semibold">{field.label}</td>
+                            <td className="px-4 py-3 font-mono text-xs text-[var(--text-secondary)]">
+                              {field.key}
+                            </td>
+                            <td className="px-4 py-3">
+                              <span className="rounded-lg bg-[var(--bg-secondary)] px-2 py-1 font-mono text-xs">
+                                {field.type}
+                              </span>
+                            </td>
+                            <td className="px-4 py-3">
+                              {field.required ? (
+                                <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-bold text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300">
+                                  <FiCheck /> Sí
+                                </span>
+                              ) : (
+                                <span className="text-[var(--text-muted)]">No</span>
+                              )}
+                            </td>
+                            <td className="px-4 py-3">
+                              {field.options.length > 0 ? (
+                                <span className="rounded-full bg-[var(--bg-secondary)] px-2 py-0.5 text-xs font-bold">
+                                  {field.options.length} opcs.
+                                </span>
+                              ) : (
+                                <span className="text-[var(--text-muted)]">—</span>
+                              )}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                ) : null}
+              </div>
+            ))}
+          </div>
+        </section>
       ) : null}
     </section>
   );

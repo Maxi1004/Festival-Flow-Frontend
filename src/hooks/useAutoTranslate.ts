@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { reusePendingRequest } from "../service/pendingRequest";
 import {
   getCachedTranslation,
@@ -39,6 +39,21 @@ function uniqueTranslatableTexts(texts: string[]): string[] {
   return Array.from(new Set(texts.map((text) => text.trim()).filter(shouldTranslate)));
 }
 
+function useStableTexts(texts: string[]): string[] {
+  const stableRef = useRef<string[]>([]);
+  const keyRef = useRef<string>("");
+
+  const processed = uniqueTranslatableTexts(texts);
+  const nextKey = processed.slice().sort().join("\x00");
+
+  if (nextKey !== keyRef.current) {
+    keyRef.current = nextKey;
+    stableRef.current = processed;
+  }
+
+  return stableRef.current;
+}
+
 export function useFestivalFlowLanguage(): string {
   const [language, setLanguage] = useState(getStoredLanguage);
 
@@ -69,10 +84,10 @@ export function useAutoTranslate(
   token?: string | null
 ): { tAuto: (text: string) => string; language: string } {
   const [translations, setTranslations] = useState<Record<string, string>>({});
-  const textsToTranslate = useMemo(() => uniqueTranslatableTexts(baseTexts), [baseTexts]);
+  const textsToTranslate = useStableTexts(baseTexts);
 
   useEffect(() => {
-    setTranslations({});
+    setTranslations((current) => (Object.keys(current).length === 0 ? current : {}));
 
     if (language === BASE_LANGUAGE) {
       return;
@@ -130,13 +145,16 @@ export function useAutoTranslate(
     };
   }, [language, textsToTranslate, token]);
 
-  const tAuto = (text: string): string => {
-    if (language === BASE_LANGUAGE || !shouldTranslate(text)) {
-      return text;
-    }
+  const tAuto = useCallback(
+    (text: string): string => {
+      if (language === BASE_LANGUAGE || !shouldTranslate(text)) {
+        return text;
+      }
 
-    return translations[text.trim()] ?? getCachedTranslation(language, text.trim()) ?? text;
-  };
+      return translations[text.trim()] ?? getCachedTranslation(language, text.trim()) ?? text;
+    },
+    [language, translations]
+  );
 
   return { tAuto, language };
 }

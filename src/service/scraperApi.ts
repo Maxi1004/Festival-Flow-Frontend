@@ -79,3 +79,53 @@ export async function scraperExtractForm(
 
   return response.json() as Promise<ExtractFormResponse>;
 }
+
+export type UnifiedFormField = {
+  key: string;
+  label: string;
+  type: string;
+  required: boolean;
+  options: string[];
+  sourceFields: string[];
+};
+
+export type UnifiedFormSection = {
+  title: string;
+  fields: UnifiedFormField[];
+};
+
+export type UnifiedForm = {
+  title: string;
+  description: string;
+  sections: UnifiedFormSection[];
+};
+
+export type UnifiedFormResponse = {
+  form: UnifiedForm;
+};
+
+export type GenerateUnifiedFormPayload = {
+  source_url: string;
+  fields: FormField[];
+};
+
+export async function scraperGenerateUnifiedForm(
+  payload: GenerateUnifiedFormPayload,
+  token: string
+): Promise<UnifiedFormResponse> {
+  const response = await fetch(`${API_URL}/api/scraper/generate-unified-form`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify(payload),
+  });
+
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(text || `Error ${response.status}`);
+  }
+
+  return response.json() as Promise<UnifiedFormResponse>;
+}
