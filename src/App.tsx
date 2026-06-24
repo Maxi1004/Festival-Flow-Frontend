@@ -10,6 +10,7 @@ import ProducerCrew from "./host/producer/ProducerCrew";
 import ProducerEditOpportunity from "./host/producer/ProducerEditOpportunity";
 import ProducerEditProject from "./host/producer/ProducerEditProject";
 import ProducerFestivals from "./host/producer/ProducerFestivals";
+import ProducerFormAutomation from "./host/producer/ProducerFormAutomation";
 import ProducerHome from "./host/producer/ProducerHome";
 import ProducerMessages from "./host/producer/ProducerMessages";
 import ProducerOpportunities from "./host/producer/ProducerOpportunities";
@@ -44,6 +45,7 @@ function App() {
           <Route path="/producer/crew" element={<ProducerCrew />} />
           <Route path="/producer/messages" element={<ProducerMessages />} />
           <Route path="/producer/festivals" element={<ProducerFestivals />} />
+          <Route path="/producer/form-automation" element={<ProducerFormAutomation />} />
           <Route
             path="/producer/opportunities/new"
             element={<ProducerCreateOpportunity />}

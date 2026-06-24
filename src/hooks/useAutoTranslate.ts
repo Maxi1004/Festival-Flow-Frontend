@@ -72,6 +72,8 @@ export function useAutoTranslate(
   const textsToTranslate = useMemo(() => uniqueTranslatableTexts(baseTexts), [baseTexts]);
 
   useEffect(() => {
+    setTranslations({});
+
     if (language === BASE_LANGUAGE) {
       return;
     }
