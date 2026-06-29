@@ -3,7 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import ProducerGuard from "./ProducerGuard";
 import TalentProfileModal from "../../components/TalentProfileModal";
 import TalentAvatar from "../../components/TalentAvatar";
-import { getMyProjects } from "../../service/projectApi";
+import { getMyProjects, updateProjectStatus } from "../../service/projectApi";
 import { getMyOpportunities } from "../../service/opportunityApi";
 import { getOpportunityApplications } from "../../service/applicationApi";
 import { reusePendingRequest } from "../../service/pendingRequest";
@@ -139,6 +139,8 @@ const producerProjectsBaseTexts = [
   "Enviada",
 ];
 
+const FINISHED_STATUSES = new Set(["finalizado", "completado", "publicado", "completed", "published"]);
+
 function normalizeFilterText(value?: string | null): string {
   return value?.trim().toLowerCase() ?? "";
 }
@@ -233,6 +235,8 @@ function ProducerProjectsContent() {
   const [applicationsError, setApplicationsError] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
+  const [markingFinishedId, setMarkingFinishedId] = useState("");
+  const [toast, setToast] = useState<{ message: string; type: "success" | "error" } | null>(null);
 
   const translationTexts = useMemo(
     () =>
@@ -387,6 +391,28 @@ function ProducerProjectsContent() {
       );
     } finally {
       setLoadingApplicationsProjectId("");
+    }
+  };
+
+  useEffect(() => {
+    if (!toast) return;
+    const id = setTimeout(() => setToast(null), 3500);
+    return () => clearTimeout(id);
+  }, [toast]);
+
+  const handleMarkFinished = async (project: Project) => {
+    if (!window.confirm(`¿Marcar "${project.title}" como finalizado?`)) return;
+    setMarkingFinishedId(project.id);
+    try {
+      const updated = await updateProjectStatus(project.id, "completed", token ?? undefined);
+      setProjects((prev) =>
+        prev.map((p) => (p.id === project.id ? { ...p, ...updated } : p))
+      );
+      setToast({ message: "Proyecto marcado como finalizado", type: "success" });
+    } catch {
+      setToast({ message: "No se pudo actualizar el estado del proyecto", type: "error" });
+    } finally {
+      setMarkingFinishedId("");
     }
   };
 
@@ -569,6 +595,16 @@ function ProducerProjectsContent() {
                           >
                             {tAuto("Ver postulaciones")}
                           </button>
+                          {!FINISHED_STATUSES.has(String(project.status).toLowerCase()) ? (
+                            <button
+                              className="producer-button"
+                              type="button"
+                              disabled={markingFinishedId === project.id}
+                              onClick={() => void handleMarkFinished(project)}
+                            >
+                              {markingFinishedId === project.id ? "Marcando..." : "Marcar finalizado"}
+                            </button>
+                          ) : null}
                         </div>
                       </td>
                     </tr>
@@ -815,6 +851,20 @@ function ProducerProjectsContent() {
           token={token ?? undefined}
           onClose={() => setProfileApplication(null)}
         />
+      ) : null}
+
+      {toast ? (
+        <div
+          role="status"
+          aria-live="polite"
+          className={`fixed bottom-6 right-6 z-50 rounded-2xl px-5 py-3 text-sm font-bold shadow-xl ${
+            toast.type === "success"
+              ? "bg-emerald-600 text-white"
+              : "bg-red-600 text-white"
+          }`}
+        >
+          {toast.message}
+        </div>
       ) : null}
     </div>
   );

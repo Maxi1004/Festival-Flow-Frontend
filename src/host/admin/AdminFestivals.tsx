@@ -526,7 +526,7 @@ function AdminFestivalsContent() {
       event_date: nullable(editForm.event_date),
       fee: nullable(editForm.fee),
       status: editForm.status,
-      edition_year: editionYear,
+      edition_year: editionYear !== null ? String(editionYear) : null,
       contact: nullable(editForm.contact),
       notes: nullable(editForm.notes),
     };

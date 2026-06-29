@@ -90,3 +90,24 @@ export async function updateProject(
 
   return unwrapProjectResponse(await parseJsonResponse<Project | ProjectEnvelope>(response));
 }
+
+export async function updateProjectStatus(
+  projectId: string,
+  status: string,
+  authenticatedToken?: string
+): Promise<Project> {
+  const response = await fetch(`${API_URL}/projects/${projectId}/status`, {
+    method: "PATCH",
+    headers: await getAuthenticatedHeaders(
+      { "Content-Type": "application/json" },
+      authenticatedToken
+    ),
+    body: JSON.stringify({ status }),
+  });
+
+  if (!response.ok) {
+    throw new Error(await getErrorMessage(response));
+  }
+
+  return unwrapProjectResponse(await parseJsonResponse<Project | ProjectEnvelope>(response));
+}
