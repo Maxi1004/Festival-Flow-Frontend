@@ -47,6 +47,11 @@ import type { Project } from "../../types/producer";
 import { useCurrentProfile } from "../useCurrentProfile";
 import ProducerGuard from "./ProducerGuard";
 import { useAutoTranslate, useFestivalFlowLanguage } from "../../hooks/useAutoTranslate";
+import {
+  analyzeFilmFreewayCamoufox,
+  fillOpenFilmFreewayForm,
+} from "../../service/filmfreewayCamoufoxApi";
+import type { FillOpenFilmFreewayFormError } from "../../service/filmfreewayCamoufoxApi";
 
 const T = createContext<(text: string) => string>((t) => t);
 const useFT = () => useContext(T);
@@ -97,6 +102,10 @@ const FESTIVALS_BASE_TEXTS: string[] = [
   "Pendiente", "Enviando...", "Reintentando...", "Enviado", "Error",
   "Iniciar postulaciones", "Enviando postulaciones...",
   "Película", "Director", "Técnico", "Archivos",
+  "Conectar FilmFreeway",
+  "Proyecto guardado y festival abierto con sesión iniciada.",
+  "Ver en FilmFreeway",
+  "campo con problemas", "campos con problemas",
 ];
 
 const PAGE_SIZES = [10, 25, 50] as const;
@@ -137,6 +146,18 @@ const statusClasses: Record<FestivalStatus, string> = {
 
 function keyOf(id: string | number): string {
   return String(id);
+}
+
+function isFilmFreewayFestival(festival: ProducerFestival): boolean {
+  const haystack = [
+    festival.platform,
+    festival.submission_url,
+    festival.website,
+  ]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase();
+  return haystack.includes("filmfreeway");
 }
 
 function normalizeStatus(value?: string | null): FestivalStatus {
@@ -1350,6 +1371,13 @@ function SelectionPanel({
   const [fillingForm, setFillingForm] = useState(false);
   const [fillError, setFillError] = useState("");
   const [fillResult, setFillResult] = useState<{ message: string; tone: "success" | "partial" } | null>(null);
+  const [fillErrorsDetail, setFillErrorsDetail] = useState<FillOpenFilmFreewayFormError[]>([]);
+  const [fillSavedUrl, setFillSavedUrl] = useState("");
+  const [analyzeSource, setAnalyzeSource] = useState<"legacy" | "camoufox">("legacy");
+  const [camoufoxMeta, setCamoufoxMeta] = useState<{ finalUrl: string; finalTitle: string } | null>(null);
+
+  const singleFilmFreewayFestival =
+    festivals.length === 1 && isFilmFreewayFestival(festivals[0]) ? festivals[0] : null;
 
   useEffect(() => () => { abortRef.current?.abort(); }, []);
 
@@ -1472,7 +1500,39 @@ function SelectionPanel({
     console.log("[Frontend] Respuestas guardadas localmente:", formValues);
   };
 
-  const handleFillFilmFreeway = async () => {
+  const handleFillFilmFreewayCamoufox = async () => {
+    if (!analyzeBatchId || !token) return;
+    setFillingForm(true);
+    setFillError("");
+    setFillResult(null);
+    setFillErrorsDetail([]);
+    setFillSavedUrl("");
+    try {
+      const data = await fillOpenFilmFreewayForm(
+        { analyze_batch_id: analyzeBatchId, form_values: formValues },
+        token
+      );
+      console.log("[Frontend] Fill (Camoufox) response:", data);
+      setFillErrorsDetail(data.errors ?? []);
+      setFillSavedUrl(data.saved_url || data.final_url || "");
+      if (data.save_ok) {
+        setFillResult({
+          message: "Proyecto guardado y festival abierto con sesión iniciada.",
+          tone: "success",
+        });
+      } else {
+        const parts: string[] = [`Se rellenaron ${data.filled_count} campos.`];
+        if (data.skipped_count > 0) parts.push(`Se omitieron ${data.skipped_count}.`);
+        setFillResult({ message: parts.join(" "), tone: "partial" });
+      }
+    } catch (err) {
+      setFillError(err instanceof Error ? err.message : "Error al rellenar el formulario.");
+    } finally {
+      setFillingForm(false);
+    }
+  };
+
+  const handleFillFilmFreewayLegacy = async () => {
     if (!analyzeBatchId) return;
     console.log("[Frontend] Enviando formulario al backend...");
     console.log("[Frontend] Analyze batch id:", analyzeBatchId);
@@ -1480,6 +1540,8 @@ function SelectionPanel({
     setFillingForm(true);
     setFillError("");
     setFillResult(null);
+    setFillErrorsDetail([]);
+    setFillSavedUrl("");
     try {
       const res = await fetch(`${API_URL}/api/festivals/fill-open-form`, {
         method: "POST",
@@ -1516,6 +1578,9 @@ function SelectionPanel({
       setFillingForm(false);
     }
   };
+
+  const handleFillFilmFreeway = () =>
+    analyzeSource === "camoufox" ? handleFillFilmFreewayCamoufox() : handleFillFilmFreewayLegacy();
 
   const handleGenerateAnswers = async () => {
     if (!analyzeBatchId || !selectedProjectId) return;
@@ -1573,7 +1638,79 @@ function SelectionPanel({
       ?.scrollIntoView({ behavior: "smooth", block: "start" });
   };
 
-  const handleAnalyze = async () => {
+  const handleAnalyzeCamoufox = async (festival: ProducerFestival) => {
+    if (!allFilled || analyzing || !token) return;
+    setAnalyzing(true);
+    setAnalyzeError("");
+
+    const cred = creds.get(keyOf(festival.id));
+    const email = cred?.username.trim() ?? "";
+    const password = cred?.password ?? "";
+    const festivalUrl = festival.submission_url || festival.website || "";
+
+    setCreds((prev) => {
+      const next = new Map(prev);
+      const current = next.get(keyOf(festival.id));
+      if (current) next.set(keyOf(festival.id), { ...current, password: "" });
+      return next;
+    });
+
+    try {
+      const raw = await analyzeFilmFreewayCamoufox(
+        { email, password, festival_url: festivalUrl },
+        token
+      );
+      console.log("[Frontend] Analyze (Camoufox) recibido", raw);
+
+      if (!raw.sections?.length || !raw.fields_count) {
+        throw new Error("No se encontraron campos en el formulario de FilmFreeway.");
+      }
+
+      const structuredFormPayload = {
+        sections: raw.sections.map((section) => ({
+          title: section.section,
+          fields: section.fields,
+        })),
+      };
+      const data = buildUnifiedFormData(
+        raw.analyze_batch_id,
+        structuredFormPayload,
+        null,
+        null,
+        [festival]
+      );
+
+      setAnalyzeSource("camoufox");
+      setAnalyzeResult(null);
+      setAnalyzeBatchId(raw.analyze_batch_id);
+      setStructuredForm(structuredFormPayload);
+      setUnifiedForm(null);
+      setFestivalFields(null);
+      setCamoufoxMeta({ finalUrl: raw.final_url, finalTitle: raw.final_title });
+      setFormValues(
+        Object.fromEntries(
+          (data?.fields ?? [])
+            .filter((field) => field.type !== "file" && field.current_value)
+            .map((field) => [
+              field.field_id || field.selector || field.name || field.id || field.label,
+              field.current_value ?? "",
+            ])
+        )
+      );
+      setFileValues({});
+      setApplyStates(new Map());
+      setTechnicalOpen(new Set());
+      setStep("unified-form");
+    } catch (err) {
+      setAnalyzeError(
+        err instanceof Error ? err.message : "Error al analizar el formulario de FilmFreeway."
+      );
+    } finally {
+      setAnalyzing(false);
+    }
+  };
+
+  const handleAnalyzeLegacy = async () => {
     if (!allFilled || analyzing) return;
     setAnalyzing(true);
     setAnalyzeError("");
@@ -1630,6 +1767,8 @@ function SelectionPanel({
       console.log("[Frontend] Campos:", fieldTotal);
       console.log("[Frontend] Analyze Batch:", batchId);
 
+      setAnalyzeSource("legacy");
+      setCamoufoxMeta(null);
       setAnalyzeResult(raw);
       setAnalyzeBatchId(batchId);
       setStructuredForm(raw.structured_form ?? null);
@@ -1673,6 +1812,11 @@ function SelectionPanel({
       setAnalyzing(false);
     }
   };
+
+  const handleAnalyze = () =>
+    singleFilmFreewayFestival
+      ? handleAnalyzeCamoufox(singleFilmFreewayFestival)
+      : handleAnalyzeLegacy();
 
   const tAuto = useFT();
   const isLocked = submitting || allDone;
@@ -1954,7 +2098,9 @@ function SelectionPanel({
                   onClick={() => void handleAnalyze()}
                 >
                   <FiSearch />
-                  {tAuto("Analizar formularios")}
+                  {singleFilmFreewayFestival
+                    ? tAuto("Conectar FilmFreeway")
+                    : tAuto("Analizar formularios")}
                 </button>
               </>
             )
@@ -1987,6 +2133,17 @@ function SelectionPanel({
                       <span className="rounded-full border border-gray-300 bg-gray-100 px-3 py-1 text-xs font-extrabold text-gray-600">
                         Batch: {analyzeBatchId ? `${analyzeBatchId.slice(0, 10)}...` : tAuto("No informado")}
                       </span>
+                      {camoufoxMeta ? (
+                        <a
+                          href={camoufoxMeta.finalUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="rounded-full border border-violet-200 bg-violet-50 px-3 py-1 text-xs font-extrabold text-violet-700 hover:bg-violet-100"
+                          title={camoufoxMeta.finalTitle}
+                        >
+                          {camoufoxMeta.finalTitle || camoufoxMeta.finalUrl}
+                        </a>
+                      ) : null}
                     </div>
                   </div>
                   <div className="mt-3 flex flex-wrap items-end gap-3">
@@ -2458,7 +2615,22 @@ function SelectionPanel({
                         : "border-amber-200 bg-amber-50 text-amber-700"
                     }`}>
                       <FiCheck className="mt-0.5 shrink-0" />
-                      {fillResult.message}
+                      <span>
+                        {fillResult.message}
+                        {fillSavedUrl ? (
+                          <>
+                            {" "}
+                            <a
+                              href={fillSavedUrl}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="underline"
+                            >
+                              {tAuto("Ver en FilmFreeway")}
+                            </a>
+                          </>
+                        ) : null}
+                      </span>
                     </p>
                   ) : null}
                   {fillError ? (
@@ -2466,6 +2638,27 @@ function SelectionPanel({
                       <FiAlertCircle className="mt-0.5 shrink-0" />
                       {fillError}
                     </p>
+                  ) : null}
+                  {fillErrorsDetail.length > 0 ? (
+                    <div className="mb-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800">
+                      <p className="mb-1.5 font-bold">
+                        {fillErrorsDetail.length}{" "}
+                        {fillErrorsDetail.length !== 1
+                          ? tAuto("campos con problemas")
+                          : tAuto("campo con problemas")}
+                        :
+                      </p>
+                      <ul className="space-y-1">
+                        {fillErrorsDetail.map((item, index) => (
+                          <li key={`${item.key}-${index}`} className="flex items-start gap-1.5">
+                            <FiAlertCircle className="mt-0.5 shrink-0" />
+                            <span>
+                              <span className="font-mono font-semibold">{item.key}</span>: {item.reason}
+                            </span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
                   ) : null}
                   <div className="flex flex-col gap-3 pb-4 sm:flex-row sm:justify-end">
                     <button
